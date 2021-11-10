@@ -10,7 +10,12 @@ find_package(FleCSI REQUIRED)
 find_package(FleCSICMake REQUIRED)
 list(APPEND CMAKE_MODULE_PATH ${FleCSICMake_PREFIX})
 
-add_subdirectory(src)
+set(ENABLE_FLOG ${FleCSI_ENABLE_FLOG})
+set(FLECSI_RUNTIME_MODEL ${FleCSI_RUNTIME_MODEL})
+include(flog)
+
+set(FLECSI_UNIT_MAIN ${FleCSICMake_PREFIX}/unit-main.cc)
+include(unit)
 
 add_library(linalg INTERFACE)
 add_library(FleCSI::linalg ALIAS linalg)
@@ -18,8 +23,10 @@ add_library(FleCSI::linalg ALIAS linalg)
 target_link_libraries(linalg INTERFACE FleCSI::FleCSI)
 
 target_include_directories(linalg INTERFACE
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
   $<INSTALL_INTERFACE:include>)
+
+add_subdirectory(flecsi-linalg)
 
 install(TARGETS linalg EXPORT flecsi-linalgTargets
   INCLUDES DESITNATION include)
@@ -33,7 +40,9 @@ export(TARGETS linalg
   NAMESPACE FleCSI::
   FILE flecsi-linalgTargets.cmake)
 
-install(FILES ${linalg_PUBLIC_INCLUDES} DESTINATION include/flecsi-linalg)
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/flecsi-linalg
+  DESTINATION include
+  FILES_MATCHING PATTERN "*.hh")
 
 include(CMakePackageConfigHelpers)
 configure_package_config_file(cmake/flecsi-linalgConfig.cmake.in
