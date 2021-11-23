@@ -36,15 +36,6 @@ void init_fields(mesh::accessor<ro, ro> m,
 	}
 }
 
-void print_field(mesh::accessor<ro, ro> m,
-                 field<double>::accessor<ro, na> xa) {
-	for (auto dof : m.dofs<mesh::cells>()) {
-		if (color() == 2)
-			std::cout << xa[dof] << " vs " <<
-				m.global_id(dof) << std::endl;
-	}
-}
-
 int check_add(mesh::accessor<ro, ro> m,
               field<double>::accessor<ro, na> x) {
 	UNIT () {

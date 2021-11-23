@@ -20,6 +20,9 @@ mesh::cslot coloring;
 constexpr std::size_t nvars = 4;
 using fd_array = std::array<field<double>::definition<mesh, mesh::cells>, nvars>;
 const fd_array xd, yd, zd, tmpd;
+using make_is = std::make_index_sequence<nvars>;
+
+constexpr double ftol = 1e-8;
 
 void init_mesh() {
 	std::vector<std::size_t> extents{32};
@@ -35,7 +38,7 @@ void init_field(mesh::accessor<ro, ro> m,
                 int offset,
                 std::size_t index) {
 	for (auto dof : m.dofs<mesh::cells>()) {
-		xa[dof] = (offset+index)*m.global_id(dof);
+		xa[dof] = (offset+index+1)*m.global_id(dof);
 	}
 }
 
@@ -44,51 +47,52 @@ void init_fields(const fd_array & arr, int offset, std::index_sequence<Index...>
 	(execute<init_field>(msh, arr[Index](msh), offset, Index),...);
 }
 
-void print_field(mesh::accessor<ro, ro> m,
-                 field<double>::accessor<ro, na> xa) {
-	for (auto dof : m.dofs<mesh::cells>()) {
-		if (color() == 2)
-			std::cout << xa[dof] << " vs " <<
-				m.global_id(dof) << std::endl;
-	}
-}
-
 template <std::size_t... Index>
 auto create_multivector(const fd_array & arr, std::index_sequence<Index...>) {
 	using vec = flecsi_vector<mesh, mesh::cells>;
 	return multivector(vec{{arr[Index], msh}}...);
 }
 
+int check_add(mesh::accessor<ro, ro> m,
+              field<double>::accessor<ro, na> x,
+              int index) {
+	UNIT() {
+		for (auto dof : m.dofs<mesh::cells>()) {
+			auto gid = m.global_id(dof);
+			EXPECT_LT(std::abs(((index+1)*gid + (index + 2 + 1)*gid) - x[dof]), ftol);
+		}
+	};
+}
+
 int vectest() {
 	init_mesh();
-	init_fields(xd, 0, std::make_index_sequence<nvars>());
-	init_fields(yd, 1, std::make_index_sequence<nvars>());
-	init_fields(zd, 2, std::make_index_sequence<nvars>());
+	init_fields(xd, 0, make_is());
+	init_fields(yd, 1, make_is());
+	init_fields(zd, 2, make_is());
 	UNIT() {
-		auto xv = create_multivector(xd, std::make_index_sequence<nvars>());
-		auto yv = create_multivector(yd, std::make_index_sequence<nvars>());
-		auto zv = create_multivector(zd, std::make_index_sequence<nvars>());
-		auto tmpv = create_multivector(tmpd, std::make_index_sequence<nvars>());
+		auto x = create_multivector(xd, make_is());
+		auto y = create_multivector(yd, make_is());
+		auto z = create_multivector(zd, make_is());
+		auto tmp = create_multivector(tmpd, make_is());
 
-		// auto & [a, b, c, d] = xv;
-		// a.copy(b);
-		// a.add(b, c);
+		tmp.add(x, z);
+		{
+			int ind = 0;
+			EXPECT_TRUE(std::apply([&ind](auto & ... v) {
+				return ((test<check_add>(msh, v.data.ref(),
+				                         ind++) == 0) and ...);
+			}, tmp.vecs));
+		}
 
-		// tmpv.scale(3.5);
-		// tmpv.zero();
-		// tmpv.copy(xv);
-		// tmpv.add(xv, zv);
-		// tmpv.linear_sum(static_cast<double>(2.1), xv, static_cast<double>(3.5), zv);
-		//tmpv.axpy(2.1, xv, zv);
-		tmpv.zero();
-		tmpv.add_scalar(tmpv, 2.0);
-		auto ft = tmpv.inner_prod(xv);
-		// auto ft = tmpv.max();
-		// tmpv.min();
-		auto ftval = ft.get();
-		std::cout << ftval << std::endl;
-		// std::cout << tmpv.min().get() << std::endl;;
-		// execute<print_field>(msh, tmpd[1](msh));
+		{ // inner product
+			auto & [x0, x1, x2, x3] = x;
+			auto & [y0, y1, y2, y3] = y;
+			EXPECT_EQ(x.inner_prod(y).get(),
+			          (x0.inner_prod(y0).get() +
+			           x1.inner_prod(y1).get() +
+			           x2.inner_prod(y2).get() +
+			           x3.inner_prod(y3).get()));
+		}
 	};
 }
 

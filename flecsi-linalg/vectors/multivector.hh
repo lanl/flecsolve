@@ -9,9 +9,8 @@
 namespace flecsi::linalg {
 
 template <class... Vecs>
-class multivector
+struct multivector
 {
-public:
 	using vec = multivector<Vecs...>;
 	using real_t = typename std::tuple_element<0, std::tuple<Vecs...>>::type::real_t;
 	multivector(Vecs... vs) :
@@ -20,12 +19,12 @@ public:
 	}
 
 	template<std::size_t I>
-	auto & get() {
+	constexpr auto & get() & {
 		return std::get<I>(vecs);
 	}
 
 	template<std::size_t I>
-	const auto & get() const {
+	constexpr const auto & get() const & {
 		return std::get<I>(vecs);
 	}
 
@@ -155,8 +154,8 @@ public:
 	template<unsigned short p>
 	auto lp_norm() const {
 		auto futs = apply_ret([](const auto & x) {
-			return x.vector_ops().template
-				lp_norm_local<p>(x.vector_data());
+			return x.ops.template
+				lp_norm_local<p>(x.data);
 		}, make_is(), *this);
 
 		return future_transform{
@@ -213,6 +212,7 @@ public:
 			}};
 	}
 
+	std::tuple<Vecs...> vecs;
 
 protected:
 	template<std::size_t I, class F, class ... Multis>
@@ -222,7 +222,7 @@ protected:
 	}
 
 	template<class F, std::size_t ... Index, class ... Multis>
-	constexpr decltype(auto) apply(F && f, std::index_sequence<Index...>,
+	constexpr void apply(F && f, std::index_sequence<Index...>,
 	                     Multis&& ... ms) const {
 		(apply_aux<Index>(std::forward<F>(f), std::forward<Multis>(ms)...), ...);
 	}
@@ -233,11 +233,7 @@ protected:
 		return std::make_tuple(apply_aux<Index>(std::forward<F>(f), std::forward<Multis>(ms)...)...);
 	}
 
-	constexpr decltype(auto) make_is() const {
-		return std::make_index_sequence<sizeof...(Vecs)>();
-	}
-
-	std::tuple<Vecs...> vecs;
+	using make_is = std::make_index_sequence<sizeof...(Vecs)>;
 };
 
 }
