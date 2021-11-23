@@ -4,3 +4,10 @@ add_unit(flecsi_vector
   LIBRARIES
   FleCSI::linalg
   THREADS 4)
+
+add_unit(flecsi_multivector
+  SOURCES
+  test/flecsi_multivector.cc
+  LIBRARIES
+  FleCSI::linalg
+  THREADS 4)

@@ -14,7 +14,7 @@ public:
 	vector(Data && d) : data(std::forward<Data>(d)) {}
 
 	void copy(const vec & other) {
-		ops.copy(vector_data(), other.vector_data());
+		ops.copy(other.vector_data(), vector_data());
 	}
 
 	void zero() {
@@ -105,13 +105,16 @@ public:
 		return ops.inf_norm(vector_data());
 	}
 
-	auto inner_prod( const vec & x) const {
+	auto inner_prod(const vec & x) const {
 		return ops.inner_prod(vector_data(), x.vector_data());
 	}
 
 
 	const Data & vector_data() const { return data; }
 	Data & vector_data() { return data; }
+
+	const Ops & vector_ops() const { return ops; }
+	Ops & vector_ops() { return ops; }
 
 protected:
 	Data data;

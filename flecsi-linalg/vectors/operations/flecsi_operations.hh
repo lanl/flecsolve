@@ -1,30 +1,9 @@
 #pragma once
 
+#include "flecsi-linalg/util/future.hh"
 #include "flecsi_tasks.hh"
 
 namespace flecsi::linalg {
-
-template <class Future, class F>
-struct future_transform
-{
-	auto get() {
-		return f(fut.get());
-	}
-
-	void wait() {
-		fut.wait();
-	}
-
-	~future_transform() {
-		fut.wait();
-	}
-
-	Future fut;
-	F f;
-};
-template <class Future, class F>
-future_transform(Future,F)->future_transform<Future,F>; // automatic in C++20
-
 
 template<class Topo, typename Topo::index_space Space, class Real>
 struct flecsi_operations {
@@ -46,7 +25,7 @@ struct flecsi_operations {
 	}
 
 	void scale(Real alpha, vec_data & x) {
-		execute<tasks::scale>(x.topo, x.ref(), alpha);
+		execute<tasks::scale_self>(x.topo, x.ref(), alpha);
 	}
 
 	void scale(Real alpha,
@@ -167,18 +146,28 @@ struct flecsi_operations {
 	}
 
 	template<unsigned short p>
-	auto lp_norm(const vec_data & x) const {
+	auto lp_norm_local(const vec_data & x) const {
 		if constexpr (p == 1) {
 			return reduce<tasks::l1_norm_local,
 			              exec::fold::sum>(x.topo, x.ref());
 		} else if constexpr (p == 2) {
-			auto fut = reduce<tasks::l2_norm_local,
-			                  exec::fold::sum>(x.topo, x.ref());
+			return reduce<tasks::l2_norm_local,
+			              exec::fold::sum>(x.topo, x.ref());
+		} else {
+			return reduce<tasks::lp_norm_local,
+			              exec::fold::sum>(x.topo, x.ref(), p).get();
+		}
+	}
+
+	template<unsigned short p>
+	auto lp_norm(const vec_data & x) const {
+		auto fut = lp_norm_local<p>(x);
+		if constexpr (p == 1) {
+			return fut;
+		} else if constexpr (p == 2) {
 			return future_transform{std::move(fut), [](auto v) {
 				return std::sqrt(v);}};
 		} else {
-			auto fut = reduce<tasks::lp_norm_local,
-			                  exec::fold::sum>(x.topo, x.ref(), p).get();
 			return future_transform{std::move(fut), [](auto v) {
 				return std::pow(v, 1./p);
 			}};

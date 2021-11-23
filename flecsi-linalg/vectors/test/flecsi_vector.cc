@@ -10,10 +10,10 @@ using namespace flecsi;
 
 namespace flecsi::linalg {
 
-inline mesh::slot msh;
-inline mesh::cslot coloring;
+mesh::slot msh;
+mesh::cslot coloring;
 
-inline const field<double>::definition<mesh, mesh::cells> xd, yd, zd, tmpd;
+const field<double>::definition<mesh, mesh::cells> xd, yd, zd, tmpd;
 
 constexpr double ftol = 1e-8;
 
@@ -29,7 +29,7 @@ void init_fields(mesh::accessor<ro, ro> m,
                  field<double>::accessor<wo, na> xa,
                  field<double>::accessor<wo, na> ya,
                  field<double>::accessor<wo, na> za) {
-	for (auto dof : m.template dofs<mesh::cells>()) {
+	for (auto dof : m.dofs<mesh::cells>()) {
 		xa[dof] = m.global_id(dof);
 		ya[dof] = m.global_id(dof) * 2;
 		za[dof] = m.global_id(dof) * 3;
@@ -38,7 +38,7 @@ void init_fields(mesh::accessor<ro, ro> m,
 
 void print_field(mesh::accessor<ro, ro> m,
                  field<double>::accessor<ro, na> xa) {
-	for (auto dof : m.template dofs<mesh::cells>()) {
+	for (auto dof : m.dofs<mesh::cells>()) {
 		if (color() == 2)
 			std::cout << xa[dof] << " vs " <<
 				m.global_id(dof) << std::endl;
@@ -48,7 +48,7 @@ void print_field(mesh::accessor<ro, ro> m,
 int check_add(mesh::accessor<ro, ro> m,
               field<double>::accessor<ro, na> x) {
 	UNIT () {
-		for (auto dof : m.template dofs<mesh::cells>()) {
+		for (auto dof : m.dofs<mesh::cells>()) {
 			auto gid = m.global_id(dof);
 			EXPECT_LT(std::abs((gid + 3*gid) - x[dof]), ftol);
 		}

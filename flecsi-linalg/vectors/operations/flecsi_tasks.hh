@@ -67,9 +67,9 @@ struct flecsi_tasks {
 	}
 
 
-	static void scale(topo_acc m,
-	                  rw_acc x,
-	                  real val) {
+	static void scale_self(topo_acc m,
+	                       rw_acc x,
+	                       real val) {
 		for (auto dof : m.template dofs<space>()) {
 			x[dof] *= val;
 		}
