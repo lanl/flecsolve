@@ -81,7 +81,7 @@ int vectest() {
 			EXPECT_TRUE(std::apply([&ind](auto & ... v) {
 				return ((test<check_add>(msh, v.data.ref(),
 				                         ind++) == 0) and ...);
-			}, tmp.vecs));
+			}, tmp.data));
 		}
 
 		{ // inner product
