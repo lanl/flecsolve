@@ -13,7 +13,7 @@ struct flecsi_operations {
 	using tasks = flecsi_tasks<Topo, Space, Real>;
 
 	void copy(const vec_data & x, vec_data & z) {
-		execute<tasks::copy>(x.topo, x.ref(), z.ref());
+		execute<tasks::copy>(x.topo, z.ref(), x.ref());
 	}
 
 	void zero(vec_data & x) {
@@ -104,7 +104,7 @@ struct flecsi_operations {
 		if (z.fid() == x.fid()) {
 			execute<tasks::template axpy_self<true>>(z.topo, z.ref(), y.ref(), alpha);
 		} else if (z.fid() == y.fid()) {
-			execute<tasks::template axpy_self<false>>(z.topo, z.ref(), y.ref(), alpha);
+			execute<tasks::template axpy_self<false>>(z.topo, z.ref(), x.ref(), alpha);
 		} else {
 			execute<tasks::axpy>(z.topo, z.ref(), alpha, x.ref(), y.ref());
 		}

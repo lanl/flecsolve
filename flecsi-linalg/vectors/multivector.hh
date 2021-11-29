@@ -14,7 +14,7 @@ struct multivector
 	using vec = multivector<Vecs...>;
 	using real_t = typename std::tuple_element<0, std::tuple<Vecs...>>::type::real_t;
 	multivector(Vecs... vs) :
-		vecs{std::forward<Vecs>(vs)...}
+		vecs{std::move(vs)...}
 	{
 	}
 

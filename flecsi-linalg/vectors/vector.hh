@@ -10,8 +10,10 @@ class vector
 public:
 	using vec = vector<Data, Ops, Real>;
 	using real_t = Real;
+	using data_t = Data;
+	using ops_t = Ops;
 
-	vector(Data && d) : data(std::forward<Data>(d)) {}
+	vector(Data d) : data(std::move(d)) {}
 
 	void copy(const vec & other) {
 		ops.copy(other.data, data);
