@@ -2,7 +2,6 @@
 
 #include <cmath>
 
-#include <flecsi/data.hh>
 #include <flecsi/execution.hh>
 
 #include "flecsi-linalg/vectors/data/flecsi_data.hh"
@@ -10,40 +9,18 @@
 
 namespace flecsi::linalg {
 
-static constexpr flecsi::partition_privilege_t na = flecsi::na;
-static constexpr flecsi::partition_privilege_t ro = flecsi::ro;
-static constexpr flecsi::partition_privilege_t wo = flecsi::wo;
-static constexpr flecsi::partition_privilege_t rw = flecsi::rw;
-
-template<typename T, flecsi::data::layout L = flecsi::data::layout::dense>
-using field = flecsi::field<T, L>;
-
-template<class topo, typename topo::index_space space, class real = double>
+template<class VecData>
 struct flecsi_tasks {
-	static inline constexpr flecsi::PrivilegeCount num_priv =
-		topo::template privilege_count<space>;
-	static inline constexpr flecsi::Privileges read_only_dofs =
-		flecsi::privilege_cat<flecsi::privilege_repeat<ro, num_priv - (num_priv > 1)>,
-		                      flecsi::privilege_repeat<na, (num_priv > 1)>>;
-	static inline constexpr flecsi::Privileges write_only_dofs =
-		flecsi::privilege_cat<flecsi::privilege_repeat<wo, num_priv - (num_priv > 1)>,
-		                      flecsi::privilege_repeat<na, (num_priv > 1)>>;
-	static inline constexpr flecsi::Privileges read_write_dofs =
-		flecsi::privilege_cat<flecsi::privilege_repeat<rw, num_priv - (num_priv > 1)>,
-		                      flecsi::privilege_repeat<na, (num_priv > 1)>>;
-	static inline constexpr flecsi::Privileges read_only_all =
-		flecsi::privilege_repeat<ro, num_priv>;
-	static inline constexpr flecsi::Privileges write_only_all =
-		flecsi::privilege_repeat<wo, num_priv>;
 
-	using topo_acc = typename topo::template accessor<ro>;
-	using ro_acc = typename field<real>::template accessor1<read_only_dofs>;
-	using wo_acc = typename field<real>::template accessor1<write_only_dofs>;
-	using rw_acc = typename field<real>::template accessor1<read_write_dofs>;
+	using real = typename VecData::real_t;
+	using topo_acc = typename VecData::topo_acc;
+	using ro_acc = typename VecData::ro_acc;
+	using wo_acc = typename VecData::wo_acc;
+	using rw_acc = typename VecData::rw_acc;
 
-	using ro_acc_all = typename field<real>::template accessor1<read_only_all>;
-	using wo_acc_all = typename field<real>::template accessor1<write_only_all>;
-
+	using ro_acc_all = typename VecData::ro_acc_all;
+	using wo_acc_all = typename VecData::wo_acc_all;
+	static constexpr typename VecData::topo_t::index_space space = VecData::space;
 
 	static real prod(topo_acc m,
 	                 ro_acc x,

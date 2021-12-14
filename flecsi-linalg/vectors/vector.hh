@@ -4,14 +4,15 @@
 
 namespace flecsi::linalg {
 
-template <class Data, class Ops, class Real = double>
+template <class Data, class Ops>
 class vector
 {
 public:
-	using vec = vector<Data, Ops, Real>;
-	using real_t = Real;
+	using vec = vector<Data, Ops>;
+	using real_t = typename Ops::real_t;
 	using data_t = Data;
 	using ops_t = Ops;
+	using len_t = std::size_t;
 
 	vector(Data d) : data(std::move(d)) {}
 
@@ -110,7 +111,6 @@ public:
 	auto inner_prod(const vec & x) const {
 		return ops.inner_prod(data, x.data);
 	}
-
 
 	Data data;
 	Ops ops;

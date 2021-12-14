@@ -18,8 +18,7 @@ using multivector_ops =
 template <class... Vecs>
 using multivector_base =
 	vector<multivector_data<Vecs...>,
-	       multivector_ops<Vecs...>,
-	       multivector_real<Vecs...>>;
+	       multivector_ops<Vecs...>>;
 
 template <class... Vecs>
 struct multivector : public multivector_base<Vecs...>

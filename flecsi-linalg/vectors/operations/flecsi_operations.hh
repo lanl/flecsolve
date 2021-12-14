@@ -7,10 +7,11 @@ namespace flecsi::linalg {
 
 template<class Topo, typename Topo::index_space Space, class Real>
 struct flecsi_operations {
+	using real_t = Real;
 
 	using vec_data = flecsi_data<Topo, Space, Real>;
 
-	using tasks = flecsi_tasks<Topo, Space, Real>;
+	using tasks = flecsi_tasks<vec_data>;
 
 	void copy(const vec_data & x, vec_data & z) {
 		execute<tasks::copy>(x.topo, z.ref(), x.ref());
