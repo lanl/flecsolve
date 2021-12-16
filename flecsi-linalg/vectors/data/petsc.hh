@@ -4,12 +4,12 @@
 
 #include <flecsi/data.hh>
 
-namespace flecsi::linalg {
+namespace flecsi::linalg::vec::data {
 
 
-struct petsc_data
+struct petsc
 {
-	using field_t = field<Vec, data::single>;
+	using field_t = field<Vec, flecsi::data::single>;
 	using field_definition = field_t::definition<topo::index>;
 	using len_t = std::size_t;
 	using real_t = PetscScalar;
@@ -18,7 +18,7 @@ struct petsc_data
 	using acc = field_t::accessor<priv>;
 
 	template<class OtherVec>
-	petsc_data(const field_definition & def, MPI_Comm comm, const OtherVec & v) : def(def) {
+	petsc(const field_definition & def, MPI_Comm comm, const OtherVec & v) : def(def) {
 		using vec_data_t = typename OtherVec::data_t;
 		using data_util = typename vec_data_t::util;
 		using topo_acc = typename vec_data_t::topo_acc;

@@ -5,10 +5,10 @@
 
 #include "flecsi-linalg/util/future.hh"
 
-namespace flecsi::linalg {
+namespace flecsi::linalg::vec::ops {
 
 template <class Real, class... Vecs>
-struct multivector_operations {
+struct multi {
 	using real_t = Real;
 	using vec_data = std::tuple<Vecs...>;
 

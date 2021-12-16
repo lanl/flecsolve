@@ -3,17 +3,17 @@
 #include <tuple>
 
 #include "vector.hh"
-#include "operations/multivector_operations.hh"
+#include "operations/multi.hh"
 
 
-namespace flecsi::linalg {
+namespace flecsi::linalg::vec {
 
 template <class... Vecs> using multivector_real =
 	typename std::tuple_element<0, std::tuple<Vecs...>>::type::real_t;
 template <class... Vecs> using multivector_data = std::tuple<Vecs...>;
 template <class... Vecs>
 using multivector_ops =
-	multivector_operations<multivector_real<Vecs...>, Vecs...>;
+	ops::multi<multivector_real<Vecs...>, Vecs...>;
 
 template <class... Vecs>
 using multivector_base =
@@ -21,12 +21,12 @@ using multivector_base =
 	       multivector_ops<Vecs...>>;
 
 template <class... Vecs>
-struct multivector : public multivector_base<Vecs...>
+struct multi : public multivector_base<Vecs...>
 {
 	using base = multivector_base<Vecs...>;
 	using base::data;
 
-	multivector(Vecs... vs) :
+	multi(Vecs... vs) :
 		base{{std::move(vs)...}} {}
 
 	template<std::size_t I>
@@ -46,12 +46,12 @@ struct multivector : public multivector_base<Vecs...>
 namespace std {
 
 template <class... Vecs>
-struct tuple_size<flecsi::linalg::multivector<Vecs...>> {
+struct tuple_size<flecsi::linalg::vec::multi<Vecs...>> {
 	static constexpr size_t value = sizeof...(Vecs);
 };
 
 template <std::size_t I, class... Vecs>
-struct tuple_element<I, flecsi::linalg::multivector<Vecs...>> {
+struct tuple_element<I, flecsi::linalg::vec::multi<Vecs...>> {
 	using type = typename tuple_element<I, tuple<Vecs...>>::type;
 };
 

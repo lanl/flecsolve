@@ -4,13 +4,13 @@
 
 #include <flecsi/execution.hh>
 
-#include "flecsi-linalg/vectors/data/flecsi_data.hh"
+#include "flecsi-linalg/vectors/data/mesh.hh"
 
 
-namespace flecsi::linalg {
+namespace flecsi::linalg::vec::ops {
 
 template<class VecData>
-struct flecsi_tasks {
+struct mesh_tasks {
 
 	using real = typename VecData::real_t;
 	using len = typename VecData::len_t;

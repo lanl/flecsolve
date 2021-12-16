@@ -1,17 +1,17 @@
 #pragma once
 
 #include "flecsi-linalg/util/future.hh"
-#include "flecsi_tasks.hh"
+#include "mesh_tasks.hh"
 
-namespace flecsi::linalg {
+namespace flecsi::linalg::vec::ops {
 
 template<class Topo, typename Topo::index_space Space, class Real>
-struct flecsi_operations {
+struct mesh {
 	using real_t = Real;
 
-	using vec_data = flecsi_data<Topo, Space, Real>;
+	using vec_data = data::mesh<Topo, Space, Real>;
 
-	using tasks = flecsi_tasks<vec_data>;
+	using tasks = mesh_tasks<vec_data>;
 
 	void copy(const vec_data & x, vec_data & z) {
 		execute<tasks::copy>(x.topo, z.ref(), x.ref());

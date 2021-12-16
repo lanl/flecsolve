@@ -4,8 +4,8 @@
 #include <flecsi/util/unit.hh>
 #include <flecsi/util/unit/types.hh>
 
-#include "flecsi-linalg/vectors/flecsi_vector.hh"
-#include "flecsi-linalg/vectors/multivector.hh"
+#include "flecsi-linalg/vectors/mesh.hh"
+#include "flecsi-linalg/vectors/multi.hh"
 
 
 #include "test_mesh.hh"
@@ -14,11 +14,11 @@ using namespace flecsi;
 
 namespace flecsi::linalg {
 
-mesh::slot msh;
-mesh::cslot coloring;
+testmesh::slot msh;
+testmesh::cslot coloring;
 
 constexpr std::size_t nvars = 4;
-using fd_array = std::array<field<double>::definition<mesh, mesh::cells>, nvars>;
+using fd_array = std::array<field<double>::definition<testmesh, testmesh::cells>, nvars>;
 const fd_array xd, yd, zd, tmpd;
 using make_is = std::make_index_sequence<nvars>;
 
@@ -26,18 +26,18 @@ constexpr double ftol = 1e-8;
 
 void init_mesh() {
 	std::vector<std::size_t> extents{32};
-	auto colors = mesh::distribute(flecsi::processes(), extents);
+	auto colors = testmesh::distribute(flecsi::processes(), extents);
 	coloring.allocate(colors, extents);
 
 	msh.allocate(coloring.get());
 }
 
 
-void init_field(mesh::accessor<ro, ro> m,
+void init_field(testmesh::accessor<ro, ro> m,
                 field<double>::accessor<wo, na> xa,
                 int offset,
                 std::size_t index) {
-	for (auto dof : m.dofs<mesh::cells>()) {
+	for (auto dof : m.dofs<testmesh::cells>()) {
 		xa[dof] = (offset+index+1)*m.global_id(dof);
 	}
 }
@@ -49,15 +49,15 @@ void init_fields(const fd_array & arr, int offset, std::index_sequence<Index...>
 
 template <std::size_t... Index>
 auto create_multivector(const fd_array & arr, std::index_sequence<Index...>) {
-	using vec = flecsi_vector<mesh, mesh::cells>;
-	return multivector(vec{{arr[Index], msh}}...);
+	using vec_t = vec::mesh<testmesh, testmesh::cells>;
+	return vec::multi(vec_t{{arr[Index], msh}}...);
 }
 
-int check_add(mesh::accessor<ro, ro> m,
+int check_add(testmesh::accessor<ro, ro> m,
               field<double>::accessor<ro, na> x,
               int index) {
 	UNIT() {
-		for (auto dof : m.dofs<mesh::cells>()) {
+		for (auto dof : m.dofs<testmesh::cells>()) {
 			auto gid = m.global_id(dof);
 			EXPECT_LT(std::abs(((index+1)*gid + (index + 2 + 1)*gid) - x[dof]), ftol);
 		}

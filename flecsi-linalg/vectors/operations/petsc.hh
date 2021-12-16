@@ -2,15 +2,15 @@
 
 #include "flecsi/execution.hh"
 
-#include "flecsi-linalg/vectors/data/petsc_data.hh"
+#include "flecsi-linalg/vectors/data/petsc.hh"
 #include "petsc_tasks.hh"
 
-namespace flecsi::linalg
+namespace flecsi::linalg::vec::ops
 {
 
-struct petsc_operations
+struct petsc
 {
-	using vec_data = petsc_data;
+	using vec_data = data::petsc;
 	using real_t = PetscScalar;
 	using tasks = petsc_tasks;
 

@@ -2,7 +2,7 @@
 
 #include <flecsi/data.hh>
 
-namespace flecsi::linalg {
+namespace flecsi::linalg::vec::data {
 
 static constexpr flecsi::partition_privilege_t na = flecsi::na;
 static constexpr flecsi::partition_privilege_t ro = flecsi::ro;
@@ -13,7 +13,7 @@ template<typename T, flecsi::data::layout L = flecsi::data::layout::dense>
 using field = flecsi::field<T, L>;
 
 template<class Topo, typename Topo::index_space Space, class Real=double>
-struct flecsi_data {
+struct mesh {
 	using real_t = Real;
 	using len_t = std::size_t;
 	using topo_t = Topo;

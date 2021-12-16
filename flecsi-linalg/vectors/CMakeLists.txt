@@ -11,3 +11,10 @@ add_unit(flecsi_multivector
   LIBRARIES
   FleCSI::linalg
   THREADS 4)
+
+add_unit(petsc_interop
+  SOURCES
+  test/petsc.cc
+  LIBRARIES
+  FleCSI::linalg
+  THREADS 4)

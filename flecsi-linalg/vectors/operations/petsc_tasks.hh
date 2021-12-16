@@ -1,15 +1,15 @@
 #pragma once
 
-#include "flecsi-linalg/vectors/data/petsc_data.hh"
+#include "flecsi-linalg/vectors/data/petsc.hh"
 
-namespace flecsi::linalg {
+namespace flecsi::linalg::vec::ops {
 
 struct petsc_tasks
 {
-	using real = petsc_data::real_t;
-	using len = petsc_data::len_t;
+	using real = data::petsc::real_t;
+	using len = data::petsc::len_t;
 	template<flecsi::partition_privilege_t priv>
-	using acc = petsc_data::acc<priv>;
+	using acc = data::petsc::acc<priv>;
 
 	template<class Util, class Topo, class OtherAcc>
 	static PetscErrorCode copy(Topo m,

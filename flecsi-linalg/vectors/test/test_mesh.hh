@@ -2,7 +2,7 @@
 
 namespace flecsi::linalg {
 
-struct mesh : topo::specialization<topo::narray, mesh>
+struct testmesh : topo::specialization<topo::narray, testmesh>
 {
 	enum index_space { cells };
 	using index_spaces = has<cells>;
@@ -38,7 +38,7 @@ struct mesh : topo::specialization<topo::narray, mesh>
 		}
 
 		std::size_t global_id(std::size_t i) const {
-			return B::template global_id<index_space::cells, mesh::x_axis>(i);
+			return B::template global_id<index_space::cells, testmesh::x_axis>(i);
 		}
 
 		template<index_space Space>
@@ -76,7 +76,7 @@ struct mesh : topo::specialization<topo::narray, mesh>
 		return c;
 	}
 
-	static void initialize(flecsi::data::topology_slot<mesh> &,
+	static void initialize(flecsi::data::topology_slot<testmesh> &,
 	                       coloring const &) {}
 };
 
