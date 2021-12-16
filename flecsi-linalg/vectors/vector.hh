@@ -16,7 +16,8 @@ public:
 
 	vector(Data d) : data(std::move(d)) {}
 
-	void copy(const vec & other) {
+	template<class Other>
+	void copy(const Other & other) {
 		ops.copy(other.data, data);
 	}
 
@@ -110,6 +111,10 @@ public:
 
 	auto inner_prod(const vec & x) const {
 		return ops.inner_prod(data, x.data);
+	}
+
+	auto global_size() const {
+		return ops.global_size(data);
 	}
 
 	Data data;

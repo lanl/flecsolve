@@ -13,6 +13,7 @@ template<class VecData>
 struct flecsi_tasks {
 
 	using real = typename VecData::real_t;
+	using len = typename VecData::len_t;
 	using topo_acc = typename VecData::topo_acc;
 	using ro_acc = typename VecData::ro_acc;
 	using wo_acc = typename VecData::wo_acc;
@@ -20,14 +21,15 @@ struct flecsi_tasks {
 
 	using ro_acc_all = typename VecData::ro_acc_all;
 	using wo_acc_all = typename VecData::wo_acc_all;
-	static constexpr typename VecData::topo_t::index_space space = VecData::space;
+
+	using util = typename VecData::util;
 
 	static real prod(topo_acc m,
 	                 ro_acc x,
 	                 ro_acc y) {
 		real res = 0.0;
 
-		for (auto dof : m.template dofs<space>()) {
+		for (auto dof : util::dofs(m)) {
 			res += x[dof] * y[dof];
 		}
 
@@ -38,7 +40,7 @@ struct flecsi_tasks {
 	static void set_to_scalar(topo_acc m,
 	                          wo_acc x,
 	                          real val) {
-		for (auto dof : m.template dofs<space>()) {
+		for (auto dof : util::dofs(m)) {
 			x[dof] = val;
 		}
 	}
@@ -47,7 +49,7 @@ struct flecsi_tasks {
 	static void scale_self(topo_acc m,
 	                       rw_acc x,
 	                       real val) {
-		for (auto dof : m.template dofs<space>()) {
+		for (auto dof : util::dofs(m)) {
 			x[dof] *= val;
 		}
 	}
@@ -56,7 +58,7 @@ struct flecsi_tasks {
 	                  ro_acc x,
 	                  wo_acc y,
 	                  real val) {
-		for (auto dof : m.template dofs<space>()) {
+		for (auto dof : util::dofs(m)) {
 			y[dof] = x[dof] * val;
 		}
 	}
@@ -73,7 +75,7 @@ struct flecsi_tasks {
 	static void add_self(topo_acc m,
 	                     wo_acc z,
 	                     ro_acc x) {
-		for (auto dof : m.template dofs<space>()) {
+		for (auto dof : util::dofs(m)) {
 			z[dof] = z[dof] + x[dof];
 		}
 	}
@@ -82,7 +84,7 @@ struct flecsi_tasks {
 	                wo_acc z,
 	                ro_acc x,
 	                ro_acc y) {
-		for (auto dof : m.template dofs<space>()) {
+		for (auto dof : util::dofs(m)) {
 			z[dof] = x[dof] + y[dof];
 		}
 	}
@@ -92,7 +94,7 @@ struct flecsi_tasks {
 	                     ro_acc a,
 	                     ro_acc b)
 	{
-		for (auto dof : m.template dofs<space>()) {
+		for (auto dof : util::dofs(m)) {
 			x[dof] = a[dof] - b[dof];
 		}
 	}
@@ -102,7 +104,7 @@ struct flecsi_tasks {
 	                          wo_acc x,
 	                          ro_acc b)
 	{
-		for (auto dof : m.template dofs<space>()) {
+		for (auto dof : util::dofs(m)) {
 			if constexpr (inv) {
 				x[dof] = x[dof] - b[dof];
 			} else {
@@ -115,7 +117,7 @@ struct flecsi_tasks {
 	                     wo_acc z,
 	                     ro_acc x,
 	                     ro_acc y) {
-		for (auto dof : m.template dofs<space>()) {
+		for (auto dof : util::dofs(m)) {
 			z[dof] = x[dof] * y[dof];
 		}
 	}
@@ -124,7 +126,7 @@ struct flecsi_tasks {
 	static void multiply_self(topo_acc m,
 	                          rw_acc x,
 	                          ro_acc y) {
-		for (auto dof : m.template dofs<space>()) {
+		for (auto dof : util::dofs(m)) {
 			x[dof] = x[dof] * y[dof];
 		}
 	}
@@ -133,7 +135,7 @@ struct flecsi_tasks {
 	static void divide_self(topo_acc m,
 	                        rw_acc z,
 	                        ro_acc x) {
-		for (auto dof : m.template dofs<space>()) {
+		for (auto dof : util::dofs(m)) {
 			if constexpr (inv) {
 				z[dof] = z[dof] / x[dof];
 			} else {
@@ -146,14 +148,14 @@ struct flecsi_tasks {
 	                   wo_acc z,
 	                   ro_acc x,
 	                   ro_acc y) {
-		for (auto dof : m.template dofs<space>()) {
+		for (auto dof : util::dofs(m)) {
 			z[dof] = x[dof] / y[dof];
 		}
 	}
 
 	static void reciprocal_self(topo_acc m,
 	                            rw_acc x) {
-		for (auto dof : m.template dofs<space>()) {
+		for (auto dof : util::dofs(m)) {
 			x[dof] = 1.0 / x[dof];
 		}
 	}
@@ -161,7 +163,7 @@ struct flecsi_tasks {
 	static void reciprocal(topo_acc m,
 	                       wo_acc x,
 	                       ro_acc y) {
-		for (auto dof : m.template dofs<space>()) {
+		for (auto dof : util::dofs(m)) {
 			x[dof] = 1.0 / y[dof];
 		}
 	}
@@ -174,7 +176,7 @@ struct flecsi_tasks {
 	                       ro_acc y)
 	{
 
-		for (auto dof : m.template dofs<space>()) {
+		for (auto dof : util::dofs(m)) {
 			z[dof] = alpha * x[dof] + beta * y[dof];
 		}
 	}
@@ -184,7 +186,7 @@ struct flecsi_tasks {
 	                            rw_acc z,
 	                            ro_acc x, real alpha, real beta)
 	{
-		for (auto dof : m.template dofs<space>()) {
+		for (auto dof : util::dofs(m)) {
 			if constexpr (inv) {
 				z[dof] = alpha * z[dof] + beta * x[dof];
 			} else {
@@ -198,7 +200,7 @@ struct flecsi_tasks {
 	                 real alpha,
 	                 ro_acc x,
 	                 ro_acc y) {
-		for (auto dof : m.template dofs<space>()) {
+		for (auto dof : util::dofs(m)) {
 			z[dof] = alpha * x[dof] + y[dof];
 		}
 	}
@@ -208,7 +210,7 @@ struct flecsi_tasks {
 	                      rw_acc z,
 	                      ro_acc x,
 	                      real alpha) {
-		for (auto dof : m.template dofs<space>()) {
+		for (auto dof : util::dofs(m)) {
 			if constexpr (inv) {
 				z[dof] = alpha * z[dof] + x[dof];
 			} else {
@@ -222,14 +224,14 @@ struct flecsi_tasks {
 	                  ro_acc x,
 	                  real alpha,
 	                  real beta) {
-		for (auto dof : m.template dofs<space>()) {
+		for (auto dof : util::dofs(m)) {
 			y[dof] = alpha * x[dof] + beta * y[dof];
 		}
 	}
 
 	static void abs_self(topo_acc m,
 	                     rw_acc x) {
-		for (auto dof : m.template dofs<space>()) {
+		for (auto dof : util::dofs(m)) {
 			x[dof] = std::abs(x[dof]);
 		}
 	}
@@ -237,7 +239,7 @@ struct flecsi_tasks {
 	static void abs(topo_acc m,
 	                wo_acc y,
 	                ro_acc x) {
-		for (auto dof : m.template dofs<space>()) {
+		for (auto dof : util::dofs(m)) {
 			y[dof] = std::abs(x[dof]);
 		}
 	}
@@ -245,7 +247,7 @@ struct flecsi_tasks {
 	static void add_scalar_self(topo_acc m,
 	                            rw_acc x,
 	                            real alpha) {
-		for (auto dof : m.template dofs<space>()) {
+		for (auto dof : util::dofs(m)) {
 			x[dof] += alpha;
 		}
 	}
@@ -254,7 +256,7 @@ struct flecsi_tasks {
 	                       wo_acc y,
 	                       ro_acc x,
 	                       real alpha) {
-		for (auto dof : m.template dofs<space>()) {
+		for (auto dof : util::dofs(m)) {
 			y[dof] = x[dof] + alpha;
 		}
 	}
@@ -263,7 +265,7 @@ struct flecsi_tasks {
 	                          ro_acc u,
 	                          int p) {
 		real ret = 0;
-		for (auto dof : m.template dofs<space>()) {
+		for (auto dof : util::dofs(m)) {
 			ret += std::pow(u[dof], p);
 		}
 
@@ -273,7 +275,7 @@ struct flecsi_tasks {
 	static real l1_norm_local(topo_acc m,
 	                          ro_acc u) {
 		real ret = 0;
-		for (auto dof : m.template dofs<space>()) {
+		for (auto dof : util::dofs(m)) {
 			ret += std::abs(u[dof]);
 		}
 
@@ -283,7 +285,7 @@ struct flecsi_tasks {
 	static real l2_norm_local(topo_acc m,
 	                          ro_acc u) {
 		real ret = 0;
-		for (auto dof : m.template dofs<space>()) {
+		for (auto dof : util::dofs(m)) {
 			ret += u[dof] * u[dof];
 		}
 
@@ -293,7 +295,7 @@ struct flecsi_tasks {
 	static real local_max(topo_acc m,
 	                      ro_acc u) {
 		auto ret = std::numeric_limits<real>::min();
-		for (auto dof : m.template dofs<space>()) {
+		for (auto dof : util::dofs(m)) {
 			ret = std::max(u[dof], ret);
 		}
 		return ret;
@@ -302,7 +304,7 @@ struct flecsi_tasks {
 	static real local_min(topo_acc m,
 	                      ro_acc u) {
 		auto ret = std::numeric_limits<real>::max();
-		for (auto dof : m.template dofs<space>()) {
+		for (auto dof : util::dofs(m)) {
 			ret = std::min(u[dof], ret);
 		}
 		return ret;
@@ -311,10 +313,14 @@ struct flecsi_tasks {
 	static real inf_norm_local(topo_acc m,
 	                           ro_acc x) {
 		auto ret = std::numeric_limits<real>::min();
-		for (auto dof : m.template dofs<space>()) {
+		for (auto dof : util::dofs(m)) {
 			ret = std::max(std::abs(x[dof]), ret);
 		}
 		return ret;
+	}
+
+	static len local_size(topo_acc m) {
+		return util::dofs(m).size();
 	}
 };
 

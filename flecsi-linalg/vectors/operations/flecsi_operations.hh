@@ -183,6 +183,10 @@ struct flecsi_operations {
 		return reduce<tasks::prod,
 			exec::fold::sum>(x.topo, x.ref(), y.ref());
 	}
+
+	auto global_size(const vec_data & x) const {
+		return reduce<tasks::local_size, exec::fold::sum>(x.topo);
+	}
 };
 
 }

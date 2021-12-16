@@ -17,10 +17,13 @@ include(flog)
 set(FLECSI_UNIT_MAIN ${FleCSICMake_PREFIX}/unit-main.cc)
 include(unit)
 
+
+pkg_check_modules(PETSc REQUIRED IMPORTED_TARGET petsc)
+
 add_library(linalg INTERFACE)
 add_library(FleCSI::linalg ALIAS linalg)
 
-target_link_libraries(linalg INTERFACE FleCSI::FleCSI)
+target_link_libraries(linalg INTERFACE FleCSI::FleCSI PkgConfig::PETSc)
 
 target_include_directories(linalg INTERFACE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
