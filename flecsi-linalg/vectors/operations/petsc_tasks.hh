@@ -27,6 +27,31 @@ struct petsc_tasks
 
 		return 0;
 	}
+
+	static PetscErrorCode set(acc<wo> xa, real alpha) {
+		PetscErrorCode ierr;
+
+		ierr = VecSet(xa, alpha);CHKERRQ(ierr);
+
+		return 0;
+	}
+
+	static PetscErrorCode scale_self(acc<wo> xa, real alpha) {
+		PetscErrorCode ierr;
+
+		ierr = VecScale(xa, alpha);CHKERRQ(ierr);
+
+		return 0;
+	}
+
+	static PetscErrorCode scale(acc<ro> x, acc<wo> y, real alpha) {
+		PetscErrorCode ierr;
+
+		ierr = VecCopy(y, x);CHKERRQ(ierr);
+		ierr = VecScale(y, alpha);CHKERRQ(ierr);
+
+		return 0;
+	}
 };
 
 }

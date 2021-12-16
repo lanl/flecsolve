@@ -13,8 +13,8 @@ namespace flecsi::linalg
 testmesh::slot msh;
 testmesh::cslot coloring;
 
-const field<double>::definition<testmesh, testmesh::cells> xd;
-const vec::petsc::data_t::field_definition yd;
+const field<double>::definition<testmesh, testmesh::cells> mdef;
+const vec::petsc::data_t::field_definition xd, yd, zd;
 
 void init_mesh() {
 	std::vector<std::size_t> extents{32};
@@ -32,11 +32,23 @@ void init_field(testmesh::accessor<ro, ro> m,
 }
 
 int vectest() {
-	using mesh_vec = vec::mesh<testmesh, testmesh::cells>;
-	mesh_vec x{{xd, msh}};
-	vec::petsc y{{yd, MPI_COMM_WORLD, x}};
+	PetscInitialize(0, NULL, NULL, NULL);
 
-	y.copy(x);
+	init_mesh();
+	execute<init_field>(msh, mdef(msh));
+
+	vec::mesh<testmesh, testmesh::cells> mvec{{mdef, msh}};
+	vec::petsc x{{xd, PETSC_COMM_WORLD, mvec}}, y{{yd, PETSC_COMM_WORLD, mvec}}, z{{zd, PETSC_COMM_WORLD, mvec}};
+
+	y.copy(mvec);
+
+	y.set_to_scalar(3);
+
+	y.scale(4);
+
+	y.scale(4, x);
+
+	PetscFinalize();
 
 	return 0;
 }
