@@ -14,7 +14,8 @@ struct mesh {
 	using topo_t = Topo;
 	static constexpr typename Topo::index_space space = Space;
 	using topo_slot_t = flecsi::data::topology_slot<Topo>;
-	using field_definition = typename flecsi::field<real_t>::template definition<Topo, Space>;
+	using field_definition = typename field<real_t>::template definition<Topo, Space>;
+	using field_reference = typename field<real_t>::template Reference<Topo, Space>;
 
 	static inline constexpr PrivilegeCount num_priv =
 		topo_t::template privilege_count<Space>;
@@ -39,11 +40,14 @@ struct mesh {
 		}
 	};
 
-	const field_definition & def;
 	topo_slot_t & topo;
+	field_reference reference;
 
-	auto ref() const { return def(topo); }
+	auto ref() const { return reference; }
 	auto fid() const { return ref().fid(); }
 };
+
+template<class Slot, class Ref>
+mesh(Slot&, Ref)->mesh<typename Ref::Base::Topology, Ref::space, typename Ref::value_type>;
 
 }

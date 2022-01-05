@@ -49,8 +49,7 @@ void init_fields(const fd_array & arr, int offset, std::index_sequence<Index...>
 
 template <std::size_t... Index>
 auto create_multivector(const fd_array & arr, std::index_sequence<Index...>) {
-	using vec_t = vec::mesh<testmesh, testmesh::cells>;
-	return vec::multi(vec_t{{arr[Index], msh}}...);
+	return vec::multi(vec::mesh(msh, arr[Index](msh))...);
 }
 
 int check_add(testmesh::accessor<ro, ro> m,

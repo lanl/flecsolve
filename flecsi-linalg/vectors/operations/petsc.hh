@@ -12,6 +12,7 @@ struct petsc
 {
 	using vec_data = data::petsc;
 	using real_t = PetscScalar;
+	using len_t = PetscInt;
 	using tasks = petsc_tasks;
 
 	template<class Other>

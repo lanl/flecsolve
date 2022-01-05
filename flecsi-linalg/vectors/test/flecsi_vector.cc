@@ -52,7 +52,7 @@ int vectest() {
 	execute<init_fields>(msh, xd(msh), yd(msh), zd(msh));
 
 	UNIT() {
-		vec::mesh<testmesh, testmesh::cells> x({xd, msh}), y({yd, msh}), z({zd, msh}), tmp({tmpd, msh});
+		vec::mesh x(msh, xd(msh)), y(msh, yd(msh)), z(msh, zd(msh)), tmp(msh, tmpd(msh));
 		EXPECT_LT(std::abs(x.l2norm().get() - 102.05880657738459), ftol);
 
 		tmp.add(x, z);

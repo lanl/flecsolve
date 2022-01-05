@@ -16,9 +16,6 @@ void create_petscvec(Vec * v) {
 int vectest() {
 	PetscInitialize(0, NULL, NULL, NULL);
 
-	init_mesh();
-	execute<init_field>(msh, mdef(msh));
-
 	Vec v;
 	execute<create_petscvec, mpi>(&v);
 
