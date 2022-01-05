@@ -10,9 +10,9 @@ class vector
 public:
 	using vec = vector<Data, Ops>;
 	using real_t = typename Ops::real_t;
+	using len_t = typename Ops::len_t;
 	using data_t = Data;
 	using ops_t = Ops;
-	using len_t = std::size_t;
 
 	vector(Data d) : data(std::move(d)) {}
 
@@ -115,6 +115,10 @@ public:
 
 	auto global_size() const {
 		return ops.global_size(data);
+	}
+
+	std::size_t local_size() const {
+		return ops.local_size(data);
 	}
 
 	Data data;

@@ -48,13 +48,11 @@ int check_add(testmesh::accessor<ro, ro> m,
 
 
 int vectest() {
-	using vec_t = vec::mesh<testmesh, testmesh::cells>;
-
 	init_mesh();
 	execute<init_fields>(msh, xd(msh), yd(msh), zd(msh));
 
 	UNIT() {
-		vec_t x({xd, msh}), y({yd, msh}), z({zd, msh}), tmp({tmpd, msh});
+		vec::mesh<testmesh, testmesh::cells> x({xd, msh}), y({yd, msh}), z({zd, msh}), tmp({tmpd, msh});
 		EXPECT_LT(std::abs(x.l2norm().get() - 102.05880657738459), ftol);
 
 		tmp.add(x, z);

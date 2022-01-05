@@ -10,6 +10,7 @@ namespace flecsi::linalg::vec::ops {
 template <class Real, class... Vecs>
 struct multi {
 	using real_t = Real;
+	using len_t = std::size_t;
 	using vec_data = std::tuple<Vecs...>;
 
 	void copy(const vec_data & x, vec_data & z) {

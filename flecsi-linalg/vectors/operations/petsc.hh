@@ -18,24 +18,34 @@ struct petsc
 	void copy(const Other & x, vec_data & z) {
 		execute<tasks::copy<
 			typename Other::util, typename Other::topo_acc, typename Other::template acc<ro>>, mpi>(x.topo,
-			                                    z.ref(), x.ref());
+				                  z, x.ref());
 	}
 
 	void zero(vec_data & x) {
-		execute<tasks::set, mpi>(x.ref(), 0);
+		execute<tasks::set, mpi>(x, 0);
 	}
 
 	void set_to_scalar(real_t alpha, vec_data & x) {
-		execute<tasks::set, mpi>(x.ref(), alpha);
+		execute<tasks::set, mpi>(x, alpha);
 	}
 
 	void scale(real_t alpha, vec_data & x) {
-		execute<tasks::scale_self, mpi>(x.ref(), alpha);
+		execute<tasks::scale_self, mpi>(x, alpha);
 	}
 
 	void scale(real_t alpha, const vec_data & x, vec_data & y) {
-		flog_assert(x.fid() != y.fid(), "scale operation: vector data cannot be the same");
-		execute<tasks::scale, mpi>(x.ref(), y.ref(), alpha);
+		flog_assert(x != y, "scale operation: vector data cannot be the same");
+		execute<tasks::scale, mpi>(x, y, alpha);
+	}
+
+	void add(const vec_data & x, const vec_data & y, vec_data & z) {
+		if (x == z) {
+			execute<tasks::add_self, mpi>(z, y);
+		} else if (y == z) {
+			execute<tasks::add_self, mpi>(z, y);
+		} else {
+			execute<tasks::add, mpi>(z, x, y);
+		}
 	}
 };
 

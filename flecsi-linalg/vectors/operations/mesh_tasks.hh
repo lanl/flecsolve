@@ -322,6 +322,10 @@ struct mesh_tasks {
 	static len local_size(topo_acc m) {
 		return util::dofs(m).size();
 	}
+
+	static void get_local_size(topo_acc m, len * length) {
+		*length = util::dofs(m).size();
+	}
 };
 
 }

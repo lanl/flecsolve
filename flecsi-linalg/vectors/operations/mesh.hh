@@ -11,6 +11,8 @@ struct mesh {
 
 	using vec_data = data::mesh<Topo, Space, Real>;
 
+	using len_t = typename vec_data::len_t;
+
 	using tasks = mesh_tasks<vec_data>;
 
 	void copy(const vec_data & x, vec_data & z) {
@@ -40,7 +42,7 @@ struct mesh {
 		if (x.fid() == z.fid()) {
 			execute<tasks::add_self>(z.topo, z.ref(), y.ref());
 		} else if (y.fid() == z.fid()) {
-			execute<tasks::add_self>(z.topo, z.ref(), y.ref());
+			execute<tasks::add_self>(z.topo, z.ref(), x.ref());
 		} else {
 			execute<tasks::add>(z.topo, z.ref(), x.ref(), y.ref());
 		}
@@ -186,6 +188,12 @@ struct mesh {
 
 	auto global_size(const vec_data & x) const {
 		return reduce<tasks::local_size, exec::fold::sum>(x.topo);
+	}
+
+	len_t local_size(const vec_data & x) const {
+		len_t length;
+		execute<tasks::get_local_size, mpi>(x.topo, &length);
+		return length;
 	}
 };
 
