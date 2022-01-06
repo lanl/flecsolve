@@ -7,7 +7,7 @@ namespace flecsi::linalg::vec::data {
 template<typename T, flecsi::data::layout L = flecsi::data::layout::dense>
 using field = flecsi::field<T, L>;
 
-template<class Topo, typename Topo::index_space Space, class Real=double>
+template<class Topo, typename Topo::index_space Space, class Real>
 struct mesh {
 	using real_t = Real;
 	using len_t = std::size_t;

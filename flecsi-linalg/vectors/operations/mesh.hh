@@ -134,7 +134,7 @@ struct mesh {
 		if (x.fid() == y.fid()) {
 			execute<tasks::add_scalar_self>(y.topo, y.ref(), alpha);
 		} else {
-			execute<tasks::add_scalar>(y.topo, y.def(y.topo), x.def(x.topo), alpha);
+			execute<tasks::add_scalar>(y.topo, y.ref(), x.ref(), alpha);
 		}
 	}
 
