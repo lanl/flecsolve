@@ -96,7 +96,7 @@ struct multi {
 	           vec_data & z) {
 		apply([alpha, beta](auto & z, const auto & x) {
 			z.axpby(alpha, beta, x);
-		}, make_is(), *this, x);
+		}, make_is(), z, x);
 	}
 
 	void abs(const vec_data & x, vec_data & y) {

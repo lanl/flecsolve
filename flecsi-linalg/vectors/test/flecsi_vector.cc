@@ -15,8 +15,6 @@ testmesh::cslot coloring;
 
 const field<double>::definition<testmesh, testmesh::cells> xd, yd, zd, tmpd;
 
-constexpr double ftol = 1e-8;
-
 void init_mesh() {
 	std::vector<std::size_t> extents{32};
 	auto colors = testmesh::distribute(flecsi::processes(), extents);
@@ -38,6 +36,8 @@ void init_fields(testmesh::accessor<ro, ro> m,
 
 template <class F, class T>
 struct check {
+	static constexpr double ftol = 1e-8;
+
 	int operator()(testmesh::accessor<ro, ro> m,
 	               field<double>::accessor<ro, na> x) {
 		UNIT(name) {
@@ -61,7 +61,6 @@ int vectest() {
 
 	UNIT() {
 		vec::mesh x(msh, xd(msh)), y(msh, yd(msh)), z(msh, zd(msh)), tmp(msh, tmpd(msh));
-		EXPECT_LT(std::abs(x.l2norm().get() - 102.05880657738459), ftol);
 
 		tmp.add(x, z);
 		static check add{[](std::size_t gid) {
@@ -147,6 +146,7 @@ int vectest() {
 		EXPECT_EQ(tmp.inner_prod(y).get(), 19840);
 		EXPECT_EQ(tmp.global_size().get(), 32);
 		EXPECT_EQ(tmp.local_size(), 32/4);
+		EXPECT_LT(std::abs(x.l2norm().get() - 102.05880657738459), add.ftol);
 	};
 }
 

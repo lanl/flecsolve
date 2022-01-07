@@ -22,8 +22,6 @@ using fd_array = std::array<field<double>::definition<testmesh, testmesh::cells>
 const fd_array xd, yd, zd, tmpd;
 using make_is = std::make_index_sequence<nvars>;
 
-constexpr double ftol = 1e-8;
-
 void init_mesh() {
 	std::vector<std::size_t> extents{32};
 	auto colors = testmesh::distribute(flecsi::processes(), extents);
@@ -52,16 +50,37 @@ auto create_multivector(const fd_array & arr, std::index_sequence<Index...>) {
 	return vec::multi(vec::mesh(msh, arr[Index](msh))...);
 }
 
-int check_add(testmesh::accessor<ro, ro> m,
-              field<double>::accessor<ro, na> x,
-              int index) {
-	UNIT() {
-		for (auto dof : m.dofs<testmesh::cells>()) {
-			auto gid = m.global_id(dof);
-			EXPECT_LT(std::abs(((index+1)*gid + (index + 2 + 1)*gid) - x[dof]), ftol);
-		}
-	};
+
+template <class F, class T>
+struct check {
+	static constexpr double ftol = 1e-8;
+
+	int operator()(testmesh::accessor<ro, ro> m,
+	               field<double>::accessor<ro, na> x,
+	               int index) {
+		UNIT(name) {
+			for (auto dof : m.dofs<testmesh::cells>()) {
+				auto gid = m.global_id(dof);
+				EXPECT_LT(std::abs(f(gid,index) - x[dof]), ftol);
+			}
+		};
+	}
+
+	F f;
+	T name;
+};
+template <class F, class T>
+check(F&&,T&&)->check<F,T>;
+
+
+template<auto & F, class MV, class S>
+bool run(MV & mv, S & msh) {
+	int ind = 0;
+	return std::apply([&](auto & ... v) {
+		return ((test<F>(msh, v.data.ref(), ind++) == 0) and ...);
+	}, mv.data);
 }
+
 
 int vectest() {
 	init_mesh();
@@ -75,12 +94,93 @@ int vectest() {
 		auto tmp = create_multivector(tmpd, make_is());
 
 		tmp.add(x, z);
+		static check add{[](std::size_t gid, int index) {
+			return (index + 1)*gid + (index + 3)*gid;
+		}, "add"};
+		EXPECT_TRUE(run<add>(tmp, msh));
+
+		tmp.subtract(y, z);
+		static check sub{[](double gid, double index) {
+			return (index + 2)*gid - (index + 3)*gid;
+		}, "subtract"};
+		EXPECT_TRUE(run<sub>(tmp, msh));
+
+		tmp.multiply(x, z);
+		static check mult{[](std::size_t gid, int index) {
+			return (index + 1)*gid * (index + 3)*gid;
+		}, "multiply"};
+		EXPECT_TRUE(run<mult>(tmp, msh));
+
+		x.add_scalar(x, 1);
+		static check scalar_add{[](std::size_t gid, int index) {
+			return (index+1)*gid + 1;
+		}, "add scalar"};
+		EXPECT_TRUE(run<scalar_add>(x, msh));
+
+		tmp.divide(y, x);
+		static check divide{[](double gid, double index) {
+			return ((index+2)*gid) / ((index+1)*gid + 1);
+		}, "divide"};
+		EXPECT_TRUE(run<divide>(tmp, msh));
+
+		x.add_scalar(x, -1);
+
+		tmp.scale(3.5, x);
+		static check scale{[](double gid, double index) {
+			return (index+1)*gid * 3.5;
+		}, "scale"};
+		EXPECT_TRUE(run<scale>(tmp, msh));
+
+		y.add_scalar(y, 2);
+		tmp.reciprocal(y);
+		static check recip{[](double gid, double index) {
+			return 1.0 / ((index+2)*gid + 2);
+		}, "reciprocal"};
+		EXPECT_TRUE(run<recip>(tmp, msh));
+		y.add_scalar(y, -2);
+
+		tmp.linear_sum(8, y, 9, z);
+		static check linsum{[](double gid, double index) {
+			return ((index+2)*gid) * 8 + ((index + 3)*gid)*9;
+		}, "linear sum"};
+		EXPECT_TRUE(run<linsum>(tmp, msh));
+
+		tmp.axpy(7, x, y);
+		static check axpy{[](double gid, double index) {
+			return (index+1)*gid*7 + ((index+2)*gid);
+		}, "axpy"};
+		EXPECT_TRUE(run<axpy>(tmp, msh));
+
+		tmp.copy(y);
+		tmp.axpby(4, 11, z);
+		static check axpby{[](double gid, double index) {
+			return ((index+3)*gid)*4 + ((index+2)*gid)*11;
+		}, "axpby"};
+		EXPECT_TRUE(run<axpby>(tmp, msh));
+
+		tmp.add_scalar(y, -4.3);
+		tmp.abs(tmp);
+		static check abs{[](double gid, double index) {
+			return std::abs((index+2)*gid - 4.3);
+		}, "abs"};
+		EXPECT_TRUE(run<abs>(tmp, msh));
+
+		tmp.add_scalar(y, -7);
+		EXPECT_EQ(tmp.min().get(), -7);
+
 		{
-			int ind = 0;
-			EXPECT_TRUE(std::apply([&ind](auto & ... v) {
-				return ((test<check_add>(msh, v.data.ref(),
-				                         ind++) == 0) and ...);
-			}, tmp.data));
+			auto & [t0, t1, t2, t3] = tmp;
+			EXPECT_EQ(tmp.max().get(),
+			          std::max({t0.max().get(), t1.max().get(), t2.max().get(), t3.max().get()}));
+
+			tmp.add_scalar(z, -43);
+			EXPECT_EQ(tmp.l1norm().get(),
+			          t0.l1norm().get() + t1.l1norm().get() + t2.l1norm().get() + t3.l1norm().get());
+			EXPECT_EQ(tmp.l2norm().get(),
+			          std::sqrt(std::pow(t0.l2norm().get(),2) + std::pow(t1.l2norm().get(),2) +
+			                    std::pow(t2.l2norm().get(),2) + std::pow(t3.l2norm().get(),2)));
+			EXPECT_EQ(tmp.inf_norm().get(),
+			          std::max({t0.inf_norm().get(), t1.inf_norm().get(), t2.inf_norm().get(), t3.inf_norm().get()}));
 		}
 
 		{ // inner product
