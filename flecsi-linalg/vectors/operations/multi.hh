@@ -114,6 +114,12 @@ struct multi {
 		}, make_is(), y, x);
 	}
 
+	void set_random(vec_data & x) {
+		apply([](auto & z) {
+			z.set_random();
+		}, make_is(), x);
+	}
+
 	auto min(const vec_data & x) const {
 		auto futs = apply_ret([](const auto & x) {
 			return x.min();

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cmath>
+#include <random>
 
 #include <flecsi/execution.hh>
 
@@ -304,7 +305,7 @@ struct mesh_tasks {
 		auto ret = std::numeric_limits<real>::min();
 		for (auto dof : util::dofs(m)) {
 			if constexpr (is_complex)
-				ret = std::max(u[dof].real, ret);
+				ret = std::max(u[dof].real(), ret);
 			else
 				ret = std::max(u[dof], ret);
 		}
@@ -316,7 +317,7 @@ struct mesh_tasks {
 		auto ret = std::numeric_limits<real>::max();
 		for (auto dof : util::dofs(m)) {
 			if constexpr (is_complex)
-				ret = std::min(u[dof].real, ret);
+				ret = std::min(u[dof].real(), ret);
 			else
 				ret = std::min(u[dof], ret);
 		}
@@ -338,6 +339,18 @@ struct mesh_tasks {
 
 	static void get_local_size(topo_acc m, len * length) {
 		*length = util::dofs(m).size();
+	}
+
+	static void set_random(topo_acc m, acc<wo> x) {
+		std::random_device rd;
+		std::mt19937 gen(rd());
+		std::uniform_real_distribution<real> dis(0., 1.);
+		for (auto dof : util::dofs(m)) {
+			if constexpr (is_complex)
+				x[dof] = scalar(dis(gen), dis(gen));
+			else
+				x[dof] = dis(gen);
+		}
 	}
 };
 

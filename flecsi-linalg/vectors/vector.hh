@@ -301,6 +301,13 @@ public:
 		return ops.local_size(data);
 	}
 
+	/**
+	 * Set components to random values.
+	 */
+	void set_random() {
+		return ops.set_random(data);
+	}
+
 	Data data;
 	Ops ops;
 };
