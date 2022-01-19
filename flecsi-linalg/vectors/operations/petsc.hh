@@ -11,7 +11,8 @@ namespace flecsi::linalg::vec::ops
 struct petsc
 {
 	using vec_data = data::petsc;
-	using real_t = PetscScalar;
+	using real = PetscReal;
+	using scalar = PetscScalar;
 	using len_t = PetscInt;
 	using tasks = petsc_tasks;
 
@@ -26,15 +27,15 @@ struct petsc
 		execute<tasks::set, mpi>(x, 0);
 	}
 
-	void set_to_scalar(real_t alpha, vec_data & x) {
+	void set_to_scalar(scalar alpha, vec_data & x) {
 		execute<tasks::set, mpi>(x, alpha);
 	}
 
-	void scale(real_t alpha, vec_data & x) {
+	void scale(scalar alpha, vec_data & x) {
 		execute<tasks::scale_self, mpi>(x, alpha);
 	}
 
-	void scale(real_t alpha, const vec_data & x, vec_data & y) {
+	void scale(scalar alpha, const vec_data & x, vec_data & y) {
 		flog_assert(x != y, "scale operation: vector data cannot be the same");
 		execute<tasks::scale, mpi>(x, y, alpha);
 	}

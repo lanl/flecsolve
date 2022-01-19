@@ -7,15 +7,13 @@ namespace flecsi::linalg::vec::data {
 template<typename T, flecsi::data::layout L = flecsi::data::layout::dense>
 using field = flecsi::field<T, L>;
 
-template<class Topo, typename Topo::index_space Space, class Real>
+template<class Topo, typename Topo::index_space Space, class T>
 struct mesh {
-	using real_t = Real;
-	using len_t = std::size_t;
 	using topo_t = Topo;
 	static constexpr typename Topo::index_space space = Space;
 	using topo_slot_t = flecsi::data::topology_slot<Topo>;
-	using field_definition = typename field<real_t>::template definition<Topo, Space>;
-	using field_reference = typename field<real_t>::template Reference<Topo, Space>;
+	using field_definition = typename field<T>::template definition<Topo, Space>;
+	using field_reference = typename field<T>::template Reference<Topo, Space>;
 
 	static inline constexpr PrivilegeCount num_priv =
 		topo_t::template privilege_count<Space>;
@@ -27,16 +25,16 @@ struct mesh {
 
 	using topo_acc = typename topo_t::template accessor<ro>;
 	template<partition_privilege_t priv>
-	using acc = typename field<real_t>::template accessor1<dofs_priv<priv>>;
+	using acc = typename field<T>::template accessor1<dofs_priv<priv>>;
 
 	template<partition_privilege_t priv>
-	using acc_all = typename field<real_t>::template accessor1<privilege_repeat<priv, num_priv>>;
+	using acc_all = typename field<T>::template accessor1<privilege_repeat<priv, num_priv>>;
 
 	struct util
 	{
-		template<class T>
-		static decltype(auto) dofs(T&& m) {
-			return std::forward<T>(m).template dofs<space>();
+		template<class U>
+		static decltype(auto) dofs(U&& m) {
+			return std::forward<U>(m).template dofs<space>();
 		}
 	};
 

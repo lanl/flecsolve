@@ -7,11 +7,12 @@
 
 namespace flecsi::linalg::vec::ops {
 
-template <class Real, class... Vecs>
+template <class VecTypes, class... Vecs>
 struct multi {
-	using real_t = Real;
-	using len_t = std::size_t;
 	using vec_data = std::tuple<Vecs...>;
+	using scalar = typename VecTypes::scalar;
+	using real = typename VecTypes::real;
+	using len_t = typename VecTypes::len;
 
 	void copy(const vec_data & x, vec_data & z) {
 		apply([](auto & x, const auto & y) {
@@ -25,19 +26,19 @@ struct multi {
 		}, make_is(), x);
 	}
 
-	void set_to_scalar(Real alpha, vec_data & x) {
+	void set_to_scalar(scalar alpha, vec_data & x) {
 		apply([alpha](auto & x) {
 			x.set_to_scalar(alpha);
 		}, make_is(), x);
 	}
 
-	void scale(Real alpha, vec_data & x) {
+	void scale(scalar alpha, vec_data & x) {
 		apply([alpha](auto & x) {
 			x.scale(alpha);
 		}, make_is(), x);
 	}
 
-	void scale(Real alpha,
+	void scale(scalar alpha,
 	           const vec_data & x,
 	           vec_data & y) {
 		apply([alpha](auto & v, const auto & y) {
@@ -75,15 +76,15 @@ struct multi {
 		}, make_is(), y, x);
 	}
 
-	void linear_sum(Real alpha, const vec_data & x,
-	                Real beta, const vec_data & y,
+	void linear_sum(scalar alpha, const vec_data & x,
+	                scalar beta, const vec_data & y,
 	                vec_data & z) {
 		apply([alpha,beta](auto & z, const auto & x, const auto & y) {
 			z.linear_sum(alpha, x, beta, y);
 		}, make_is(), z, x, y);
 	}
 
-	void axpy(Real alpha,
+	void axpy(scalar alpha,
 	          const vec_data & x, const vec_data & y,
 	          vec_data & z) {
 		apply([alpha](auto & z, const auto & x, const auto & y) {
@@ -91,7 +92,7 @@ struct multi {
 		}, make_is(), z, x, y);
 	}
 
-	void axpby(Real alpha, Real beta,
+	void axpby(scalar alpha, scalar beta,
 	           const vec_data & x,
 	           vec_data & z) {
 		apply([alpha, beta](auto & z, const auto & x) {
@@ -106,7 +107,7 @@ struct multi {
 	}
 
 	void add_scalar(const vec_data & x,
-	                Real alpha,
+	                scalar alpha,
 	                vec_data & y) {
 		apply([alpha](auto & z, const auto & x) {
 			z.add_scalar(x, alpha);
@@ -122,7 +123,7 @@ struct multi {
 			future_vector{std::move(futs)},
 			[](auto && v) {
 				return std::apply([](auto ...vs) {
-					std::array<real_t, sizeof...(Vecs)> vals{
+					std::array<real, sizeof...(Vecs)> vals{
 						vs...};
 					return *std::min_element(vals.begin(), vals.end());
 				}, v);
@@ -138,7 +139,7 @@ struct multi {
 			future_vector{std::move(futs)},
 			[](auto && v) {
 				return std::apply([](auto ...vs) {
-					std::array<real_t, sizeof...(Vecs)> vals{
+					std::array<real, sizeof...(Vecs)> vals{
 						vs...};
 					return *std::max_element(vals.begin(), vals.end());
 				}, v);
@@ -178,7 +179,7 @@ struct multi {
 			future_vector{std::move(futs)},
 			[](auto && v) {
 				return std::apply([](auto ...vs) {
-					std::array<real_t, sizeof...(Vecs)> vals{
+					std::array<real, sizeof...(Vecs)> vals{
 						vs...};
 					return *std::max_element(vals.begin(), vals.end());
 				}, v);

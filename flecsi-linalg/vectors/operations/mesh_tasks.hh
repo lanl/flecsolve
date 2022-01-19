@@ -9,11 +9,13 @@
 
 namespace flecsi::linalg::vec::ops {
 
-template<class VecData>
+template<class VecData, class VecTypes>
 struct mesh_tasks {
 
-	using real = typename VecData::real_t;
-	using len = typename VecData::len_t;
+	using scalar = typename VecTypes::scalar;
+	using real = typename VecTypes::real;
+	using len = typename VecTypes::len;
+	static constexpr bool is_complex = VecTypes::is_complex;
 	using topo_acc = typename VecData::topo_acc;
 
 	template<partition_privilege_t priv>
@@ -24,13 +26,19 @@ struct mesh_tasks {
 
 	using util = typename VecData::util;
 
-	static real prod(topo_acc m,
-	                 acc<ro> x,
-	                 acc<ro> y) {
-		real res = 0.0;
+	static scalar scalar_prod(topo_acc m,
+	                          acc<ro> x,
+	                          acc<ro> y) {
+		scalar res = 0.0;
 
-		for (auto dof : util::dofs(m)) {
-			res += x[dof] * y[dof];
+		if constexpr (is_complex) {
+			for (auto dof : util::dofs(m)) {
+				res += std::conj(y[dof])*x[dof];
+			}
+		} else {
+			for (auto dof : util::dofs(m)) {
+				res += x[dof] * y[dof];
+			}
 		}
 
 		return res;
@@ -39,7 +47,7 @@ struct mesh_tasks {
 
 	static void set_to_scalar(topo_acc m,
 	                          acc<wo> x,
-	                          real val) {
+	                          scalar val) {
 		for (auto dof : util::dofs(m)) {
 			x[dof] = val;
 		}
@@ -48,7 +56,7 @@ struct mesh_tasks {
 
 	static void scale_self(topo_acc m,
 	                       acc<rw> x,
-	                       real val) {
+	                       scalar val) {
 		for (auto dof : util::dofs(m)) {
 			x[dof] *= val;
 		}
@@ -57,7 +65,7 @@ struct mesh_tasks {
 	static void scale(topo_acc m,
 	                  acc<ro> x,
 	                  acc<wo> y,
-	                  real val) {
+	                  scalar val) {
 		for (auto dof : util::dofs(m)) {
 			y[dof] = x[dof] * val;
 		}
@@ -170,9 +178,9 @@ struct mesh_tasks {
 
 	static void linear_sum(topo_acc m,
 	                       acc<wo> z,
-	                       real alpha,
+	                       scalar alpha,
 	                       acc<ro> x,
-	                       real beta,
+	                       scalar beta,
 	                       acc<ro> y)
 	{
 
@@ -184,7 +192,7 @@ struct mesh_tasks {
 	template<bool inv>
 	static void linear_sum_self(topo_acc m,
 	                            acc<rw> z,
-	                            acc<ro> x, real alpha, real beta)
+	                            acc<ro> x, scalar alpha, scalar beta)
 	{
 		for (auto dof : util::dofs(m)) {
 			if constexpr (inv) {
@@ -197,7 +205,7 @@ struct mesh_tasks {
 
 	static void axpy(topo_acc m,
 	                 acc<wo> z,
-	                 real alpha,
+	                 scalar alpha,
 	                 acc<ro> x,
 	                 acc<ro> y) {
 		for (auto dof : util::dofs(m)) {
@@ -209,7 +217,7 @@ struct mesh_tasks {
 	static void axpy_self(topo_acc m,
 	                      acc<rw> z,
 	                      acc<ro> x,
-	                      real alpha) {
+	                      scalar alpha) {
 		for (auto dof : util::dofs(m)) {
 			if constexpr (inv) {
 				z[dof] = alpha * z[dof] + x[dof];
@@ -222,8 +230,8 @@ struct mesh_tasks {
 	static void axpby(topo_acc m,
 	                  acc<rw> y,
 	                  acc<ro> x,
-	                  real alpha,
-	                  real beta) {
+	                  scalar alpha,
+	                  scalar beta) {
 		for (auto dof : util::dofs(m)) {
 			y[dof] = alpha * x[dof] + beta * y[dof];
 		}
@@ -246,7 +254,7 @@ struct mesh_tasks {
 
 	static void add_scalar_self(topo_acc m,
 	                            acc<rw> x,
-	                            real alpha) {
+	                            scalar alpha) {
 		for (auto dof : util::dofs(m)) {
 			x[dof] += alpha;
 		}
@@ -255,7 +263,7 @@ struct mesh_tasks {
 	static void add_scalar(topo_acc m,
 	                       acc<wo> y,
 	                       acc<ro> x,
-	                       real alpha) {
+	                       scalar alpha) {
 		for (auto dof : util::dofs(m)) {
 			y[dof] = x[dof] + alpha;
 		}
@@ -284,19 +292,21 @@ struct mesh_tasks {
 
 	static real l2_norm_local(topo_acc m,
 	                          acc<ro> u) {
-		real ret = 0;
-		for (auto dof : util::dofs(m)) {
-			ret += u[dof] * u[dof];
-		}
-
-		return ret;
+		auto ret = scalar_prod(m, u, u);
+		if constexpr (is_complex)
+			return ret.real();
+		else
+			return ret;
 	}
 
 	static real local_max(topo_acc m,
 	                      acc<ro> u) {
 		auto ret = std::numeric_limits<real>::min();
 		for (auto dof : util::dofs(m)) {
-			ret = std::max(u[dof], ret);
+			if constexpr (is_complex)
+				ret = std::max(u[dof].real, ret);
+			else
+				ret = std::max(u[dof], ret);
 		}
 		return ret;
 	}
@@ -305,7 +315,10 @@ struct mesh_tasks {
 	                      acc<ro> u) {
 		auto ret = std::numeric_limits<real>::max();
 		for (auto dof : util::dofs(m)) {
-			ret = std::min(u[dof], ret);
+			if constexpr (is_complex)
+				ret = std::min(u[dof].real, ret);
+			else
+				ret = std::min(u[dof], ret);
 		}
 		return ret;
 	}

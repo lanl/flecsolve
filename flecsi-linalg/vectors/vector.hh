@@ -1,16 +1,35 @@
 #pragma once
 #include <utility>
+#include <complex>
+#include <type_traits>
 
 
 namespace flecsi::linalg {
+
+template <class Scalar, class Len = std::size_t>
+struct vector_types {
+	template<class T>
+	struct detail { using real_type = T; };
+	template<class T>
+	struct detail<std::complex<T>> { using real_type = T; };
+
+	using scalar = Scalar;
+	using len = Len;
+	using real = typename detail<Scalar>::real_type;
+	static constexpr bool is_complex = not std::is_same_v<scalar, real>;
+};
+
 
 template <class Data, class Ops>
 class vector
 {
 public:
 	using vec = vector<Data, Ops>;
-	using real_t = typename Ops::real_t;
+
+	using scalar = typename Ops::scalar;
+	using real = typename Ops::real;
 	using len_t = typename Ops::len_t;
+
 	using data_t = Data;
 	using ops_t = Ops;
 
@@ -42,7 +61,7 @@ public:
 	 * \f$\mathit{this}_i = val\f$
 	 * \param[in] val scalar
 	 */
-	void set_to_scalar(real_t val) {
+	void set_to_scalar(scalar val) {
 		ops.set_to_scalar(val, data);
 	}
 
@@ -54,7 +73,7 @@ public:
 	 * \param[in] alpha scalar
 	 * \param[in] x vector
 	 */
-	void scale(real_t alpha, const vec & x) {
+	void scale(scalar alpha, const vec & x) {
 		ops.scale(alpha, x.data,
 		          data);
 	}
@@ -66,7 +85,7 @@ public:
 	 * \f$\mathit{this}_i = alpha * \mathit{this}_i\f$
 	 * \param[in] alpha scalar
 	 */
-	void scale(real_t alpha) {
+	void scale(scalar alpha) {
 		ops.scale(alpha, data);
 	}
 
@@ -134,7 +153,7 @@ public:
 	 *
 	 * \f$\mathit{this}_i = alpha * x_i + beta * y_i\f$
 	 */
-	void linear_sum(real_t alpha, const vec & x, real_t beta,
+	void linear_sum(scalar alpha, const vec & x, scalar beta,
 	                const vec & y) {
 		ops.linear_sum(alpha, x.data,
 		               beta, y.data,
@@ -147,7 +166,7 @@ public:
 	 *
 	 * \f$\mathit{this}_i = alpha x_i + y_i\f$
 	 */
-	void axpy(real_t alpha, const vec & x, const vec & y) {
+	void axpy(scalar alpha, const vec & x, const vec & y) {
 		ops.axpy(alpha, x.data, y.data,
 		         data);
 	}
@@ -158,7 +177,7 @@ public:
 	 *
 	 * \f$\mathit{this}_i = alpha * x_i + beta * \mathit{this}_i\f$
 	 */
-	void axpby(real_t alpha, real_t beta, const vec & x) {
+	void axpby(scalar alpha, scalar beta, const vec & x) {
 		ops.axpby(alpha, beta, x.data,
 		          data);
 	}
@@ -179,7 +198,7 @@ public:
 	 *
 	 * \f$\mathit{this}_i = alpha x_i\f$
 	 */
-	void add_scalar(const vec & x, real_t alpha) {
+	void add_scalar(const vec & x, scalar alpha) {
 		ops.add_scalar(x.data, alpha,
 		               data);
 	}
@@ -250,11 +269,13 @@ public:
 	}
 
 
-	/**
-	 * Compute inner product of two vectors
-	 *
-	 * \f$ \sum_i \mathit{this}_i x_i \f$
-	 * \return future containing the inner product
+    /**
+     * Compute inner product of two vectors
+     *
+     * \f$ \sum_i \mathit{this}_i x_i \f$
+     * for complex numbers:
+     * \f$ \sum_i x_i^H \mathit{this}_i \f$
+     * \return future containing the inner product
 	 */
 	auto inner_prod(const vec & x) const {
 		return ops.inner_prod(data, x.data);

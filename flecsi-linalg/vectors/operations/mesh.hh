@@ -5,15 +5,15 @@
 
 namespace flecsi::linalg::vec::ops {
 
-template<class Topo, typename Topo::index_space Space, class Real>
+template<class Topo, typename Topo::index_space Space, class VecTypes>
 struct mesh {
-	using real_t = Real;
+	using scalar = typename VecTypes::scalar;
+	using real = typename VecTypes::real;
+	using len_t = typename VecTypes::len;
 
-	using vec_data = data::mesh<Topo, Space, Real>;
+	using vec_data = data::mesh<Topo, Space, scalar>;
 
-	using len_t = typename vec_data::len_t;
-
-	using tasks = mesh_tasks<vec_data>;
+	using tasks = mesh_tasks<vec_data, VecTypes>;
 
 	void copy(const vec_data & x, vec_data & z) {
 		execute<tasks::copy>(x.topo, z.ref(), x.ref());
@@ -23,15 +23,15 @@ struct mesh {
 		execute<tasks::set_to_scalar>(x.topo, x.ref(), 0.0);
 	}
 
-	void set_to_scalar(Real alpha, vec_data & x) {
+	void set_to_scalar(scalar alpha, vec_data & x) {
 		execute<tasks::set_to_scalar>(x.topo, x.ref(), alpha);
 	}
 
-	void scale(Real alpha, vec_data & x) {
+	void scale(scalar alpha, vec_data & x) {
 		execute<tasks::scale_self>(x.topo, x.ref(), alpha);
 	}
 
-	void scale(Real alpha,
+	void scale(scalar alpha,
 	           const vec_data & x,
 	           vec_data & y) {
 		flog_assert(x.fid() != y.fid(), "scale operation: vector data cannot be the same");
@@ -86,8 +86,8 @@ struct mesh {
 		}
 	}
 
-	void linear_sum(Real alpha, const vec_data & x,
-	                Real beta, const vec_data & y,
+	void linear_sum(scalar alpha, const vec_data & x,
+	                scalar beta, const vec_data & y,
 	                vec_data & z) {
 		if (z.fid() == x.fid()) {
 			execute<tasks::template linear_sum_self<true>>(z.topo, z.ref(), y.ref(),
@@ -101,7 +101,7 @@ struct mesh {
 		}
 	}
 
-	void axpy(Real alpha,
+	void axpy(scalar alpha,
 	          const vec_data & x, const vec_data & y,
 	          vec_data & z) {
 		if (z.fid() == x.fid()) {
@@ -113,7 +113,7 @@ struct mesh {
 		}
 	}
 
-	void axpby(Real alpha, Real beta,
+	void axpby(scalar alpha, scalar beta,
 	           const vec_data & x,
 	           vec_data & z) {
 		execute<tasks::axpby>(z.topo, z.ref(), x.ref(),
@@ -129,7 +129,7 @@ struct mesh {
 	}
 
 	void add_scalar(const vec_data & x,
-	                Real alpha,
+	                scalar alpha,
 	                vec_data & y) {
 		if (x.fid() == y.fid()) {
 			execute<tasks::add_scalar_self>(y.topo, y.ref(), alpha);
@@ -178,11 +178,11 @@ struct mesh {
 	}
 
 	auto inf_norm(const vec_data & x) const {
-		return reduce<tasks::inf_norm_local, exec::fold::sum>(x.topo, x.ref());
+		return reduce<tasks::inf_norm_local, exec::fold::max>(x.topo, x.ref());
 	}
 
 	auto inner_prod(const vec_data & x, const vec_data & y) const {
-		return reduce<tasks::prod,
+		return reduce<tasks::scalar_prod,
 			exec::fold::sum>(x.topo, x.ref(), y.ref());
 	}
 
