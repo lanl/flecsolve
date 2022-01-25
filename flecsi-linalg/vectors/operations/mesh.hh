@@ -1,6 +1,7 @@
 #pragma once
 
 #include "flecsi-linalg/util/future.hh"
+#include "flecsi-linalg/vectors/data/mesh.hh"
 #include "mesh_tasks.hh"
 
 namespace flecsi::linalg::vec::ops {
@@ -15,8 +16,12 @@ struct mesh {
 
 	using tasks = mesh_tasks<vec_data, VecTypes>;
 
-	void copy(const vec_data & x, vec_data & z) {
-		execute<tasks::copy>(x.topo, z.ref(), x.ref());
+	template<class Other>
+	void copy(const Other & x, vec_data & z) {
+		static_assert(std::is_same_v<typename Other::topo_t, typename vec_data::topo_t>);
+		static_assert(Other::space == vec_data::space);
+		execute<tasks::template copy<
+			typename Other::template acc_all<ro>>>(x.topo, z.ref(), x.ref());
 	}
 
 	void zero(vec_data & x) {

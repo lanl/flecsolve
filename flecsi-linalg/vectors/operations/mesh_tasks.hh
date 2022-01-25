@@ -72,9 +72,10 @@ struct mesh_tasks {
 		}
 	}
 
+	template<class OtherAcc>
 	static void copy(topo_acc m,
 	                 acc_all<wo> xa,
-	                 acc_all<ro> ya) {
+	                 OtherAcc ya) {
 		const auto in = ya.span();
 		auto out = xa.span();
 		std::copy(in.begin(), in.end(),

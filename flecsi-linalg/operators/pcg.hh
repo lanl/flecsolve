@@ -56,7 +56,7 @@ public:
 		using scalar = typename DomainVec::scalar;
 
 		auto & [r, z, p, w] = params.temp;
-		auto & P = params.precond; 
+		auto & P = params.precond;
 		const real b_norm = b.l2norm().get();
 
 		if (b_norm == 0.0) return;
