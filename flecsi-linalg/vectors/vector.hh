@@ -61,7 +61,7 @@ public:
 	 * \f$\mathit{this}_i = val\f$
 	 * \param[in] val scalar
 	 */
-	void set_to_scalar(scalar val) {
+	void set_scalar(scalar val) {
 		ops.set_to_scalar(val, data);
 	}
 
