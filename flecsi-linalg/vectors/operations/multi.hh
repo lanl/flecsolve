@@ -7,9 +7,10 @@
 
 namespace flecsi::linalg::vec::ops {
 
-template <class VecTypes, class... Vecs>
+template <class VecTypes, class VecData, std::size_t NumVecs>
 struct multi {
-	using vec_data = std::tuple<Vecs...>;
+	static constexpr std::size_t num_vecs = NumVecs;
+	using vec_data = VecData;
 	using scalar = typename VecTypes::scalar;
 	using real = typename VecTypes::real;
 	using len_t = typename VecTypes::len;
@@ -129,7 +130,7 @@ struct multi {
 			future_vector{std::move(futs)},
 			[](auto && v) {
 				return std::apply([](auto ...vs) {
-					std::array<real, sizeof...(Vecs)> vals{
+					std::array<real, num_vecs> vals{
 						vs...};
 					return *std::min_element(vals.begin(), vals.end());
 				}, v);
@@ -145,7 +146,7 @@ struct multi {
 			future_vector{std::move(futs)},
 			[](auto && v) {
 				return std::apply([](auto ...vs) {
-					std::array<real, sizeof...(Vecs)> vals{
+					std::array<real, num_vecs> vals{
 						vs...};
 					return *std::max_element(vals.begin(), vals.end());
 				}, v);
@@ -185,7 +186,7 @@ struct multi {
 			future_vector{std::move(futs)},
 			[](auto && v) {
 				return std::apply([](auto ...vs) {
-					std::array<real, sizeof...(Vecs)> vals{
+					std::array<real, num_vecs> vals{
 						vs...};
 					return *std::max_element(vals.begin(), vals.end());
 				}, v);
@@ -225,7 +226,7 @@ protected:
 		return std::make_tuple(apply_aux<Index>(std::forward<F>(f), std::forward<Multis>(ms)...)...);
 	}
 
-	using make_is = std::make_index_sequence<sizeof...(Vecs)>;
+	using make_is = std::make_index_sequence<num_vecs>;
 };
 
 }

@@ -22,6 +22,15 @@ using fd_array = std::array<field<double>::definition<testmesh, testmesh::cells>
 const fd_array xd, yd, zd, tmpd;
 using make_is = std::make_index_sequence<nvars>;
 
+std::array<field<double>::definition<testmesh, testmesh::cells>, 3> named_defs;
+
+template <auto V>
+constexpr decltype(auto) defs() {
+	return named_defs[static_cast<std::size_t>(V)];
+}
+
+enum class vars { pressure, temperature, density };
+
 void init_mesh() {
 	std::vector<std::size_t> extents{32};
 	auto colors = testmesh::distribute(flecsi::processes(), extents);
@@ -192,6 +201,17 @@ int vectest() {
 			           x2.inner_prod(y2).get() +
 			           x3.inner_prod(y3).get()));
 		}
+
+		vec::mesh pvec(variable<vars::pressure>, msh, defs<vars::pressure>()(msh));
+		vec::mesh tvec(variable<vars::temperature>, msh, defs<vars::temperature>()(msh));
+		vec::mesh dvec(variable<vars::density>, msh, defs<vars::density>()(msh));
+
+		vec::multi mv(pvec, tvec, dvec);
+
+		auto subset = mv.subset<vars::density, vars::pressure>();
+		auto & [dvec1, pvec1] = subset;
+		EXPECT_EQ(pvec.data.fid(), pvec1.data.fid());
+		EXPECT_EQ(dvec.data.fid(), dvec1.data.fid());
 	};
 }
 

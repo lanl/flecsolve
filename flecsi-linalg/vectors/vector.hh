@@ -2,7 +2,7 @@
 #include <utility>
 #include <complex>
 #include <type_traits>
-
+#include <optional>
 
 namespace flecsi::linalg {
 
@@ -20,11 +20,11 @@ struct vector_types {
 };
 
 
-template <class Data, class Ops>
+template <class Data, class Ops, auto Variable=nullptr>
 class vector
 {
 public:
-	using vec = vector<Data, Ops>;
+	using vec = vector<Data, Ops, Variable>;
 
 	using scalar = typename Ops::scalar;
 	using real = typename Ops::real;
@@ -33,7 +33,8 @@ public:
 	using data_t = Data;
 	using ops_t = Ops;
 
-	vector(Data d) : data(std::move(d)) {}
+	template<class D>
+	vector(D&& d) : data(std::forward<D>(d)) {}
 
 	/**
 	 * Set vector equal to other.
@@ -305,11 +306,17 @@ public:
 	 * Set components to random values.
 	 */
 	void set_random() {
-		return ops.set_random(data);
+		ops.set_random(data);
+	}
+
+	void dump(std::string_view str) {
+		ops.dump(str, data);
 	}
 
 	Data data;
 	Ops ops;
+	static constexpr auto var = Variable;
+	using var_t = decltype(var);
 };
 
 }

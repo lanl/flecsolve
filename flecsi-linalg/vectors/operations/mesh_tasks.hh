@@ -353,6 +353,15 @@ struct mesh_tasks {
 				x[dof] = dis(gen);
 		}
 	}
+
+	static void dump(std::string_view pre, topo_acc m, acc<ro> x) {
+		std::string fname{pre};
+		fname += "-" + std::to_string(process());
+		std::ofstream ofile(fname);
+		for (auto dof : util::dofs(m)) {
+			ofile <<  x(dof) << '\n';
+		}
+	}
 };
 
 }

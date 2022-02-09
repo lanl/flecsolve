@@ -204,6 +204,11 @@ struct mesh {
 		execute<tasks::get_local_size, mpi>(x.topo, &length);
 		return length;
 	}
+
+	void dump(std::string_view pre, const vec_data & x) const {
+		// TODO: update for multiaccessor
+		execute<tasks::dump, mpi>(pre, x.topo, x.ref());
+	}
 };
 
 }
