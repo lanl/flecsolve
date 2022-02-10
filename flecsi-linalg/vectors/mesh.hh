@@ -24,17 +24,17 @@ mesh(variable_t<V>, Slot &, Ref)->mesh<V, typename Ref::Base::Topology, Ref::spa
 
 
 template <class Topo, typename Topo::index_space Space, class Scalar>
-struct mesh<nullptr, Topo, Space, Scalar>
+struct mesh<anon_var::anonymous, Topo, Space, Scalar>
 	: vector<data::mesh<Topo, Space, Scalar>,
-	         ops::mesh<Topo, Space, vector_types<Scalar>>, nullptr> {
+	         ops::mesh<Topo, Space, vector_types<Scalar>>, anon_var::anonymous> {
 	using base_t = vector<data::mesh<Topo, Space, Scalar>,
-	                      ops::mesh<Topo, Space, vector_types<Scalar>>, nullptr>;
+	                      ops::mesh<Topo, Space, vector_types<Scalar>>, anon_var::anonymous>;
 
 	template<class Slot, class Ref>
 	mesh(Slot & topo, Ref ref) : base_t(data::mesh<Topo, Space, Scalar>{topo, ref}) {}
 };
 
 template<class Slot, class Ref>
-mesh(Slot &, Ref)->mesh<nullptr, typename Ref::Base::Topology, Ref::space, typename Ref::value_type>;
+mesh(Slot &, Ref)->mesh<anon_var::anonymous, typename Ref::Base::Topology, Ref::space, typename Ref::value_type>;
 
 }

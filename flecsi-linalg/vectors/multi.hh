@@ -27,7 +27,9 @@ struct multi : public multivector_base<Vecs...>
 	using base = multivector_base<Vecs...>;
 	using base::data;
 
-	template<class ... VT>
+	template<class ... VT,
+	         typename = std::enable_if_t<
+	         (... && std::is_same_v<typename std::remove_reference_t<VT>::var_t, VarType>)>>
 	multi(VT&&... vs) :
 		base{multivector_data<Vecs...>{std::forward<VT>(vs)...}} {}
 

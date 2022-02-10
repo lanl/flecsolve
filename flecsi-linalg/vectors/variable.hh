@@ -6,6 +6,8 @@
 
 namespace flecsi::linalg {
 
+enum class anon_var { anonymous };
+
 template <auto V> struct variable_name {
   static constexpr const char *value = "";
 };

@@ -4,6 +4,8 @@
 #include <type_traits>
 #include <optional>
 
+#include "variable.hh"
+
 namespace flecsi::linalg {
 
 template <class Scalar, class Len = std::size_t>
@@ -20,7 +22,7 @@ struct vector_types {
 };
 
 
-template <class Data, class Ops, auto Variable=nullptr>
+template <class Data, class Ops, auto Variable=anon_var::anonymous>
 class vector
 {
 public:
