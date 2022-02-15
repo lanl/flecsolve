@@ -12,9 +12,11 @@ add_unit(flecsi_multivector
   FleCSI::linalg
   THREADS 4)
 
+if (USE_PETSC)
 add_unit(petsc_interop
   SOURCES
   test/petsc.cc
   LIBRARIES
   FleCSI::linalg
   THREADS 4)
+endif()
