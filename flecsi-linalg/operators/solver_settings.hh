@@ -18,7 +18,7 @@ struct solver_settings {
 };
 
 
-template <class Vec, std::size_t NumWork>
+template <class Vec, std::size_t NumWork, std::size_t Version=0>
 struct topo_solver_state {
 
 	using field_def = typename Vec::data_t::field_definition;

@@ -3,6 +3,7 @@
 #include <flecsi/flog.hh>
 
 #include "solver_settings.hh"
+#include "shell_operator.hh"
 
 namespace flecsi::linalg::cg {
 
@@ -10,34 +11,49 @@ static constexpr std::size_t nwork = 4;
 
 template <class Op, class Vec> using settings = solver_settings<Op, Vec, nwork>;
 
-template <class Op, class Vec>
+template <class Op, class Vec, std::size_t Version=0>
 auto topo_settings(Vec & rhs,
-                   Op precond, int maxiter=100, double rtol=1e-9) {
-	return settings<Op,Vec>{maxiter, rtol, 0.0, std::move(precond),
-		topo_solver_state<Vec, nwork>::get_work(rhs)};
+                   Op && precond,
+                   int maxiter=100, double rtol=1e-9) {
+	return settings<Op,Vec>{maxiter, rtol, 0.0, std::forward<Op>(precond),
+		topo_solver_state<Vec, nwork, Version>::get_work(rhs)};
+}
+
+template <class Vec, std::size_t Version=0>
+auto topo_settings(Vec & rhs, int maxiter=100, double rtol=1e-9) {
+	shell_operator P{[](const auto & x, auto & y) { y.copy(x); }};
+	return settings<decltype(P), Vec>{maxiter, rtol, 0.0, std::move(P),
+		topo_solver_state<Vec, nwork, Version>::get_work(rhs)};
 }
 
 
 template<class Settings>
-class solver
+struct solver
 {
-public:
 	using real = typename Settings::real;
 
-	solver(Settings params) : params{std::move(params)} {}
+	template<class S>
+	solver(S && params) : settings(std::forward<S>(params)) {}
 
 	template<class Op, class DomainVec, class RangeVec>
 	void apply(const Op & A, const RangeVec & b, DomainVec & x)
 	{
+		apply(A, b, x, nullptr);
+	}
+
+
+	template<class Op, class DomainVec, class RangeVec, class F>
+	void apply(const Op & A, const RangeVec & b, DomainVec & x, F && callback)
+	{
 		using scalar = typename DomainVec::scalar;
 
-		auto & [r, z, p, w] = params.work;
-		auto & P = params.precond;
-		const real b_norm = b.l2norm().get();
+		auto & [r, z, p, w] = settings.work;
+		auto & P = settings.precond;
+		real b_norm = b.l2norm().get();
 
-		if (b_norm == 0.0) return;
+		if (b_norm == 0.0) b_norm = 1.0;
 
-		const real terminate_tol = params.rtol * b_norm;
+		const real terminate_tol = settings.rtol * b_norm;
 
 
 		flog(info) << "CG: initial l2 norm of solution: " << x.l2norm().get() << std::endl;
@@ -57,7 +73,7 @@ public:
 		rho[0] = rho[1];
 
 		p.copy(z);
-		for (auto iter = 0; iter < params.maxiter; iter++) {
+		for (auto iter = 0; iter < settings.maxiter; iter++) {
 			scalar beta = 1.0;
 
 			// w = Ap
@@ -78,6 +94,7 @@ public:
 
 			current_res = r.l2norm().get();
 			flog(info) << "CG: ||r_" << iter+1 << "|| " << current_res << std::endl;
+			if constexpr (!std::is_null_pointer_v<F>) callback(x, current_res);
 			if (current_res < terminate_tol) break;
 
 			P.apply(r, z);
@@ -90,8 +107,8 @@ public:
 		}
 	}
 
-protected:
-	Settings params;
+	Settings settings;
 };
+template<class S> solver(S&&)->solver<S>;
 
 }
