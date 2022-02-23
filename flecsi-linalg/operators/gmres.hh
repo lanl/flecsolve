@@ -15,13 +15,13 @@ enum class precond_side { left, right };
 static constexpr std::size_t krylov_dim_bound = 100;
 static constexpr std::size_t nwork = (krylov_dim_bound+1) + 3;
 
-template <class Op, class Vec>
-struct settings : solver_settings<Op, Vec, nwork>
+template <class Op>
+struct settings : solver_settings<Op>
 {
-	using base_t = solver_settings<Op, Vec, nwork>;
+	using base_t = solver_settings<Op>;
 	template<class OP>
-	settings(OP && precond, std::array<Vec, nwork> workvecs, int maxiter=100, double rtol=1e-9) :
-		base_t{maxiter, rtol, 0.0, std::forward<Op>(precond), std::move(workvecs)},
+	settings(OP && precond, int maxiter, float rtol) :
+		base_t{maxiter, rtol, 0.0, std::forward<Op>(precond)},
 		max_krylov_dim(100), pre_side{precond_side::right} {
 		flog_assert(max_krylov_dim <= krylov_dim_bound, "GMRES: max_krylov_dim is larger than bound");
 	}
@@ -31,28 +31,24 @@ struct settings : solver_settings<Op, Vec, nwork>
 };
 
 
-template <class Op, class Vec>
-auto topo_settings(Vec & rhs,
-                   Op && precond, int maxiter=100, double rtol=1e-9) {
-	return settings<Op, Vec>(std::forward<Op>(precond),
-	                         topo_solver_state<Vec, nwork>::get_work(rhs),
-	                         maxiter, rtol);
+inline auto default_settings() {
+	return settings<decltype(op::I)>(op::I, 100, 1e-9);
 }
 
-template <class Vec>
-auto topo_settings(Vec & rhs,
-                   int maxiter=100, double rtol=1e-9) {
-	return settings<decltype(op::I), Vec>(op::I,
-	                                      topo_solver_state<Vec, nwork>::get_work(rhs),
-	                                      maxiter, rtol);
+
+template <class Vec, std::size_t Version = 0>
+auto topo_workspace(const Vec & rhs) {
+	return topo_solver_state<Vec, nwork, Version>::get_work(rhs);
 }
 
-template<class Settings>
+
+template<class Settings, class WorkSpace>
 struct solver {
-	using real = typename Settings::real;
+	using real = typename std::remove_reference_t<WorkSpace>::value_type::real;
 
-	template<class S>
-	solver(S && params) : settings(std::forward<S>(params)) {
+	template<class S, class V>
+	solver(S && params, V && workspace) : settings(std::forward<S>(params)),
+	                                      work(std::forward<V>(workspace)) {
 		init();
 	}
 
@@ -72,7 +68,7 @@ struct solver {
 		dwvec.resize(max_dim + 1, 0.0);
 		dyvec.resize(max_dim + 1, 0.0);
 
-		basis = util::span(settings.work.data() + (nwork - krylov_dim_bound - 1), max_dim+1);
+		basis = util::span(work.data() + (nwork - krylov_dim_bound - 1), max_dim+1);
 	}
 
 	template<class Op, class DomainVec, class RangeVec>
@@ -87,9 +83,9 @@ struct solver {
 		auto & hessenberg = *hmat;
 
 		std::size_t wrk = 0;
-		auto & res = settings.work[wrk++];
-		auto & z = settings.work[wrk++];
-		auto & v = settings.work[wrk++];
+		auto & res = work[wrk++];
+		auto & z = work[wrk++];
+		auto & v = work[wrk++];
 		flog_assert(wrk == (nwork - krylov_dim_bound - 1), "GMRES: incorrect number of work vectors");
 
 		using scalar = typename DomainVec::scalar;
@@ -194,7 +190,8 @@ struct solver {
 	}
 
 
-	void orthogonalize(typename Settings::vec & v, int k) {
+	template<class T>
+	void orthogonalize(T & v, int k) {
 		auto & hessenberg = *hmat;
 		// modified Gram-Schmidt
 		for (int j = 0; j < k; j++) {
@@ -278,14 +275,15 @@ struct solver {
 
 protected:
 	Settings settings;
+	WorkSpace work;
 	std::unique_ptr<real[]> hessenberg_data;
 	using hessenberg_mat = util::mdcolex<real, 2>;
 	std::unique_ptr<hessenberg_mat> hmat;
-	util::span<typename Settings::vec> basis;
+	util::span<typename std::remove_reference_t<WorkSpace>::value_type> basis;
 	std::vector<real> sinvec, cosvec;
 	std::vector<real> dwvec, dyvec;
 	real nr;
 };
-template <class S> solver(S &&) -> solver<S>;
+template <class S, class V> solver(S &&, V &&) -> solver<S, V>;
 
 }

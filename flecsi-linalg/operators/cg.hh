@@ -2,37 +2,32 @@
 
 #include <flecsi/flog.hh>
 
-#include "solver_settings.hh"
 #include "shell.hh"
+#include "solver_settings.hh"
 
 namespace flecsi::linalg::cg {
 
 static constexpr std::size_t nwork = 4;
 
-template <class Op, class Vec> using settings = solver_settings<Op, Vec, nwork>;
+template <class Op> using settings = solver_settings<Op>;
 
-template <class Op, class Vec, std::size_t Version=0>
-auto topo_settings(Vec & rhs,
-                   Op && precond,
-                   int maxiter=100, double rtol=1e-9) {
-	return settings<Op,Vec>{maxiter, rtol, 0.0, std::forward<Op>(precond),
-		topo_solver_state<Vec, nwork, Version>::get_work(rhs)};
+inline auto default_settings() {
+	return settings<decltype(op::I)>{100, 1e-9, 1e-9, op::I};
 }
+
 
 template <class Vec, std::size_t Version=0>
-auto topo_settings(Vec & rhs, int maxiter=100, double rtol=1e-9) {
-	return settings<decltype(op::I), Vec>{maxiter, rtol, 0.0, op::I,
-		topo_solver_state<Vec, nwork, Version>::get_work(rhs)};
+auto topo_workspace(const Vec & rhs) {
+	return topo_solver_state<Vec, nwork, Version>::get_work(rhs);
 }
 
 
-template<class Settings>
+template<class Settings, class WorkSpace>
 struct solver
 {
-	using real = typename Settings::real;
-
-	template<class S>
-	solver(S && params) : settings(std::forward<S>(params)) {}
+	template<class S, class V>
+	solver(S && params, V && workspace) : settings(std::forward<S>(params)),
+	                                      work(std::forward<V>(workspace)) {}
 
 	template<class Op, class DomainVec, class RangeVec>
 	void apply(const Op & A, const RangeVec & b, DomainVec & x)
@@ -45,8 +40,9 @@ struct solver
 	void apply(const Op & A, const RangeVec & b, DomainVec & x, F && callback)
 	{
 		using scalar = typename DomainVec::scalar;
+		using real = typename DomainVec::real;
 
-		auto & [r, z, p, w] = settings.work;
+		auto & [r, z, p, w] = work;
 		auto & P = settings.precond;
 		real b_norm = b.l2norm().get();
 
@@ -107,7 +103,8 @@ struct solver
 	}
 
 	Settings settings;
+	WorkSpace work;
 };
-template<class S> solver(S&&)->solver<S>;
+template<class S, class V> solver(S&&,V&&)->solver<S,V>;
 
 }

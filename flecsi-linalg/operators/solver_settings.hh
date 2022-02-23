@@ -4,17 +4,12 @@
 
 namespace flecsi::linalg {
 
-template<class Op, class Vec, std::size_t NumWork>
+template<class Op>
 struct solver_settings {
-	static constexpr std::size_t num_work = NumWork;
-	using real = typename Vec::real;
-	using vec = Vec;
-
 	int maxiter;
-	real rtol;
-	real atol;
+	float rtol;
+	float atol;
 	Op precond;
-	std::array<Vec, num_work> work;
 };
 
 
@@ -25,7 +20,7 @@ struct topo_solver_state {
 	using topo_slot_t = typename Vec::data_t::topo_slot_t;
 	static inline std::array<const field_def, NumWork> defs;
 
-	static auto get_work(Vec & rhs) {
+	static auto get_work(const Vec & rhs) {
 		return make_work(rhs.data.topo, defs, std::make_index_sequence<NumWork>());
 	}
 
