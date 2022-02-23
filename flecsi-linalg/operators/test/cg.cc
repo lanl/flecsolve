@@ -6,9 +6,7 @@
 
 
 #include "flecsi-linalg/vectors/mesh.hh"
-#include "flecsi-linalg/operators/shell_operator.hh"
 #include "flecsi-linalg/operators/cg.hh"
-#include "flecsi-linalg/operators/gmres.hh"
 
 
 #include "csr_utils.hh"
@@ -26,7 +24,7 @@ const realf::definition<testmesh, testmesh::cells> xd, bd;
 template <class Op, class Vec>
 struct diagnostic
 {
-	diagnostic(Op & A, Vec & x0, double cond) :
+	diagnostic(const Op & A, const Vec & x0, double cond) :
 		iter(0), cond(cond), A(A),
 		Ax(x0.data.topo, axdef(x0.data.topo)),
 		monotonic_fail(false),
@@ -38,7 +36,7 @@ struct diagnostic
 		e_prev = e_0;
 	}
 
-	void operator()(Vec & x, double) {
+	void operator()(const Vec & x, double) {
 		A.apply(x, Ax);
 		auto nrm = x.inner_prod(Ax).get();
 		auto e_a = std::sqrt(nrm);
@@ -57,7 +55,7 @@ struct diagnostic
 	double e_prev;
 	double e_0;
 	double cond;
-	Op & A;
+	const Op & A;
 	Vec Ax;
 
 	bool monotonic_fail;

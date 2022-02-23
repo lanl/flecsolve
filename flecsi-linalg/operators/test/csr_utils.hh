@@ -10,7 +10,7 @@ namespace flecsi::linalg {
 
 using realf = field<double>;
 
-void init_mesh(std::size_t nrows, testmesh::slot & msh, testmesh::cslot & coloring) {
+inline void init_mesh(std::size_t nrows, testmesh::slot & msh, testmesh::cslot & coloring) {
 	std::vector<std::size_t> extents{nrows};
 	auto colors = testmesh::distribute(flecsi::processes(), extents);
 	coloring.allocate(colors, extents);
@@ -70,7 +70,7 @@ struct mm_header {
 	bool symmetric;
 };
 
-mm_header read_header(std::ifstream & mfile) {
+inline mm_header read_header(std::ifstream & mfile) {
 	mm_header hdr;
 	std::array<std::size_t, 3> sizes;
 	std::string line;
@@ -93,7 +93,7 @@ mm_header read_header(std::ifstream & mfile) {
 
 	hdr.nrows = sizes[0];
 	hdr.ncols = sizes[1];
-	hdr.nnz = sizes[1];
+	hdr.nnz = sizes[2];
 
 	return hdr;
 }
@@ -110,7 +110,7 @@ void parse_entry_impl(T & t, std::istringstream & iss, std::index_sequence<I...>
 	  std::get<I>(t) = stov<I>(tok)),...);
 }
 
-auto inline parse_entry(std::string & line) {
+inline auto parse_entry(std::string & line) {
 	std::tuple<std::size_t, std::size_t, double> ret;
 	std::istringstream iss(line);
 
@@ -119,7 +119,7 @@ auto inline parse_entry(std::string & line) {
 	return ret;
 }
 
-auto read_mm(const char * fname) {
+inline auto read_mm(const char * fname) {
 	std::ifstream mfile(fname);
 
 	auto header = read_header(mfile);

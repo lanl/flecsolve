@@ -6,6 +6,7 @@
 #include <flecsi/util/array_ref.hh>
 
 #include "solver_settings.hh"
+#include "shell_operator.hh"
 
 namespace flecsi::linalg::gmres {
 
@@ -18,8 +19,8 @@ template <class Op, class Vec>
 struct settings : solver_settings<Op, Vec, nwork>
 {
 	using base_t = solver_settings<Op, Vec, nwork>;
-	settings(Op precond, std::array<Vec, nwork> workvecs, int maxiter=100, double rtol=1e-9) :
-		base_t{maxiter, rtol, 0.0, std::move(precond), std::move(workvecs)},
+	settings(Op && precond, std::array<Vec, nwork> workvecs, int maxiter=100, double rtol=1e-9) :
+		base_t{maxiter, rtol, 0.0, std::forward<Op>(precond), std::move(workvecs)},
 		max_krylov_dim(100), pre_side{precond_side::right} {
 		flog_assert(max_krylov_dim <= krylov_dim_bound, "GMRES: max_krylov_dim is larger than bound");
 	}
@@ -31,22 +32,32 @@ struct settings : solver_settings<Op, Vec, nwork>
 
 template <class Op, class Vec>
 auto topo_settings(Vec & rhs,
-                   Op precond, int maxiter=100, double rtol=1e-9) {
-	return settings<Op, Vec>(std::move(precond),
+                   Op && precond, int maxiter=100, double rtol=1e-9) {
+	return settings<Op, Vec>(std::forward<Op>(precond),
 	                         topo_solver_state<Vec, nwork>::get_work(rhs),
 	                         maxiter, rtol);
+}
+
+template <class Vec>
+auto topo_settings(Vec & rhs,
+                   int maxiter=100, double rtol=1e-9) {
+	shell_operator P{[](const auto & x, auto & y) { y.copy(x); }};
+	return settings<decltype(P), Vec>(std::move(P),
+	                                  topo_solver_state<Vec, nwork>::get_work(rhs),
+	                                  maxiter, rtol);
 }
 
 template<class Settings>
 struct solver {
 	using real = typename Settings::real;
 
-	solver(Settings params) : params{std::move(params)} {
+	template<class S>
+	solver(S && params) : settings(std::forward<S>(params)) {
 		init();
 	}
 
 	void init() {
-		std::size_t max_dim = std::min(params.max_krylov_dim, params.maxiter);
+		std::size_t max_dim = std::min(settings.max_krylov_dim, settings.maxiter);
 		hessenberg_data = std::make_unique<real[]>((max_dim+1)*(max_dim+1));
 		hmat = std::make_unique<hessenberg_mat>(hessenberg_data.get(),
 		                                        std::array<std::size_t, 2>{max_dim + 1, max_dim + 1});
@@ -61,18 +72,24 @@ struct solver {
 		dwvec.resize(max_dim + 1, 0.0);
 		dyvec.resize(max_dim + 1, 0.0);
 
-		basis = util::span(params.work.data() + (nwork - krylov_dim_bound - 1), max_dim+1);
+		basis = util::span(settings.work.data() + (nwork - krylov_dim_bound - 1), max_dim+1);
 	}
 
 	template<class Op, class DomainVec, class RangeVec>
-	void apply(const Op & A, const RangeVec & b, DomainVec & x) {
-		auto & P = params.precond;
+	void apply(const Op & A, const RangeVec & b, DomainVec & x)
+	{
+		apply(A, b, x, nullptr);
+	}
+
+	template<class Op, class DomainVec, class RangeVec, class F>
+	void apply(const Op & A, const RangeVec & b, DomainVec & x, F && callback) {
+		auto & P = settings.precond;
 		auto & hessenberg = *hmat;
 
 		std::size_t wrk = 0;
-		auto & res = params.work[wrk++];
-		auto & z = params.work[wrk++];
-		auto & v = params.work[wrk++];
+		auto & res = settings.work[wrk++];
+		auto & z = settings.work[wrk++];
+		auto & v = settings.work[wrk++];
 		flog_assert(wrk == (nwork - krylov_dim_bound - 1), "GMRES: incorrect number of work vectors");
 
 		using scalar = typename DomainVec::scalar;
@@ -83,7 +100,7 @@ struct solver {
 		if (b_norm < std::numeric_limits<real>::epsilon())
 			b_norm = 1.0;
 
-		const real terminate_tol = params.rtol * b_norm;
+		const real terminate_tol = settings.rtol * b_norm;
 
 		A.residual(b, x, res);
 
@@ -101,8 +118,8 @@ struct solver {
 		dwvec[0] = beta;
 		auto v_norm = beta;
 
-		for (int k = 0; (k < params.maxiter) and (v_norm > terminate_tol); k++) {
-			if (params.pre_side == precond_side::right)
+		for (int k = 0; (k < settings.maxiter) and (v_norm > terminate_tol); k++) {
+			if (settings.pre_side == precond_side::right)
 				P.apply(basis[k], z);
 			else
 				z.copy(basis[k]);
@@ -152,6 +169,7 @@ struct solver {
 			v_norm = std::fabs(dwvec[k+1]);
 
 			flog(info) << "|r_" << k + 1 << "| " << v_norm << std::endl;
+			if constexpr (!std::is_null_pointer_v<F>) callback(x, v_norm);
 
 			++nr;
 		}
@@ -159,7 +177,7 @@ struct solver {
 		back_solve();
 
 		// update current approximation with correction
-		if (params.pre_side == precond_side::right) {
+		if (settings.pre_side == precond_side::right) {
 			z.set_scalar(0.0);
 
 			for (int i = 0; i <= nr; i++) {
@@ -259,7 +277,7 @@ struct solver {
 
 
 protected:
-	Settings params;
+	Settings settings;
 	std::unique_ptr<real[]> hessenberg_data;
 	using hessenberg_mat = util::mdcolex<real, 2>;
 	std::unique_ptr<hessenberg_mat> hmat;
@@ -268,5 +286,6 @@ protected:
 	std::vector<real> dwvec, dyvec;
 	real nr;
 };
+template <class S> solver(S &&) -> solver<S>;
 
 }
