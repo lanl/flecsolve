@@ -6,7 +6,7 @@
 #include <flecsi/util/array_ref.hh>
 
 #include "solver_settings.hh"
-#include "shell_operator.hh"
+#include "shell.hh"
 
 namespace flecsi::linalg::gmres {
 
@@ -19,7 +19,8 @@ template <class Op, class Vec>
 struct settings : solver_settings<Op, Vec, nwork>
 {
 	using base_t = solver_settings<Op, Vec, nwork>;
-	settings(Op && precond, std::array<Vec, nwork> workvecs, int maxiter=100, double rtol=1e-9) :
+	template<class OP>
+	settings(OP && precond, std::array<Vec, nwork> workvecs, int maxiter=100, double rtol=1e-9) :
 		base_t{maxiter, rtol, 0.0, std::forward<Op>(precond), std::move(workvecs)},
 		max_krylov_dim(100), pre_side{precond_side::right} {
 		flog_assert(max_krylov_dim <= krylov_dim_bound, "GMRES: max_krylov_dim is larger than bound");
@@ -41,10 +42,9 @@ auto topo_settings(Vec & rhs,
 template <class Vec>
 auto topo_settings(Vec & rhs,
                    int maxiter=100, double rtol=1e-9) {
-	shell_operator P{[](const auto & x, auto & y) { y.copy(x); }};
-	return settings<decltype(P), Vec>(std::move(P),
-	                                  topo_solver_state<Vec, nwork>::get_work(rhs),
-	                                  maxiter, rtol);
+	return settings<decltype(op::I), Vec>(op::I,
+	                                      topo_solver_state<Vec, nwork>::get_work(rhs),
+	                                      maxiter, rtol);
 }
 
 template<class Settings>

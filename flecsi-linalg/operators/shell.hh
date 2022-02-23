@@ -2,12 +2,12 @@
 
 #include <algorithm>
 
-namespace flecsi::linalg {
+namespace flecsi::linalg::op {
 
 template<class F>
-struct shell_operator {
+struct shell {
 
-	constexpr shell_operator(F f) : f(std::move(f)) {}
+	constexpr shell(F f) : f(std::move(f)) {}
 
 	template<class domain_vec, class range_vec>
 	constexpr void apply(const domain_vec & x, range_vec & y) const {
@@ -24,7 +24,8 @@ struct shell_operator {
 protected:
 	F f;
 };
+template <class F> shell(F) -> shell<F>;
 
-template <class F> shell_operator(F) -> shell_operator<F>;
+static inline const shell I([](const auto &x, auto &y) { y.copy(x); });
 
 }

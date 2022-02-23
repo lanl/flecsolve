@@ -3,7 +3,7 @@
 #include <flecsi/flog.hh>
 
 #include "solver_settings.hh"
-#include "shell_operator.hh"
+#include "shell.hh"
 
 namespace flecsi::linalg::cg {
 
@@ -21,8 +21,7 @@ auto topo_settings(Vec & rhs,
 
 template <class Vec, std::size_t Version=0>
 auto topo_settings(Vec & rhs, int maxiter=100, double rtol=1e-9) {
-	shell_operator P{[](const auto & x, auto & y) { y.copy(x); }};
-	return settings<decltype(P), Vec>{maxiter, rtol, 0.0, std::move(P),
+	return settings<decltype(op::I), Vec>{maxiter, rtol, 0.0, op::I,
 		topo_solver_state<Vec, nwork, Version>::get_work(rhs)};
 }
 
