@@ -31,14 +31,14 @@ struct diagnostic
 		convergence_fail(false)
 	{
 		A.apply(x0, Ax);
-		auto nrm = x0.inner_prod(Ax).get();
+		auto nrm = x0.dot(Ax).get();
 		e_0 = std::sqrt(nrm);
 		e_prev = e_0;
 	}
 
 	void operator()(const Vec & x, double) {
 		A.apply(x, Ax);
-		auto nrm = x.inner_prod(Ax).get();
+		auto nrm = x.dot(Ax).get();
 		auto e_a = std::sqrt(nrm);
 		auto frac = (std::sqrt(cond) - 1) / (std::sqrt(cond) + 1);
 		auto bnd = 2 * std::pow(frac, ++iter) * e_0;

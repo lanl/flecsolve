@@ -227,13 +227,13 @@ int vectest() {
 
 		tmp.add_scalar(z, -43);
 		tmp_c.add_scalar(z_c, (-37. - 43i));
-		EXPECT_LT(std::abs(tmp_c.inner_prod(x_c).get() -
+		EXPECT_LT(std::abs(tmp_c.dot(x_c).get() -
 		                   (-15956.319999999996 + 4052.3199999999997i)), add.ftol);
 		EXPECT_LT(std::abs(tmp_c.inf_norm().get() - 56.72741841473134), add.ftol);
 		EXPECT_LT(std::abs(tmp_c.l1norm().get() - 1504.8788073375342), add.ftol);
 		EXPECT_EQ(tmp.l1norm().get(), 772);
 		EXPECT_EQ(tmp.inf_norm().get(), 50);
-		EXPECT_EQ(tmp.inner_prod(y).get(), 19840);
+		EXPECT_EQ(tmp.dot(y).get(), 19840);
 		EXPECT_EQ(tmp.global_size().get(), 32);
 		EXPECT_EQ(tmp.local_size(), 32/4);
 		EXPECT_LT(std::abs(x.l2norm().get() - 102.05880657738459), add.ftol);

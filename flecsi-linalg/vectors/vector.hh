@@ -280,8 +280,8 @@ public:
      * \f$ \sum_i x_i^H \mathit{this}_i \f$
      * \return future containing the inner product
 	 */
-	auto inner_prod(const vec & x) const {
-		return ops.inner_prod(data, x.data);
+	auto dot(const vec & x) const {
+		return ops.dot(data, x.data);
 	}
 
 

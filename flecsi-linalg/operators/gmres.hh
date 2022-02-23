@@ -198,7 +198,7 @@ struct solver {
 		auto & hessenberg = *hmat;
 		// modified Gram-Schmidt
 		for (int j = 0; j < k; j++) {
-			const double h_jk = v.inner_prod(basis[j]).get();
+			const double h_jk = v.dot(basis[j]).get();
 			v.axpy(-h_jk, basis[j], v);
 			hessenberg(j, k-1) = h_jk;
 		}

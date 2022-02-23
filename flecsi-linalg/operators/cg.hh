@@ -68,7 +68,7 @@ struct solver
 		P.apply(r, z);
 
 		std::array<scalar, 2> rho{2.0, 0.0};
-		rho[1] = z.inner_prod(r).get();
+		rho[1] = z.dot(r).get();
 		rho[0] = rho[1];
 
 		p.copy(z);
@@ -79,7 +79,7 @@ struct solver
 			A.apply(p, w);
 
 			// alpha = p'Ap
-			auto alpha = w.inner_prod(p).get();
+			auto alpha = w.dot(p).get();
 
 			// sanity check, the curvature should be positive
 			if (alpha <= 0.0) {
@@ -99,7 +99,7 @@ struct solver
 			P.apply(r, z);
 
 			rho[0] = rho[1];
-			rho[1] = r.inner_prod(z).get();
+			rho[1] = r.dot(z).get();
 
 			beta = rho[1] / rho[0];
 			p.axpy(beta, p, z);

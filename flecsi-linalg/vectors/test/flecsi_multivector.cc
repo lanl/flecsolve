@@ -195,11 +195,11 @@ int vectest() {
 		{ // inner product
 			auto & [x0, x1, x2, x3] = x;
 			auto & [y0, y1, y2, y3] = y;
-			EXPECT_EQ(x.inner_prod(y).get(),
-			          (x0.inner_prod(y0).get() +
-			           x1.inner_prod(y1).get() +
-			           x2.inner_prod(y2).get() +
-			           x3.inner_prod(y3).get()));
+			EXPECT_EQ(x.dot(y).get(),
+			          (x0.dot(y0).get() +
+			           x1.dot(y1).get() +
+			           x2.dot(y2).get() +
+			           x3.dot(y3).get()));
 		}
 
 		vec::mesh pvec(variable<vars::pressure>, msh, defs<vars::pressure>()(msh));

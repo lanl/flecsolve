@@ -88,7 +88,7 @@ public:
 		p.zero();
 		v.zero();
 		for (auto iter = 0; iter < params.maxiter; iter++) {
-			rho[1] = r_tilde.inner_prod(res).get();
+			rho[1] = r_tilde.dot(res).get();
 
 			real angle = std::sqrt(std::fabs(rho[1]));
 			real eps = std::numeric_limits<real>::epsilon();
@@ -116,7 +116,7 @@ public:
 
 			A.apply(p_hat, v);
 
-			alpha = r_tilde.inner_prod(v).get();
+			alpha = r_tilde.dot(v).get();
 			flog_assert(alpha != 0., "BiCGSTAB: encountered alpha = 0");
 			alpha = rho[1] / alpha;
 
@@ -134,8 +134,8 @@ public:
 
 			A.apply(s_hat, t);
 
-			real t_sqnorm = t.inner_prod(t).get();
-			real t_dot_s = t.inner_prod(s).get();
+			real t_sqnorm = t.dot(t).get();
+			real t_dot_s = t.dot(s).get();
 			omega = (t_sqnorm == 0.0) ? 0.0 : t_dot_s / t_sqnorm;
 
 			x.axpy(alpha, p_hat, x);

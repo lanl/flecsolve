@@ -190,7 +190,7 @@ struct mesh {
 		return reduce<tasks::inf_norm_local, exec::fold::max>(x.topo, x.ref());
 	}
 
-	auto inner_prod(const vec_data & x, const vec_data & y) const {
+	auto dot(const vec_data & x, const vec_data & y) const {
 		return reduce<tasks::scalar_prod,
 			exec::fold::sum>(x.topo, x.ref(), y.ref());
 	}

@@ -193,9 +193,9 @@ struct multi {
 			}};
 	}
 
-	auto inner_prod(const vec_data & x, const vec_data & y) const {
+	auto dot(const vec_data & x, const vec_data & y) const {
 		auto futs = apply_ret([](const auto & x, const auto & y) {
-			return x.inner_prod(y);
+			return x.dot(y);
 		}, make_is(), x, y);
 
 		return future_transform{
