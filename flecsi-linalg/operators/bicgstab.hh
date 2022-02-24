@@ -3,38 +3,43 @@
 #include <flecsi/flog.hh>
 
 #include "solver_settings.hh"
+#include "shell.hh"
 
 namespace flecsi::linalg::bicgstab {
 
 static constexpr std::size_t nwork = 8;
 
-template <class Op, class Vec>
-struct settings : solver_settings<Op, Vec, nwork>
+template <class Op>
+struct settings : solver_settings<Op>
 {
-	using base_t = solver_settings<Op, Vec, nwork>;
-	settings(Op precond, std::array<Vec, nwork> workvecs, int maxiter=100, double rtol=1e-9) :
-		base_t{maxiter, rtol, 0.0, std::move(precond), std::move(workvecs)},
-		use_zero_guess(false) {}
+	using base_t = solver_settings<Op>;
+	template<class OP>
+	settings(OP && precond, int maxiter, float rtol, bool use_zero_guess) :
+		base_t{maxiter, rtol, 0.0, std::forward<OP>(precond)},
+		use_zero_guess(use_zero_guess) {}
 
 	bool use_zero_guess;
 };
 
-
-template <class Op, class Vec>
-auto topo_settings(Vec & rhs,
-                   Op precond, int maxiter=100, double rtol=1e-9) {
-	return settings<Op, Vec>(std::move(precond),
-	                         topo_solver_state<Vec, nwork>::get_work(rhs),
-	                         maxiter, rtol);
+inline auto default_settings() {
+	return settings<decltype(op::I)>(op::I, 100, 1e-9, false);
 }
 
-template <class Settings>
+
+template <std::size_t Version = 0>
+using topo_work = topo_work_base<nwork, Version>;
+
+
+template <class Settings, class Workspace>
 class solver
 {
 public:
 	using real = typename Settings::real;
 
-	solver(Settings params) : params{std::move(params)} {}
+	template<class S, class W>
+	solver(S && params, V && workspace) :
+		settings{std::forward<S>(params)},
+		work{std::forward<V>(workspace)} {}
 
 	template<class Op, class DomainVec, class RangeVec>
 	void apply(const Op & A, const RangeVec & b, DomainVec & x)
@@ -42,9 +47,9 @@ public:
 		using scalar = typename DomainVec::scalar;
 		int restarts = 0;
 
-		auto & [res, r_tilde, p, v, p_hat, s, s_hat, t] = params.work;
+		auto & [res, r_tilde, p, v, p_hat, s, s_hat, t] = work;
 
-		auto & P = params.precond;
+		auto & P = settings.precond;
 
 		real b_norm = b.l2norm().get();
 
@@ -53,12 +58,12 @@ public:
 			b_norm = 1.;
 		}
 
-		const real terminate_tol = params.rtol * b_norm;
+		const real terminate_tol = settings.rtol * b_norm;
 
 		flog(info) << "BiCGSTAB: initial l2 norm of solution: " << x.l2norm().get() << std::endl;
 		flog(info) << "BiCGSTAB: initial l2 norm of rhs:      " << b_norm << std::endl;
 
-		if (params.use_zero_guess) {
+		if (settings.use_zero_guess) {
 			res.copy(b);
 		} else {
 			A.residual(b, x, res);
@@ -87,7 +92,7 @@ public:
 
 		p.zero();
 		v.zero();
-		for (auto iter = 0; iter < params.maxiter; iter++) {
+		for (auto iter = 0; iter < settings.maxiter; iter++) {
 			rho[1] = r_tilde.dot(res).get();
 
 			real angle = std::sqrt(std::fabs(rho[1]));
@@ -124,7 +129,7 @@ public:
 
 			const real s_norm = s.l2norm().get();
 
-			if (s_norm < params.rtol) {
+			if (s_norm < settings.rtol) {
 				// early convergence
 				x.axpy(alpha, p_hat, x);
 				break;
@@ -161,8 +166,8 @@ public:
 		flog(info) << "l2norm of solution: " << x.l2norm().get() << std::endl;
 	}
 
-protected:
-	Settings params;
+	Settings settings;
+	Workspace work;
 };
 
 }

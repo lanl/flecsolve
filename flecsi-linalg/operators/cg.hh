@@ -16,10 +16,8 @@ inline auto default_settings() {
 }
 
 
-template <class Vec, std::size_t Version=0>
-auto topo_workspace(const Vec & rhs) {
-	return topo_solver_state<Vec, nwork, Version>::get_work(rhs);
-}
+template <std::size_t Version = 0>
+using topo_work = topo_work_base<nwork, Version>;
 
 
 template<class Settings, class WorkSpace>

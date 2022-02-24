@@ -21,7 +21,7 @@ struct settings : solver_settings<Op>
 	using base_t = solver_settings<Op>;
 	template<class OP>
 	settings(OP && precond, int maxiter, float rtol) :
-		base_t{maxiter, rtol, 0.0, std::forward<Op>(precond)},
+		base_t{maxiter, rtol, 0.0, std::forward<OP>(precond)},
 		max_krylov_dim(100), pre_side{precond_side::right} {
 		flog_assert(max_krylov_dim <= krylov_dim_bound, "GMRES: max_krylov_dim is larger than bound");
 	}
@@ -36,10 +36,8 @@ inline auto default_settings() {
 }
 
 
-template <class Vec, std::size_t Version = 0>
-auto topo_workspace(const Vec & rhs) {
-	return topo_solver_state<Vec, nwork, Version>::get_work(rhs);
-}
+template <std::size_t Version = 0>
+using topo_work = topo_work_base<nwork, Version>;
 
 
 template<class Settings, class WorkSpace>

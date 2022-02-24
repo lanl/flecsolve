@@ -88,7 +88,7 @@ int cgtest() {
 			x.set_random();
 
 			cg::solver slv(cg::default_settings(),
-			               cg::topo_workspace(b));
+			               cg::topo_work<>::get(b));
 
 			diagnostic diag(A, x, cs.second);
 			slv.settings.maxiter = 2000;

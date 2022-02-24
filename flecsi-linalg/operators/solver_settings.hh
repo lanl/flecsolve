@@ -13,7 +13,7 @@ struct solver_settings {
 };
 
 
-template <class Vec, std::size_t NumWork, std::size_t Version=0>
+template <class Vec, std::size_t NumWork, std::size_t Version>
 struct topo_solver_state {
 
 	using field_def = typename Vec::data_t::field_definition;
@@ -34,5 +34,13 @@ protected:
 	}
 };
 
+
+template<std::size_t NumWork, std::size_t Version>
+struct topo_work_base {
+	template<class Vec>
+	static auto get(const Vec & rhs) {
+		return topo_solver_state<Vec, NumWork, Version>::get_work(rhs);
+	}
+};
 
 }
