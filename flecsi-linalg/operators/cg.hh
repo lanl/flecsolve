@@ -20,19 +20,17 @@ template <std::size_t Version = 0>
 using topo_work = topo_work_base<nwork, Version>;
 
 
-template<class Settings, class WorkSpace>
-struct solver
+template<class Settings, class Workspace>
+struct solver : solver_interface<Settings, Workspace, solver>
 {
+	using iface = solver_interface<Settings, Workspace, solver>;
+	using iface::work;
+	using iface::settings;
+	using iface::apply;
+
 	template<class S, class V>
-	solver(S && params, V && workspace) : settings(std::forward<S>(params)),
-	                                      work(std::forward<V>(workspace)) {}
-
-	template<class Op, class DomainVec, class RangeVec>
-	void apply(const Op & A, const RangeVec & b, DomainVec & x)
-	{
-		apply(A, b, x, nullptr);
-	}
-
+	solver(S && params, V && workspace) :
+		iface{std::forward<S>(params),std::forward<V>(workspace)} {}
 
 	template<class Op, class DomainVec, class RangeVec, class F>
 	void apply(const Op & A, const RangeVec & b, DomainVec & x, F && callback)
@@ -87,7 +85,8 @@ struct solver
 
 			current_res = r.l2norm().get();
 			flog(info) << "CG: ||r_" << iter+1 << "|| " << current_res << std::endl;
-			if constexpr (!std::is_null_pointer_v<F>) callback(x, current_res);
+			iface::invoke(std::forward<F>(callback), x, current_res);
+
 			if (current_res < terminate_tol) break;
 
 			P.apply(r, z);
@@ -99,9 +98,6 @@ struct solver
 			p.axpy(beta, p, z);
 		}
 	}
-
-	Settings settings;
-	WorkSpace work;
 };
 template<class S, class V> solver(S&&,V&&)->solver<S,V>;
 

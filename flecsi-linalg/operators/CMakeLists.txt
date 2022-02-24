@@ -16,3 +16,12 @@ add_unit(gmres
   LIBRARIES
   FleCSI::linalg
   THREADS 1)
+
+add_unit(bicgstab
+  SOURCES
+  test/bicgstab.cc
+  INPUTS
+  ${PROJECT_SOURCE_DIR}/data/Chem97ZtZ/Chem97ZtZ.mtx
+  LIBRARIES
+  FleCSI::linalg
+  THREADS 1)

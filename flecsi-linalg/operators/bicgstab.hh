@@ -31,18 +31,20 @@ using topo_work = topo_work_base<nwork, Version>;
 
 
 template <class Settings, class Workspace>
-class solver
+struct solver : solver_interface<Settings, Workspace, solver>
 {
-public:
-	using real = typename Settings::real;
+	using iface = solver_interface<Settings, Workspace, solver>;
+	using real = typename iface::real;
+	using iface::work;
+	using iface::settings;
+	using iface::apply;
 
 	template<class S, class W>
-	solver(S && params, V && workspace) :
-		settings{std::forward<S>(params)},
-		work{std::forward<V>(workspace)} {}
+	solver(S && params, W && workspace) :
+		iface{std::forward<S>(params), std::forward<W>(workspace)} {}
 
-	template<class Op, class DomainVec, class RangeVec>
-	void apply(const Op & A, const RangeVec & b, DomainVec & x)
+	template<class Op, class DomainVec, class RangeVec, class F>
+	void apply(const Op & A, const RangeVec & b, DomainVec & x, F && callback)
 	{
 		using scalar = typename DomainVec::scalar;
 		int restarts = 0;
@@ -152,6 +154,7 @@ public:
 
 			flog(info) << "BiCGSTAB: ||r_" << (iter + 1) << "|| " << res_norm
 			           << std::endl;
+			iface::invoke(std::forward<F>(callback), x, res_norm);
 
 			if (res_norm < terminate_tol) break;
 
@@ -165,9 +168,7 @@ public:
 
 		flog(info) << "l2norm of solution: " << x.l2norm().get() << std::endl;
 	}
-
-	Settings settings;
-	Workspace work;
 };
+template<class S, class V> solver(S&&,V&&)->solver<S,V>;
 
 }

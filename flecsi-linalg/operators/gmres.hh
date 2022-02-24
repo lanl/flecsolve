@@ -40,13 +40,19 @@ template <std::size_t Version = 0>
 using topo_work = topo_work_base<nwork, Version>;
 
 
-template<class Settings, class WorkSpace>
-struct solver {
-	using real = typename std::remove_reference_t<WorkSpace>::value_type::real;
+template<class Settings, class Workspace>
+struct solver : solver_interface<Settings, Workspace, solver>
+{
+	using iface = solver_interface<Settings, Workspace, solver>;
+	using real = typename iface::real;
+	using iface::work;
+	using iface::settings;
+	using iface::apply;
 
 	template<class S, class V>
-	solver(S && params, V && workspace) : settings(std::forward<S>(params)),
-	                                      work(std::forward<V>(workspace)) {
+	solver(S && params, V && workspace) :
+		iface{std::forward<S>(params), std::forward<V>(workspace)}
+	{
 		init();
 	}
 
@@ -67,12 +73,6 @@ struct solver {
 		dyvec.resize(max_dim + 1, 0.0);
 
 		basis = util::span(work.data() + (nwork - krylov_dim_bound - 1), max_dim+1);
-	}
-
-	template<class Op, class DomainVec, class RangeVec>
-	void apply(const Op & A, const RangeVec & b, DomainVec & x)
-	{
-		apply(A, b, x, nullptr);
 	}
 
 	template<class Op, class DomainVec, class RangeVec, class F>
@@ -163,7 +163,7 @@ struct solver {
 			v_norm = std::fabs(dwvec[k+1]);
 
 			flog(info) << "|r_" << k + 1 << "| " << v_norm << std::endl;
-			if constexpr (!std::is_null_pointer_v<F>) callback(x, v_norm);
+			iface::invoke(std::forward<F>(callback), x, v_norm);
 
 			++nr;
 		}
@@ -272,12 +272,10 @@ struct solver {
 
 
 protected:
-	Settings settings;
-	WorkSpace work;
 	std::unique_ptr<real[]> hessenberg_data;
 	using hessenberg_mat = util::mdcolex<real, 2>;
 	std::unique_ptr<hessenberg_mat> hmat;
-	util::span<typename std::remove_reference_t<WorkSpace>::value_type> basis;
+	util::span<typename iface::workvec_t> basis;
 	std::vector<real> sinvec, cosvec;
 	std::vector<real> dwvec, dyvec;
 	real nr;

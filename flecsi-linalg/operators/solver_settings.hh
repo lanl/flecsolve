@@ -43,4 +43,27 @@ struct topo_work_base {
 	}
 };
 
+
+template <class Settings, class Workspace, template<class,class> class Solver>
+struct solver_interface {
+	using workvec_t = typename std::remove_reference_t<Workspace>::value_type;
+	using real = typename workvec_t::real;
+
+	template<class Op, class DomainVec, class RangeVec>
+	void apply(const Op & A, const RangeVec & b, DomainVec & x)
+	{
+		static_cast<Solver<Settings,Workspace>&>(*this).apply(A, b, x, nullptr);
+	}
+
+	template<class F, class ... Args>
+	static constexpr void invoke(F && f, Args&&... args) {
+		if constexpr (!std::is_null_pointer_v<F>) {
+			std::forward<F>(f)(std::forward<Args>(args)...);
+		}
+	}
+
+	Settings settings;
+	Workspace work;
+};
+
 }
