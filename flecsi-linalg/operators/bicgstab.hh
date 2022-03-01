@@ -44,8 +44,10 @@ struct solver : solver_interface<Settings, Workspace, solver>
 		iface{std::forward<S>(params), std::forward<W>(workspace)} {}
 
 	template<class Op, class DomainVec, class RangeVec, class F>
-	void apply(const Op & A, const RangeVec & b, DomainVec & x, F && callback)
+	solve_info apply(const Op & A, const RangeVec & b, DomainVec & x, F && callback)
 	{
+		solve_info info;
+
 		using scalar = typename DomainVec::scalar;
 		int restarts = 0;
 
@@ -62,8 +64,8 @@ struct solver : solver_interface<Settings, Workspace, solver>
 
 		const real terminate_tol = settings.rtol * b_norm;
 
-		flog(info) << "BiCGSTAB: initial l2 norm of solution: " << x.l2norm().get() << std::endl;
-		flog(info) << "BiCGSTAB: initial l2 norm of rhs:      " << b_norm << std::endl;
+		info.sol_norm_initial = x.l2norm().get();
+		info.rhs_norm = b_norm;
 
 		if (settings.use_zero_guess) {
 			res.copy(b);
@@ -75,12 +77,14 @@ struct solver : solver_interface<Settings, Workspace, solver>
 		real res_norm = res.l2norm().get();
 		real r_tilde_norm = res_norm;
 
-		flog(info) << "BiCGSTAB: initial residual " << res_norm << std::endl;
+		info.res_norm_initial = res_norm;
 
 		if (res_norm < terminate_tol) {
-			flog(info) << "BiCGSTAB initial residual norm " << res_norm
-			           << " is below convergence tolerance: " << terminate_tol << std::endl;
-			return;
+			// initial residual below tolerance
+			info.status = solve_info::stop_reason::converged_rtol;
+			info.res_norm_initial = res_norm;
+			info.res_norm_final = res_norm;
+			return info;
 		}
 
 		real alpha = 1.0;
@@ -134,6 +138,9 @@ struct solver : solver_interface<Settings, Workspace, solver>
 			if (s_norm < settings.rtol) {
 				// early convergence
 				x.axpy(alpha, p_hat, x);
+
+				info.iters = iter;
+				info.status = solve_info::stop_reason::converged_rtol;
 				break;
 			}
 
@@ -152,21 +159,28 @@ struct solver : solver_interface<Settings, Workspace, solver>
 
 			res_norm = res.l2norm().get();
 
-			flog(info) << "BiCGSTAB: ||r_" << (iter + 1) << "|| " << res_norm
-			           << std::endl;
 			iface::invoke(std::forward<F>(callback), x, res_norm);
 
-			if (res_norm < terminate_tol) break;
+			if (res_norm < terminate_tol) {
+				info.status = solve_info::stop_reason::converged_rtol;
+				info.iters = iter+1;
+				break;
+			}
 
 			if (omega == 0.0) {
-				flog(error) << "BiCGSTAB: breakdown encountered, omega = 0" << std::endl;
+				info.iters = iter+1;
+				info.status = solve_info::stop_reason::diverged_breakdown;
 				break;
 			}
 
 			rho[0] = rho[1];
 		}
 
-		flog(info) << "l2norm of solution: " << x.l2norm().get() << std::endl;
+		info.res_norm_final = res_norm;
+		info.sol_norm_final = x.l2norm().get();
+		if (info.iters == 0) info.status = solve_info::stop_reason::diverged_iters;
+
+		return info;
 	}
 };
 template<class S, class V> solver(S&&,V&&)->solver<S,V>;

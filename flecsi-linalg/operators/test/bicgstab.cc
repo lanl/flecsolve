@@ -13,33 +13,47 @@
 
 namespace flecsi::linalg {
 
-testmesh::slot msh;
-testmesh::cslot coloring;
+static constexpr std::size_t ncases = 2;
+std::array<testmesh::slot, ncases> mshs;
+std::array<testmesh::cslot, ncases> colorings;
 
 const realf::definition<testmesh, testmesh::cells> xd, bd;
 
-
 int driver() {
-	auto mat = read_mm("Chem97ZtZ.mtx");
+	std::array cases{
+		std::make_pair("Chem97ZtZ.mtx", 108),
+		std::make_pair("psmigr_3.mtx", 32)
+	};
 
-	init_mesh(mat.nrows, msh, coloring);
+	static_assert(cases.size() <= ncases);
 
-	csr_op A{std::move(mat)};
+	UNIT() {
+		std::size_t i = 0;
+		for (const auto & cs : cases) {
+			auto mat = read_mm(cs.first);
 
-	vec::mesh x(msh, xd(msh)), b(msh, bd(msh));
-	b.set_random();
-	x.set_random();
+			auto & msh = mshs[i];
 
-	bicgstab::solver slv(bicgstab::default_settings(),
-	                     bicgstab::topo_work<>::get(b));
+			init_mesh(mat.nrows, msh, colorings[i]);
 
-	slv.settings.maxiter = 200;
-	std::size_t i = 0;
-	slv.apply(A, b, x, [&](const auto &, double rnorm) {
-		std::cout << i++ << " " << rnorm << std::endl;
-	});
+			csr_op A{std::move(mat)};
 
-	return 0;
+			vec::mesh x(msh, xd(msh)), b(msh, bd(msh));
+			b.set_random(0);
+			x.set_random(1);
+
+			bicgstab::solver slv(bicgstab::default_settings(),
+			                     bicgstab::topo_work<>::get(b));
+
+			slv.settings.maxiter = 200;
+			auto info = slv.apply(A, b, x);
+
+			EXPECT_EQ(info.status, solve_info::stop_reason::converged_rtol);
+			EXPECT_EQ(info.iters, cs.second);
+
+			++i;
+		}
+	};
 }
 
 

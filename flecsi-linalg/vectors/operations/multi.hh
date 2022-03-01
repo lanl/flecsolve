@@ -115,9 +115,9 @@ struct multi {
 		}, make_is(), y, x);
 	}
 
-	void set_random(vec_data & x) {
-		apply([](auto & z) {
-			z.set_random();
+	void set_random(vec_data & x, unsigned seed) {
+		apply([=](auto & z) {
+			z.set_random(seed);
 		}, make_is(), x);
 	}
 

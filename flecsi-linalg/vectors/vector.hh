@@ -1,5 +1,7 @@
 #pragma once
+
 #include <utility>
+#include <random>
 #include <complex>
 #include <type_traits>
 #include <optional>
@@ -308,7 +310,15 @@ public:
 	 * Set components to random values.
 	 */
 	void set_random() {
-		ops.set_random(data);
+		std::random_device rd;
+		ops.set_random(data, rd());
+	}
+
+	/**
+	 * Set components to random values given a seed.
+	 */
+	void set_random(unsigned seed) {
+		ops.set_random(data, seed);
 	}
 
 	void dump(std::string_view str) {

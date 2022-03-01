@@ -342,9 +342,8 @@ struct mesh_tasks {
 		*length = util::dofs(m).size();
 	}
 
-	static void set_random(topo_acc m, acc<wo> x) {
-		std::random_device rd;
-		std::mt19937 gen(rd());
+	static void set_random(topo_acc m, acc<wo> x, unsigned seed) {
+		std::mt19937 gen(seed);
 		std::uniform_real_distribution<real> dis(0., 1.);
 		for (auto dof : util::dofs(m)) {
 			if constexpr (is_complex)

@@ -13,6 +13,23 @@ struct solver_settings {
 };
 
 
+struct solve_stats {};
+
+struct solve_info {
+	solve_info() : iters(0) {}
+
+	enum class stop_reason {
+		converged_atol, converged_rtol, converged_user,
+		diverged_dtol, diverged_iters, diverged_breakdown
+	};
+	stop_reason status;
+	int iters;
+	float res_norm_initial, res_norm_final;
+	float sol_norm_initial, sol_norm_final;
+	float rhs_norm;
+};
+
+
 template <class Vec, std::size_t NumWork, std::size_t Version>
 struct topo_solver_state {
 
@@ -50,9 +67,9 @@ struct solver_interface {
 	using real = typename workvec_t::real;
 
 	template<class Op, class DomainVec, class RangeVec>
-	void apply(const Op & A, const RangeVec & b, DomainVec & x)
+	solve_info apply(const Op & A, const RangeVec & b, DomainVec & x)
 	{
-		static_cast<Solver<Settings,Workspace>&>(*this).apply(A, b, x, nullptr);
+		return static_cast<Solver<Settings,Workspace>&>(*this).apply(A, b, x, nullptr);
 	}
 
 	template<class F, class ... Args>

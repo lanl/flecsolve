@@ -28,8 +28,8 @@ struct mesh {
 		execute<tasks::set_to_scalar>(x.topo, x.ref(), 0.0);
 	}
 
-	void set_random(vec_data & x) {
-		execute<tasks::set_random>(x.topo, x.ref());
+	void set_random(vec_data & x, unsigned seed) {
+		execute<tasks::set_random>(x.topo, x.ref(), seed);
 	}
 
 	void set_to_scalar(scalar alpha, vec_data & x) {

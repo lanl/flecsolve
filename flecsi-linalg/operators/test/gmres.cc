@@ -68,7 +68,7 @@ int gmres_test() {
 		x.set_random();
 
 		gmres::solver slv(gmres::default_settings(),
-		                  gmres::topo_workspace(b));
+		                  gmres::topo_work<>::get(b));
 
 		diagnostic diag(A, x, b, cfact);
 

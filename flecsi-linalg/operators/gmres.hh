@@ -76,7 +76,8 @@ struct solver : solver_interface<Settings, Workspace, solver>
 	}
 
 	template<class Op, class DomainVec, class RangeVec, class F>
-	void apply(const Op & A, const RangeVec & b, DomainVec & x, F && callback) {
+	solve_info apply(const Op & A, const RangeVec & b, DomainVec & x, F && callback) {
+		solve_info info;
 		auto & P = settings.precond;
 		auto & hessenberg = *hmat;
 
@@ -90,6 +91,8 @@ struct solver : solver_interface<Settings, Workspace, solver>
 
 		auto b_norm = b.l2norm().get();
 
+		info.rhs_norm = b_norm;
+
 		// if rhs is zero try to converge to relative convergence
 		if (b_norm < std::numeric_limits<real>::epsilon())
 			b_norm = 1.0;
@@ -101,9 +104,13 @@ struct solver : solver_interface<Settings, Workspace, solver>
 		nr = -1;
 
 		const real beta = res.l2norm().get();
-		flog(info) << "gmres: initial residual " << beta << std::endl;
+		info.res_norm_initial = beta;
 
-		if (beta < terminate_tol) return;
+		if (beta < terminate_tol) {
+			info.res_norm_final = beta;
+			info.status = solve_info::stop_reason::converged_rtol;
+			return info;
+		}
 
 		res.scale(1.0 / beta);
 		basis[0].copy(res);
@@ -162,8 +169,13 @@ struct solver : solver_interface<Settings, Workspace, solver>
 
 			v_norm = std::fabs(dwvec[k+1]);
 
-			flog(info) << "|r_" << k + 1 << "| " << v_norm << std::endl;
 			iface::invoke(std::forward<F>(callback), x, v_norm);
+
+			if (v_norm < terminate_tol) {
+				info.status = solve_info::stop_reason::converged_rtol;
+				info.iters = k+1;
+				break;
+			}
 
 			++nr;
 		}
@@ -185,6 +197,12 @@ struct solver : solver_interface<Settings, Workspace, solver>
 				x.axpy(dyvec[i], basis[i], x);
 			}
 		}
+
+		info.res_norm_final = v_norm;
+		info.sol_norm_final = x.l2norm().get();
+		if (info.iters == 0) info.status = solve_info::stop_reason::diverged_iters;
+
+		return info;
 	}
 
 

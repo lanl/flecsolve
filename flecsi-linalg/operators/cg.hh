@@ -33,8 +33,9 @@ struct solver : solver_interface<Settings, Workspace, solver>
 		iface{std::forward<S>(params),std::forward<V>(workspace)} {}
 
 	template<class Op, class DomainVec, class RangeVec, class F>
-	void apply(const Op & A, const RangeVec & b, DomainVec & x, F && callback)
+	solve_info apply(const Op & A, const RangeVec & b, DomainVec & x, F && callback)
 	{
+		solve_info info;
 		using scalar = typename DomainVec::scalar;
 		using real = typename DomainVec::real;
 
@@ -47,15 +48,20 @@ struct solver : solver_interface<Settings, Workspace, solver>
 		const real terminate_tol = settings.rtol * b_norm;
 
 
-		flog(info) << "CG: initial l2 norm of solution: " << x.l2norm().get() << std::endl;
-		flog(info) << "CG: initial l2 norm of rhs:      " << b_norm << std::endl;
+		info.sol_norm_initial = x.l2norm().get();
+		info.rhs_norm = b_norm;
 
 		// compute initial residual
 		A.residual(b, x, r);
 
 		real current_res = r.l2norm().get();
 
-		if (current_res < terminate_tol) return;
+		if (current_res < terminate_tol) {
+			info.res_norm_initial = current_res;
+			info.res_norm_final = current_res;
+			info.status = solve_info::stop_reason::converged_rtol;
+			return info;
+		}
 
 		P.apply(r, z);
 
@@ -84,10 +90,13 @@ struct solver : solver_interface<Settings, Workspace, solver>
 			r.axpy(-alpha, w, r); // r = r - alpha * w
 
 			current_res = r.l2norm().get();
-			flog(info) << "CG: ||r_" << iter+1 << "|| " << current_res << std::endl;
 			iface::invoke(std::forward<F>(callback), x, current_res);
 
-			if (current_res < terminate_tol) break;
+			if (current_res < terminate_tol) {
+				info.iters = iter+1;
+				info.status = solve_info::stop_reason::converged_rtol;
+				break;
+			}
 
 			P.apply(r, z);
 
@@ -97,6 +106,12 @@ struct solver : solver_interface<Settings, Workspace, solver>
 			beta = rho[1] / rho[0];
 			p.axpy(beta, p, z);
 		}
+
+		info.res_norm_final = current_res;
+		info.sol_norm_final = x.l2norm().get();
+		if (info.iters == 0) info.status = solve_info::stop_reason::diverged_iters;
+
+		return info;
 	}
 };
 template<class S, class V> solver(S&&,V&&)->solver<S,V>;
