@@ -4,13 +4,18 @@
 
 namespace flecsi::linalg {
 
-template<class Op>
+template<class Op, class Diag>
 struct solver_settings {
+	using diagnostic_t = Diag;
+
 	int maxiter;
 	float rtol;
 	float atol;
-	Op precond;
+	Op & precond;
+	Diag diagnostic;
 };
+template <class Op, class Diag>
+solver_settings(int,float,float,Op&,Diag&&)->solver_settings<Op,Diag>;
 
 
 struct solve_stats {};
@@ -66,17 +71,12 @@ struct solver_interface {
 	using workvec_t = typename std::remove_reference_t<Workspace>::value_type;
 	using real = typename workvec_t::real;
 
-	template<class Op, class DomainVec, class RangeVec>
-	solve_info apply(const Op & A, const RangeVec & b, DomainVec & x)
-	{
-		return static_cast<Solver<Settings,Workspace>&>(*this).apply(A, b, x, nullptr);
-	}
-
-	template<class F, class ... Args>
-	static constexpr void invoke(F && f, Args&&... args) {
-		if constexpr (!std::is_null_pointer_v<F>) {
-			std::forward<F>(f)(std::forward<Args>(args)...);
-		}
+	template<class ... Args>
+	constexpr bool user_diagnostic(Args&&... args) {
+		if constexpr (!std::is_null_pointer_v<typename Settings::diagnostic_t>) {
+			return settings.diagnostic(std::forward<Args>(args)...);
+		} else
+			return false;
 	}
 
 	Settings settings;

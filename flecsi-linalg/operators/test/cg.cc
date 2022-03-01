@@ -36,7 +36,7 @@ struct diagnostic
 		e_prev = e_0;
 	}
 
-	void operator()(const Vec & x, double) {
+	bool operator()(const Vec & x, double) {
 		A.apply(x, Ax);
 		auto nrm = x.dot(Ax).get();
 		auto e_a = std::sqrt(nrm);
@@ -49,6 +49,8 @@ struct diagnostic
 		convergence_fail = convergence_fail || (e_a >= bnd);
 
 		e_prev = e_a;
+
+		return false;
 	}
 
 	std::size_t iter;
@@ -87,12 +89,12 @@ int cgtest() {
 			b.set_scalar(0.0);
 			x.set_random();
 
-			cg::solver slv(cg::default_settings(),
+			diagnostic diag(A, x, cs.second);
+			cg::solver slv(cg::default_settings(op::I, diag),
 			               cg::topo_work<>::get(b));
 
-			diagnostic diag(A, x, cs.second);
 			slv.settings.maxiter = 2000;
-			slv.apply(A, b, x, diag);
+			slv.apply(A, b, x);
 
 			EXPECT_FALSE(diag.monotonic_fail);
 			EXPECT_FALSE(diag.convergence_fail);

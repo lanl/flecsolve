@@ -15,13 +15,13 @@ enum class precond_side { left, right };
 static constexpr std::size_t krylov_dim_bound = 100;
 static constexpr std::size_t nwork = (krylov_dim_bound+1) + 3;
 
-template <class Op>
-struct settings : solver_settings<Op>
+template <class Op, class Diag>
+struct settings : solver_settings<Op, Diag>
 {
-	using base_t = solver_settings<Op>;
-	template<class OP>
-	settings(OP && precond, int maxiter, float rtol) :
-		base_t{maxiter, rtol, 0.0, std::forward<OP>(precond)},
+	using base_t = solver_settings<Op, Diag>;
+	template<class D>
+	settings(int maxiter, float rtol, Op & precond, D && diag) :
+		base_t{maxiter, rtol, 0.0, precond, std::forward<Diag>(diag)},
 		max_krylov_dim(100), pre_side{precond_side::right} {
 		flog_assert(max_krylov_dim <= krylov_dim_bound, "GMRES: max_krylov_dim is larger than bound");
 	}
@@ -29,10 +29,16 @@ struct settings : solver_settings<Op>
 	int max_krylov_dim;
 	precond_side pre_side;
 };
+template <class Op, class Diag>
+settings(int,float,Op&,Diag&&)->settings<Op,Diag>;
 
+template <class Op, class Diag>
+auto default_settings(Op & pre, Diag && diag) {
+	return settings(100, 1e-9, pre, std::forward<Diag>(diag));
+}
 
 inline auto default_settings() {
-	return settings<decltype(op::I)>(op::I, 100, 1e-9);
+	return default_settings(op::I, nullptr);
 }
 
 
@@ -47,7 +53,7 @@ struct solver : solver_interface<Settings, Workspace, solver>
 	using real = typename iface::real;
 	using iface::work;
 	using iface::settings;
-	using iface::apply;
+	using iface::user_diagnostic;
 
 	template<class S, class V>
 	solver(S && params, V && workspace) :
@@ -75,8 +81,8 @@ struct solver : solver_interface<Settings, Workspace, solver>
 		basis = util::span(work.data() + (nwork - krylov_dim_bound - 1), max_dim+1);
 	}
 
-	template<class Op, class DomainVec, class RangeVec, class F>
-	solve_info apply(const Op & A, const RangeVec & b, DomainVec & x, F && callback) {
+	template<class Op, class DomainVec, class RangeVec>
+	solve_info apply(const Op & A, const RangeVec & b, DomainVec & x) {
 		solve_info info;
 		auto & P = settings.precond;
 		auto & hessenberg = *hmat;
@@ -169,7 +175,11 @@ struct solver : solver_interface<Settings, Workspace, solver>
 
 			v_norm = std::fabs(dwvec[k+1]);
 
-			iface::invoke(std::forward<F>(callback), x, v_norm);
+			if (user_diagnostic(x, v_norm)) {
+				info.status = solve_info::stop_reason::converged_user;
+				info.iters = k+1;
+				break;
+			}
 
 			if (v_norm < terminate_tol) {
 				info.status = solve_info::stop_reason::converged_rtol;

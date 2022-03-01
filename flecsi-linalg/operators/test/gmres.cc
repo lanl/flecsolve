@@ -30,7 +30,7 @@ struct diagnostic {
 		rnorm_prev = rnorm0;
 	}
 
-	void operator()(const Vec &, double rnorm) {
+	bool operator()(const Vec &, double rnorm) {
 		float n = ++iter;
 		auto bnd = std::pow(cfact, n / 2) * rnorm0;
 
@@ -38,6 +38,8 @@ struct diagnostic {
 		fail_convergence = fail_convergence || (rnorm > bnd);
 
 		rnorm_prev = rnorm;
+
+		return false;
 	}
 
 	std::size_t iter;
@@ -67,12 +69,12 @@ int gmres_test() {
 		b.set_random();
 		x.set_random();
 
-		gmres::solver slv(gmres::default_settings(),
+		diagnostic diag(A, x, b, cfact);
+		gmres::solver slv(gmres::default_settings(op::I, diag),
 		                  gmres::topo_work<>::get(b));
 
-		diagnostic diag(A, x, b, cfact);
 
-		slv.apply(A, b, x, diag);
+		slv.apply(A, b, x);
 
 		EXPECT_FALSE(diag.fail_monotonic);
 		EXPECT_FALSE(diag.fail_convergence);

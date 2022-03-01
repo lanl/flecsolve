@@ -9,22 +9,29 @@ namespace flecsi::linalg::bicgstab {
 
 static constexpr std::size_t nwork = 8;
 
-template <class Op>
-struct settings : solver_settings<Op>
+template <class Op, class Diag>
+struct settings : solver_settings<Op, Diag>
 {
-	using base_t = solver_settings<Op>;
-	template<class OP>
-	settings(OP && precond, int maxiter, float rtol, bool use_zero_guess) :
-		base_t{maxiter, rtol, 0.0, std::forward<OP>(precond)},
+	using base_t = solver_settings<Op, Diag>;
+	template<class DIAG>
+	settings(int maxiter, float rtol, bool use_zero_guess, Op & precond, DIAG && diag) :
+		base_t{maxiter, rtol, 0.0, precond, std::forward<DIAG>(diag)},
 		use_zero_guess(use_zero_guess) {}
 
 	bool use_zero_guess;
 };
+template <class Op, class Diag>
+settings(int,float,bool,Op&,Diag&&)->settings<Op,Diag>;
 
-inline auto default_settings() {
-	return settings<decltype(op::I)>(op::I, 100, 1e-9, false);
+
+template <class Op, class Diag>
+auto default_settings(Op & pre, Diag && diag) {
+	return settings(100, 1e-9, false, op::I, std::forward<Diag>(diag));
 }
 
+inline auto default_settings() {
+	return default_settings(op::I, nullptr);
+}
 
 template <std::size_t Version = 0>
 using topo_work = topo_work_base<nwork, Version>;
@@ -37,14 +44,14 @@ struct solver : solver_interface<Settings, Workspace, solver>
 	using real = typename iface::real;
 	using iface::work;
 	using iface::settings;
-	using iface::apply;
+	using iface::user_diagnostic;
 
 	template<class S, class W>
 	solver(S && params, W && workspace) :
 		iface{std::forward<S>(params), std::forward<W>(workspace)} {}
 
-	template<class Op, class DomainVec, class RangeVec, class F>
-	solve_info apply(const Op & A, const RangeVec & b, DomainVec & x, F && callback)
+	template<class Op, class DomainVec, class RangeVec>
+	solve_info apply(const Op & A, const RangeVec & b, DomainVec & x)
 	{
 		solve_info info;
 
@@ -159,7 +166,11 @@ struct solver : solver_interface<Settings, Workspace, solver>
 
 			res_norm = res.l2norm().get();
 
-			iface::invoke(std::forward<F>(callback), x, res_norm);
+			if (user_diagnostic(x, res_norm)) {
+				info.status = solve_info::stop_reason::converged_user;
+				info.iters = iter+1;
+				break;
+			}
 
 			if (res_norm < terminate_tol) {
 				info.status = solve_info::stop_reason::converged_rtol;

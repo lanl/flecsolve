@@ -9,10 +9,16 @@ namespace flecsi::linalg::cg {
 
 static constexpr std::size_t nwork = 4;
 
-template <class Op> using settings = solver_settings<Op>;
+template <class Op, class Diag> using settings = solver_settings<Op, Diag>;
+
+template <class Op, class Diag>
+auto default_settings(Op & op, Diag && diag) {
+	return solver_settings{100, 1e-9, 1e-9, op, std::forward<Diag>(diag)};
+}
 
 inline auto default_settings() {
-	return settings<decltype(op::I)>{100, 1e-9, 1e-9, op::I};
+	// return solver_settings{100, 1e-9, 1e-9, op::I, nullptr};
+	return default_settings(op::I, nullptr);
 }
 
 
@@ -26,14 +32,14 @@ struct solver : solver_interface<Settings, Workspace, solver>
 	using iface = solver_interface<Settings, Workspace, solver>;
 	using iface::work;
 	using iface::settings;
-	using iface::apply;
+	using iface::user_diagnostic;
 
 	template<class S, class V>
 	solver(S && params, V && workspace) :
 		iface{std::forward<S>(params),std::forward<V>(workspace)} {}
 
-	template<class Op, class DomainVec, class RangeVec, class F>
-	solve_info apply(const Op & A, const RangeVec & b, DomainVec & x, F && callback)
+	template<class Op, class DomainVec, class RangeVec>
+	solve_info apply(const Op & A, const RangeVec & b, DomainVec & x)
 	{
 		solve_info info;
 		using scalar = typename DomainVec::scalar;
@@ -90,7 +96,11 @@ struct solver : solver_interface<Settings, Workspace, solver>
 			r.axpy(-alpha, w, r); // r = r - alpha * w
 
 			current_res = r.l2norm().get();
-			iface::invoke(std::forward<F>(callback), x, current_res);
+			if (user_diagnostic(x, current_res)) {
+				info.iters = iter+1;
+				info.status = solve_info::stop_reason::converged_user;
+				break;
+			}
 
 			if (current_res < terminate_tol) {
 				info.iters = iter+1;
