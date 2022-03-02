@@ -48,7 +48,6 @@ struct solver : solver_interface<settings_t, Workspace, solver>
 		solve_info info;
 
 		using scalar = typename DomainVec::scalar;
-		int restarts = 0;
 
 		auto & [res, r_tilde, p, v, p_hat, s, s_hat, t] = work;
 
@@ -95,7 +94,7 @@ struct solver : solver_interface<settings_t, Workspace, solver>
 
 		p.zero();
 		v.zero();
-		for (auto iter = 0; iter < settings.maxiter; iter++) {
+		for (int iter = 0; iter < settings.maxiter; iter++) {
 			rho[1] = r_tilde.dot(res).get();
 
 			real angle = std::sqrt(std::fabs(rho[1]));
@@ -108,11 +107,12 @@ struct solver : solver_interface<settings_t, Workspace, solver>
 				r_tilde.copy(res);
 				res_norm = res.l2norm().get();
 				rho[1] = r_tilde_norm = res_norm;
-				++restarts;
-				break;
+				p.copy(res);
+				++info.restarts;
+				continue;
 			}
 
-			if (iter == 1) {
+			if (iter == 0) {
 				p.copy(res);
 			} else {
 				beta = (rho[1] / rho[0]) * (alpha / omega);

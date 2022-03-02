@@ -21,7 +21,7 @@ const realf::definition<testmesh, testmesh::cells> xd, bd;
 
 int driver() {
 	std::array cases{
-		std::make_pair("Chem97ZtZ.mtx", 108),
+		std::make_pair("Chem97ZtZ.mtx", 91),
 		std::make_pair("psmigr_3.mtx", 32)
 	};
 

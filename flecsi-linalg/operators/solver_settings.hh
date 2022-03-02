@@ -16,7 +16,7 @@ struct solver_settings {
 struct solve_stats {};
 
 struct solve_info {
-	solve_info() : iters(0) {}
+	solve_info() : iters(0), restarts(0) {}
 
 	enum class stop_reason {
 		converged_atol, converged_rtol, converged_user,
@@ -24,6 +24,7 @@ struct solve_info {
 	};
 	stop_reason status;
 	int iters;
+	int restarts;
 	float res_norm_initial, res_norm_final;
 	float sol_norm_initial, sol_norm_final;
 	float rhs_norm;
