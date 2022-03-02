@@ -90,11 +90,11 @@ int cgtest() {
 			x.set_random();
 
 			diagnostic diag(A, x, cs.second);
-			cg::solver slv(cg::default_settings(op::I, diag),
+			cg::solver slv(cg::default_settings(),
 			               cg::topo_work<>::get(b));
 
 			slv.settings.maxiter = 2000;
-			slv.apply(A, b, x);
+			slv.bind(op::I, diag).apply(A, b, x);
 
 			EXPECT_FALSE(diag.monotonic_fail);
 			EXPECT_FALSE(diag.convergence_fail);

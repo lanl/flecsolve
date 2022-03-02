@@ -15,13 +15,11 @@ enum class precond_side { left, right };
 static constexpr std::size_t krylov_dim_bound = 100;
 static constexpr std::size_t nwork = (krylov_dim_bound+1) + 3;
 
-template <class Op, class Diag>
-struct settings : solver_settings<Op, Diag>
+struct settings_t : solver_settings
 {
-	using base_t = solver_settings<Op, Diag>;
-	template<class D>
-	settings(int maxiter, float rtol, Op & precond, D && diag) :
-		base_t{maxiter, rtol, 0.0, precond, std::forward<Diag>(diag)},
+	using base_t = solver_settings;
+	settings_t(int maxiter, float rtol) :
+		base_t{maxiter, rtol, 0.0},
 		max_krylov_dim(100), pre_side{precond_side::right} {
 		flog_assert(max_krylov_dim <= krylov_dim_bound, "GMRES: max_krylov_dim is larger than bound");
 	}
@@ -29,31 +27,23 @@ struct settings : solver_settings<Op, Diag>
 	int max_krylov_dim;
 	precond_side pre_side;
 };
-template <class Op, class Diag>
-settings(int,float,Op&,Diag&&)->settings<Op,Diag>;
-
-template <class Op, class Diag>
-auto default_settings(Op & pre, Diag && diag) {
-	return settings(100, 1e-9, pre, std::forward<Diag>(diag));
-}
 
 inline auto default_settings() {
-	return default_settings(op::I, nullptr);
+	return settings_t(100, 1e-9);
 }
-
 
 template <std::size_t Version = 0>
 using topo_work = topo_work_base<nwork, Version>;
 
 
-template<class Settings, class Workspace>
-struct solver : solver_interface<Settings, Workspace, solver>
+template<class Workspace>
+struct solver : solver_interface<settings_t, Workspace, solver>
 {
-	using iface = solver_interface<Settings, Workspace, solver>;
+	using iface = solver_interface<settings_t, Workspace, solver>;
 	using real = typename iface::real;
 	using iface::work;
 	using iface::settings;
-	using iface::user_diagnostic;
+	using iface::apply;
 
 	template<class S, class V>
 	solver(S && params, V && workspace) :
@@ -81,10 +71,10 @@ struct solver : solver_interface<Settings, Workspace, solver>
 		basis = util::span(work.data() + (nwork - krylov_dim_bound - 1), max_dim+1);
 	}
 
-	template<class Op, class DomainVec, class RangeVec>
-	solve_info apply(const Op & A, const RangeVec & b, DomainVec & x) {
+	template<class Op, class DomainVec, class RangeVec, class Pre, class F>
+	solve_info apply(const Op & A, const RangeVec & b, DomainVec & x,
+	                 Pre & P, F && user_diagnostic) {
 		solve_info info;
-		auto & P = settings.precond;
 		auto & hessenberg = *hmat;
 
 		std::size_t wrk = 0;
@@ -308,6 +298,6 @@ protected:
 	std::vector<real> dwvec, dyvec;
 	real nr;
 };
-template <class S, class V> solver(S &&, V &&) -> solver<S, V>;
+template <class S, class V> solver(S&&,V&&) -> solver<V>;
 
 }

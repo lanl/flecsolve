@@ -2,20 +2,15 @@
 
 #include <array>
 
+#include "shell.hh"
+
 namespace flecsi::linalg {
 
-template<class Op, class Diag>
 struct solver_settings {
-	using diagnostic_t = Diag;
-
 	int maxiter;
 	float rtol;
 	float atol;
-	Op & precond;
-	Diag diagnostic;
 };
-template <class Op, class Diag>
-solver_settings(int,float,float,Op&,Diag&&)->solver_settings<Op,Diag>;
 
 
 struct solve_stats {};
@@ -66,17 +61,40 @@ struct topo_work_base {
 };
 
 
-template <class Settings, class Workspace, template<class,class> class Solver>
+template <class S, class P, class D>
+struct bound_op {
+	S & slv;
+	P & pre;
+	D diag;
+
+	template<class Op, class DomainVec, class RangeVec>
+	auto apply(const Op & A, const RangeVec & b, DomainVec & x) {
+		return slv.apply(A, b, x, pre, diag);
+	}
+};
+template <class S, class P, class D>
+bound_op(S&,P&,D&&)->bound_op<S,P,D>;
+
+template <class Settings, class Workspace, template<class> class Solver>
 struct solver_interface {
 	using workvec_t = typename std::remove_reference_t<Workspace>::value_type;
 	using real = typename workvec_t::real;
 
-	template<class ... Args>
-	constexpr bool user_diagnostic(Args&&... args) {
-		if constexpr (!std::is_null_pointer_v<typename Settings::diagnostic_t>) {
-			return settings.diagnostic(std::forward<Args>(args)...);
-		} else
-			return false;
+	template<class Op, class DomainVec, class RangeVec>
+	auto apply(const Op & A, const RangeVec & b, DomainVec & x) {
+		return static_cast<
+			Solver<Workspace>&>(*this).apply(A, b, x, op::I, [](auto...){ return false; });
+	}
+
+	template<class Op, class DomainVec, class RangeVec, class Precond>
+	auto apply(const Op & A, const RangeVec & b, DomainVec & x, Precond & pre) {
+		return static_cast<
+			Solver<Workspace>&>(*this).apply(A, b, x, pre, [](auto...){ return false; });
+	}
+
+	template<class P, class D>
+	auto bind(P & pre, D && diag) {
+		return bound_op{static_cast<Solver<Workspace>&>(*this), pre, diag};
 	}
 
 	Settings settings;

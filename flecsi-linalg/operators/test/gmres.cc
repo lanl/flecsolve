@@ -70,11 +70,11 @@ int gmres_test() {
 		x.set_random();
 
 		diagnostic diag(A, x, b, cfact);
-		gmres::solver slv(gmres::default_settings(op::I, diag),
+		gmres::solver slv(gmres::default_settings(),
 		                  gmres::topo_work<>::get(b));
 
 
-		slv.apply(A, b, x);
+		slv.bind(op::I, diag).apply(A, b, x);
 
 		EXPECT_FALSE(diag.fail_monotonic);
 		EXPECT_FALSE(diag.fail_convergence);

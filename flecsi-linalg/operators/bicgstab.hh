@@ -9,49 +9,41 @@ namespace flecsi::linalg::bicgstab {
 
 static constexpr std::size_t nwork = 8;
 
-template <class Op, class Diag>
-struct settings : solver_settings<Op, Diag>
+struct settings_t : solver_settings
 {
-	using base_t = solver_settings<Op, Diag>;
-	template<class DIAG>
-	settings(int maxiter, float rtol, bool use_zero_guess, Op & precond, DIAG && diag) :
-		base_t{maxiter, rtol, 0.0, precond, std::forward<DIAG>(diag)},
+	using base_t = solver_settings;
+	settings_t(int maxiter, float rtol, bool use_zero_guess) :
+		base_t{maxiter, rtol, 0.0},
 		use_zero_guess(use_zero_guess) {}
 
 	bool use_zero_guess;
 };
-template <class Op, class Diag>
-settings(int,float,bool,Op&,Diag&&)->settings<Op,Diag>;
 
-
-template <class Op, class Diag>
-auto default_settings(Op & pre, Diag && diag) {
-	return settings(100, 1e-9, false, op::I, std::forward<Diag>(diag));
-}
 
 inline auto default_settings() {
-	return default_settings(op::I, nullptr);
+	return settings_t(100, 1e-9, false);
 }
 
 template <std::size_t Version = 0>
 using topo_work = topo_work_base<nwork, Version>;
 
 
-template <class Settings, class Workspace>
-struct solver : solver_interface<Settings, Workspace, solver>
+template <class Workspace>
+struct solver : solver_interface<settings_t, Workspace, solver>
 {
-	using iface = solver_interface<Settings, Workspace, solver>;
+	using iface = solver_interface<settings_t, Workspace, solver>;
 	using real = typename iface::real;
 	using iface::work;
 	using iface::settings;
-	using iface::user_diagnostic;
+	using iface::apply;
 
 	template<class S, class W>
 	solver(S && params, W && workspace) :
 		iface{std::forward<S>(params), std::forward<W>(workspace)} {}
 
-	template<class Op, class DomainVec, class RangeVec>
-	solve_info apply(const Op & A, const RangeVec & b, DomainVec & x)
+	template<class Op, class DomainVec, class RangeVec, class Pre, class F>
+	solve_info apply(const Op & A, const RangeVec & b, DomainVec & x,
+	                 Pre & P, F && user_diagnostic)
 	{
 		solve_info info;
 
@@ -59,8 +51,6 @@ struct solver : solver_interface<Settings, Workspace, solver>
 		int restarts = 0;
 
 		auto & [res, r_tilde, p, v, p_hat, s, s_hat, t] = work;
-
-		auto & P = settings.precond;
 
 		real b_norm = b.l2norm().get();
 
@@ -194,6 +184,6 @@ struct solver : solver_interface<Settings, Workspace, solver>
 		return info;
 	}
 };
-template<class S, class V> solver(S&&,V&&)->solver<S,V>;
+template<class S, class V> solver(S&&,V&&)->solver<V>;
 
 }

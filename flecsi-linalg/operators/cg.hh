@@ -9,44 +9,36 @@ namespace flecsi::linalg::cg {
 
 static constexpr std::size_t nwork = 4;
 
-template <class Op, class Diag> using settings = solver_settings<Op, Diag>;
-
-template <class Op, class Diag>
-auto default_settings(Op & op, Diag && diag) {
-	return solver_settings{100, 1e-9, 1e-9, op, std::forward<Diag>(diag)};
-}
+using settings_t = solver_settings;
 
 inline auto default_settings() {
-	// return solver_settings{100, 1e-9, 1e-9, op::I, nullptr};
-	return default_settings(op::I, nullptr);
+	return solver_settings{100, 1e-9, 1e-9};
 }
-
 
 template <std::size_t Version = 0>
 using topo_work = topo_work_base<nwork, Version>;
 
-
-template<class Settings, class Workspace>
-struct solver : solver_interface<Settings, Workspace, solver>
+template<class Workspace>
+struct solver : solver_interface<settings_t, Workspace, solver>
 {
-	using iface = solver_interface<Settings, Workspace, solver>;
+	using iface = solver_interface<settings_t, Workspace, solver>;
 	using iface::work;
 	using iface::settings;
-	using iface::user_diagnostic;
+	using iface::apply;
 
 	template<class S, class V>
 	solver(S && params, V && workspace) :
 		iface{std::forward<S>(params),std::forward<V>(workspace)} {}
 
-	template<class Op, class DomainVec, class RangeVec>
-	solve_info apply(const Op & A, const RangeVec & b, DomainVec & x)
+	template<class Op, class DomainVec, class RangeVec, class Precond, class Diag>
+	solve_info apply(const Op & A, const RangeVec & b, DomainVec & x,
+	                 Precond & P, Diag && user_diagnostic)
 	{
 		solve_info info;
 		using scalar = typename DomainVec::scalar;
 		using real = typename DomainVec::real;
 
 		auto & [r, z, p, w] = work;
-		auto & P = settings.precond;
 		real b_norm = b.l2norm().get();
 
 		if (b_norm == 0.0) b_norm = 1.0;
@@ -124,6 +116,6 @@ struct solver : solver_interface<Settings, Workspace, solver>
 		return info;
 	}
 };
-template<class S, class V> solver(S&&,V&&)->solver<S,V>;
+template<class S,class V> solver(S&&,V&&)->solver<V>;
 
 }
