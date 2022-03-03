@@ -66,11 +66,17 @@ struct diagnostic
 };
 
 
+struct tcase {
+	const char * fname; // filename
+	float        cond;  // condition number
+	int          iters; // expected iterations to converge
+};
+
+
 int cgtest() {
-	// pair is filename, condition number
 	std::array cases{
-		std::make_pair("494_bus.mtx", 2.415411e+06),
-		std::make_pair("Chem97ZtZ.mtx", 2.472189e+02)
+		tcase{"494_bus.mtx", 2.415411e+06, 1822},
+		tcase{"Chem97ZtZ.mtx", 2.472189e+02, 161}
 	};
 
 	static_assert(cases.size() <= ncases);
@@ -78,7 +84,7 @@ int cgtest() {
 	UNIT() {
 		std::size_t i = 0;
 		for (const auto & cs : cases) {
-			auto mat = read_mm(cs.first);
+			auto mat = read_mm(cs.fname);
 
 			auto & msh = mshs[i];
 
@@ -87,15 +93,16 @@ int cgtest() {
 
 			vec::mesh x(msh, xd(msh)), b(msh, bd(msh));
 			b.set_scalar(0.0);
-			x.set_random();
+			x.set_random(7);
 
-			diagnostic diag(A, x, cs.second);
+			diagnostic diag(A, x, cs.cond);
 			cg::solver slv(cg::default_settings(),
 			               cg::topo_work<>::get(b));
 
 			slv.settings.maxiter = 2000;
-			slv.bind(op::I, diag).apply(A, b, x);
+			auto info = slv.bind(op::I, diag).apply(A, b, x);
 
+			EXPECT_EQ(info.iters, cs.iters);
 			EXPECT_FALSE(diag.monotonic_fail);
 			EXPECT_FALSE(diag.convergence_fail);
 

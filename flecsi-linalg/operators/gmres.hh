@@ -18,18 +18,19 @@ static constexpr std::size_t nwork = (krylov_dim_bound+1) + 3;
 struct settings_t : solver_settings
 {
 	using base_t = solver_settings;
-	settings_t(int maxiter, float rtol) :
+	settings_t(int maxiter, float rtol, int restart) :
 		base_t{maxiter, rtol, 0.0},
-		max_krylov_dim(100), pre_side{precond_side::right} {
+		max_krylov_dim(100), pre_side{precond_side::right}, restart(restart) {
 		flog_assert(max_krylov_dim <= krylov_dim_bound, "GMRES: max_krylov_dim is larger than bound");
 	}
 
 	int max_krylov_dim;
 	precond_side pre_side;
+	int restart;
 };
 
 inline auto default_settings() {
-	return settings_t(100, 1e-9);
+	return settings_t(100, 1e-9, 0);
 }
 
 template <std::size_t Version = 0>
@@ -49,11 +50,14 @@ struct solver : solver_interface<settings_t, Workspace, solver>
 	solver(S && params, V && workspace) :
 		iface{std::forward<S>(params), std::forward<V>(workspace)}
 	{
-		init();
+		reset();
 	}
 
-	void init() {
+	void reset() {
 		std::size_t max_dim = std::min(settings.max_krylov_dim, settings.maxiter);
+		if (settings.restart > 0)
+			max_dim = std::min(max_dim, static_cast<std::size_t>(settings.restart));
+
 		hessenberg_data = std::make_unique<real[]>((max_dim+1)*(max_dim+1));
 		hmat = std::make_unique<hessenberg_mat>(hessenberg_data.get(),
 		                                        std::array<std::size_t, 2>{max_dim + 1, max_dim + 1});
@@ -97,8 +101,6 @@ struct solver : solver_interface<settings_t, Workspace, solver>
 
 		A.residual(b, x, res);
 
-		nr = -1;
-
 		const real beta = res.l2norm().get();
 		info.res_norm_initial = beta;
 
@@ -115,7 +117,8 @@ struct solver : solver_interface<settings_t, Workspace, solver>
 		dwvec[0] = beta;
 		auto v_norm = beta;
 
-		for (int k = 0; (k < settings.maxiter) and (v_norm > terminate_tol); k++) {
+		int k = 0;
+		for (int iter = 0; iter < settings.maxiter; iter++) {
 			if (settings.pre_side == precond_side::right)
 				P.apply(basis[k], z);
 			else
@@ -151,15 +154,14 @@ struct solver : solver_interface<settings_t, Workspace, solver>
 				// explicitly apply the newly computed
 				// Givens rotations to the rhs vector
 				auto x = dwvec[k];
-				auto y = dwvec[k + 1];
 				auto c = cosvec[k];
 				auto s = sinvec[k];
 #if 0
-				dwvec[k]     = c * x - s * y;
-				dwvec[k + 1] = s * x + c * y;
+				dwvec[k]     = c * x;
+				dwvec[k + 1] = s * x;
 #else
-				dwvec[k]     = c * x + s * y;
-				dwvec[k + 1] = -s * x + c * y;
+				dwvec[k]     = c * x;
+				dwvec[k + 1] = -s * x;
 #endif
 			}
 
@@ -167,22 +169,50 @@ struct solver : solver_interface<settings_t, Workspace, solver>
 
 			if (user_diagnostic(x, v_norm)) {
 				info.status = solve_info::stop_reason::converged_user;
-				info.iters = k+1;
+				info.iters = iter+1;
 				break;
 			}
 
 			if (v_norm < terminate_tol) {
 				info.status = solve_info::stop_reason::converged_rtol;
-				info.iters = k+1;
+				info.iters = iter+1;
 				break;
 			}
 
-			++nr;
+			++k;
+			if (k == settings.restart and iter != settings.maxiter-1) {
+				back_solve(k-1);
+				correct(k-1, P, z, v, x);
+
+				A.residual(b, x, res);
+				const real betar = res.l2norm().get();
+				res.scale(1.0 / betar);
+				basis[0].copy(res);
+				dwvec[0] = betar;
+
+				++info.restarts;
+				k = 0;
+			}
 		}
 
-		back_solve();
+		if (k > 0) {
+			back_solve(k-1);
 
-		// update current approximation with correction
+			// update current approximation with correction
+			correct(k-1, P, z, v, x);
+		}
+
+		info.res_norm_final = v_norm;
+		info.sol_norm_final = x.l2norm().get();
+		if (info.iters == 0) info.status = solve_info::stop_reason::diverged_iters;
+
+		return info;
+	}
+
+
+protected:
+	template<class Op, class W, class T>
+	void correct(int nr, Op & P, W & z, W & v, T & x) {
 		if (settings.pre_side == precond_side::right) {
 			z.set_scalar(0.0);
 
@@ -197,12 +227,6 @@ struct solver : solver_interface<settings_t, Workspace, solver>
 				x.axpy(dyvec[i], basis[i], x);
 			}
 		}
-
-		info.res_norm_final = v_norm;
-		info.sol_norm_final = x.l2norm().get();
-		if (info.iters == 0) info.status = solve_info::stop_reason::diverged_iters;
-
-		return info;
 	}
 
 
@@ -271,7 +295,7 @@ struct solver : solver_interface<settings_t, Workspace, solver>
 		sinvec[k] = s;
 	}
 
-	void back_solve() {
+	void back_solve(int nr) {
 		auto & hessenberg = *hmat;
 		// lower corner
 		dyvec[nr] = dwvec[nr] / hessenberg(nr, nr);
@@ -288,7 +312,6 @@ struct solver : solver_interface<settings_t, Workspace, solver>
 		}
 	}
 
-
 protected:
 	std::unique_ptr<real[]> hessenberg_data;
 	using hessenberg_mat = util::mdcolex<real, 2>;
@@ -296,7 +319,6 @@ protected:
 	util::span<typename iface::workvec_t> basis;
 	std::vector<real> sinvec, cosvec;
 	std::vector<real> dwvec, dyvec;
-	real nr;
 };
 template <class S, class V> solver(S&&,V&&) -> solver<V>;
 
