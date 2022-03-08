@@ -96,11 +96,10 @@ int cgtest() {
 			x.set_random(7);
 
 			diagnostic diag(A, x, cs.cond);
-			cg::solver slv(cg::default_settings(),
-			               cg::topo_work<>::get(b));
+			auto slv = cg::solver(cg::settings{2000, 1e-9, 1e-9},
+			                      cg::topo_work<>::get(b)).bind(op::I, diag);
 
-			slv.settings.maxiter = 2000;
-			auto info = slv.bind(op::I, diag).apply(A, b, x);
+			auto info = slv.apply(A, b, x);
 
 			EXPECT_EQ(info.iters, cs.iters);
 			EXPECT_FALSE(diag.monotonic_fail);

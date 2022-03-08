@@ -15,10 +15,10 @@ enum class precond_side { left, right };
 static constexpr std::size_t krylov_dim_bound = 100;
 static constexpr std::size_t nwork = (krylov_dim_bound+1) + 3;
 
-struct settings_t : solver_settings
+struct settings : solver_settings
 {
 	using base_t = solver_settings;
-	settings_t(int maxiter, float rtol, int restart) :
+	settings(int maxiter, float rtol, int restart) :
 		base_t{maxiter, rtol, 0.0},
 		max_krylov_dim(100), pre_side{precond_side::right}, restart(restart) {
 		flog_assert(max_krylov_dim <= krylov_dim_bound, "GMRES: max_krylov_dim is larger than bound");
@@ -30,7 +30,7 @@ struct settings_t : solver_settings
 };
 
 inline auto default_settings() {
-	return settings_t(100, 1e-9, 0);
+	return settings(100, 1e-9, 0);
 }
 
 template <std::size_t Version = 0>
@@ -38,25 +38,29 @@ using topo_work = topo_work_base<nwork, Version>;
 
 
 template<class Workspace>
-struct solver : solver_interface<settings_t, Workspace, solver>
+struct solver : solver_interface<Workspace, solver>
 {
-	using iface = solver_interface<settings_t, Workspace, solver>;
+	using iface = solver_interface<Workspace, solver>;
 	using real = typename iface::real;
 	using iface::work;
-	using iface::settings;
 	using iface::apply;
 
-	template<class S, class V>
-	solver(S && params, V && workspace) :
-		iface{std::forward<S>(params), std::forward<V>(workspace)}
+	template<class V>
+	solver(const settings & params, V && workspace) :
+		iface{std::forward<V>(workspace)}, params(params)
 	{
 		reset();
 	}
 
+	void reset(const settings & params) {
+		this->params = params;
+		reset();
+	}
+
 	void reset() {
-		std::size_t max_dim = std::min(settings.max_krylov_dim, settings.maxiter);
-		if (settings.restart > 0)
-			max_dim = std::min(max_dim, static_cast<std::size_t>(settings.restart));
+		std::size_t max_dim = std::min(params.max_krylov_dim, params.maxiter);
+		if (params.restart > 0)
+			max_dim = std::min(max_dim, static_cast<std::size_t>(params.restart));
 
 		hessenberg_data = std::make_unique<real[]>((max_dim+1)*(max_dim+1));
 		hmat = std::make_unique<hessenberg_mat>(hessenberg_data.get(),
@@ -97,7 +101,7 @@ struct solver : solver_interface<settings_t, Workspace, solver>
 		if (b_norm < std::numeric_limits<real>::epsilon())
 			b_norm = 1.0;
 
-		const real terminate_tol = settings.rtol * b_norm;
+		const real terminate_tol = params.rtol * b_norm;
 
 		A.residual(b, x, res);
 
@@ -118,8 +122,8 @@ struct solver : solver_interface<settings_t, Workspace, solver>
 		auto v_norm = beta;
 
 		int k = 0;
-		for (int iter = 0; iter < settings.maxiter; iter++) {
-			if (settings.pre_side == precond_side::right)
+		for (int iter = 0; iter < params.maxiter; iter++) {
+			if (params.pre_side == precond_side::right)
 				P.apply(basis[k], z);
 			else
 				z.copy(basis[k]);
@@ -180,7 +184,7 @@ struct solver : solver_interface<settings_t, Workspace, solver>
 			}
 
 			++k;
-			if (k == settings.restart and iter != settings.maxiter-1) {
+			if (k == params.restart and iter != params.maxiter-1) {
 				back_solve(k-1);
 				correct(k-1, P, z, v, x);
 
@@ -213,7 +217,7 @@ struct solver : solver_interface<settings_t, Workspace, solver>
 protected:
 	template<class Op, class W, class T>
 	void correct(int nr, Op & P, W & z, W & v, T & x) {
-		if (settings.pre_side == precond_side::right) {
+		if (params.pre_side == precond_side::right) {
 			z.set_scalar(0.0);
 
 			for (int i = 0; i <= nr; i++) {
@@ -319,7 +323,8 @@ protected:
 	util::span<typename iface::workvec_t> basis;
 	std::vector<real> sinvec, cosvec;
 	std::vector<real> dwvec, dyvec;
+	settings params;
 };
-template <class S, class V> solver(S&&,V&&) -> solver<V>;
+template<class V> solver(const settings&,V&&) -> solver<V>;
 
 }

@@ -64,7 +64,7 @@ struct topo_work_base {
 
 template <class S, class P, class D>
 struct bound_op {
-	S & slv;
+	S slv;
 	P & pre;
 	D diag;
 
@@ -74,9 +74,9 @@ struct bound_op {
 	}
 };
 template <class S, class P, class D>
-bound_op(S&,P&,D&&)->bound_op<S,P,D>;
+bound_op(S&&,P&,D&&)->bound_op<S,P,D>;
 
-template <class Settings, class Workspace, template<class> class Solver>
+template <class Workspace, template<class> class Solver>
 struct solver_interface {
 	using workvec_t = typename std::remove_reference_t<Workspace>::value_type;
 	using real = typename workvec_t::real;
@@ -84,21 +84,43 @@ struct solver_interface {
 	template<class Op, class DomainVec, class RangeVec>
 	auto apply(const Op & A, const RangeVec & b, DomainVec & x) {
 		return static_cast<
-			Solver<Workspace>&>(*this).apply(A, b, x, op::I, [](auto...){ return false; });
+			Solver<Workspace>&>(*this).apply(A, b, x, op::I, [](auto&...){ return false; });
 	}
 
 	template<class Op, class DomainVec, class RangeVec, class Precond>
 	auto apply(const Op & A, const RangeVec & b, DomainVec & x, Precond & pre) {
 		return static_cast<
-			Solver<Workspace>&>(*this).apply(A, b, x, pre, [](auto...){ return false; });
+			Solver<Workspace>&>(*this).apply(A, b, x, pre, [](auto&...){ return false; });
 	}
 
 	template<class P, class D>
-	auto bind(P & pre, D && diag) {
-		return bound_op{static_cast<Solver<Workspace>&>(*this), pre, diag};
+	auto bind(P & pre, D && diag) & {
+		return bound_op{
+			static_cast<Solver<Workspace>&>(*this),
+			pre, std::forward<D>(diag)};
 	}
 
-	Settings settings;
+	template<class P, class D>
+	auto bind(P & pre, D && diag) && {
+		return bound_op{
+			std::move(*static_cast<Solver<Workspace>*>(this)),
+			pre, std::forward<D>(diag)};
+	}
+
+	template<class P>
+	auto bind(P & pre) & {
+		return bound_op{
+			static_cast<Solver<Workspace>&>(*this),
+			pre, [](const auto&...){return false;}};
+	}
+
+	template<class P>
+	auto bind(P & pre) && {
+		return bound_op{
+			std::move(*static_cast<Solver<Workspace>*>(this)),
+			pre, [](const auto&...){return false;}};
+	}
+
 	Workspace work;
 };
 

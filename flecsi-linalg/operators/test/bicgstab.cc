@@ -42,10 +42,9 @@ int driver() {
 			b.set_random(0);
 			x.set_random(1);
 
-			bicgstab::solver slv(bicgstab::default_settings(),
+			bicgstab::solver slv(bicgstab::settings{200, 1e-9, false},
 			                     bicgstab::topo_work<>::get(b));
 
-			slv.settings.maxiter = 200;
 			auto info = slv.apply(A, b, x);
 
 			EXPECT_EQ(info.status, solve_info::stop_reason::converged_rtol);

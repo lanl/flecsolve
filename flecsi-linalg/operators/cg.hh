@@ -9,26 +9,29 @@ namespace flecsi::linalg::cg {
 
 static constexpr std::size_t nwork = 4;
 
-using settings_t = solver_settings;
+using settings = solver_settings;
 
 inline auto default_settings() {
-	return solver_settings{100, 1e-9, 1e-9};
+	return settings{100, 1e-9, 1e-9};
 }
 
 template <std::size_t Version = 0>
 using topo_work = topo_work_base<nwork, Version>;
 
 template<class Workspace>
-struct solver : solver_interface<settings_t, Workspace, solver>
+struct solver : solver_interface<Workspace, solver>
 {
-	using iface = solver_interface<settings_t, Workspace, solver>;
+	using iface = solver_interface<Workspace, solver>;
 	using iface::work;
-	using iface::settings;
 	using iface::apply;
 
-	template<class S, class V>
-	solver(S && params, V && workspace) :
-		iface{std::forward<S>(params),std::forward<V>(workspace)} {}
+	template<class V>
+	solver(const settings & params, V && workspace) :
+		iface{std::forward<V>(workspace)}, params(params) {}
+
+	void reset(const settings & params) {
+		this->params = params;
+	}
 
 	template<class Op, class DomainVec, class RangeVec, class Precond, class Diag>
 	solve_info apply(const Op & A, const RangeVec & b, DomainVec & x,
@@ -43,7 +46,7 @@ struct solver : solver_interface<settings_t, Workspace, solver>
 
 		if (b_norm == 0.0) b_norm = 1.0;
 
-		const real terminate_tol = settings.rtol * b_norm;
+		const real terminate_tol = params.rtol * b_norm;
 
 
 		info.sol_norm_initial = x.l2norm().get();
@@ -68,7 +71,7 @@ struct solver : solver_interface<settings_t, Workspace, solver>
 		rho[0] = rho[1];
 
 		p.copy(z);
-		for (auto iter = 0; iter < settings.maxiter; iter++) {
+		for (auto iter = 0; iter < params.maxiter; iter++) {
 			scalar beta = 1.0;
 
 			// w = Ap
@@ -115,7 +118,10 @@ struct solver : solver_interface<settings_t, Workspace, solver>
 
 		return info;
 	}
+
+protected:
+	settings params;
 };
-template<class S,class V> solver(S&&,V&&)->solver<V>;
+template<class V> solver(const settings&,V&&)->solver<V>;
 
 }

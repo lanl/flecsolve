@@ -9,10 +9,10 @@ namespace flecsi::linalg::bicgstab {
 
 static constexpr std::size_t nwork = 8;
 
-struct settings_t : solver_settings
+struct settings : solver_settings
 {
 	using base_t = solver_settings;
-	settings_t(int maxiter, float rtol, bool use_zero_guess) :
+	settings(int maxiter, float rtol, bool use_zero_guess) :
 		base_t{maxiter, rtol, 0.0},
 		use_zero_guess(use_zero_guess) {}
 
@@ -21,7 +21,7 @@ struct settings_t : solver_settings
 
 
 inline auto default_settings() {
-	return settings_t(100, 1e-9, false);
+	return settings(100, 1e-9, false);
 }
 
 template <std::size_t Version = 0>
@@ -29,17 +29,20 @@ using topo_work = topo_work_base<nwork, Version>;
 
 
 template <class Workspace>
-struct solver : solver_interface<settings_t, Workspace, solver>
+struct solver : solver_interface<Workspace, solver>
 {
-	using iface = solver_interface<settings_t, Workspace, solver>;
+	using iface = solver_interface<Workspace, solver>;
 	using real = typename iface::real;
 	using iface::work;
-	using iface::settings;
 	using iface::apply;
 
-	template<class S, class W>
-	solver(S && params, W && workspace) :
-		iface{std::forward<S>(params), std::forward<W>(workspace)} {}
+	template<class W>
+	solver(const settings & params, W && workspace) :
+		iface{std::forward<W>(workspace)}, params(params) {}
+
+	void reset(const settings & params) {
+		this->params = params;
+	}
 
 	template<class Op, class DomainVec, class RangeVec, class Pre, class F>
 	solve_info apply(const Op & A, const RangeVec & b, DomainVec & x,
@@ -58,12 +61,12 @@ struct solver : solver_interface<settings_t, Workspace, solver>
 			b_norm = 1.;
 		}
 
-		const real terminate_tol = settings.rtol * b_norm;
+		const real terminate_tol = params.rtol * b_norm;
 
 		info.sol_norm_initial = x.l2norm().get();
 		info.rhs_norm = b_norm;
 
-		if (settings.use_zero_guess) {
+		if (params.use_zero_guess) {
 			res.copy(b);
 		} else {
 			A.residual(b, x, res);
@@ -94,7 +97,7 @@ struct solver : solver_interface<settings_t, Workspace, solver>
 
 		p.zero();
 		v.zero();
-		for (int iter = 0; iter < settings.maxiter; iter++) {
+		for (int iter = 0; iter < params.maxiter; iter++) {
 			rho[1] = r_tilde.dot(res).get();
 
 			real angle = std::sqrt(std::fabs(rho[1]));
@@ -132,7 +135,7 @@ struct solver : solver_interface<settings_t, Workspace, solver>
 
 			const real s_norm = s.l2norm().get();
 
-			if (s_norm < settings.rtol) {
+			if (s_norm < params.rtol) {
 				// early convergence
 				x.axpy(alpha, p_hat, x);
 
@@ -183,7 +186,10 @@ struct solver : solver_interface<settings_t, Workspace, solver>
 
 		return info;
 	}
+
+protected:
+	settings params;
 };
-template<class S, class V> solver(S&&,V&&)->solver<V>;
+template<class V> solver(const settings&,V&&)->solver<V>;
 
 }
