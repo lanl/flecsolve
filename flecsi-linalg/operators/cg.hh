@@ -23,7 +23,6 @@ struct solver : solver_interface<Workspace, solver>
 {
 	using iface = solver_interface<Workspace, solver>;
 	using iface::work;
-	using iface::apply;
 
 	template<class V>
 	solver(const settings & params, V && workspace) :

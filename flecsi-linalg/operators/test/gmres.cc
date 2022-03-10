@@ -71,10 +71,10 @@ int gmres_test() {
 			x.set_random(1);
 
 			diagnostic diag(A, x, b, cfact);
-			gmres::solver slv(gmres::settings{100, 1e-4, 0},
-			                  gmres::topo_work<>::get(b));
+			auto slv = gmres::solver({100, 1e-4, 0},
+			                         gmres::topo_work<>::get(b)).bind(A, op::I, diag);
 
-			auto info = slv.apply(A, b, x, op::I, diag);
+			auto info = slv.apply(b, x);
 
 			EXPECT_EQ(info.iters, 73);
 			EXPECT_FALSE(diag.fail_monotonic);
@@ -88,18 +88,20 @@ int gmres_test() {
 			gmres::solver slv(params,
 			                  gmres::topo_work<>::get(b));
 
-			auto info_restart = slv.apply(A, b, x);
+			auto slv_op = slv.bind(A);
+
+			auto info_restart = slv_op.apply(b, x);
 
 			x.set_random(1);
 
 			params.maxiter = 50;
 			slv.reset(params);
 
-			slv.apply(A, b, x);
+			slv_op.apply(b, x);
 
-			gmres::solver slv1(gmres::settings{100, 1e-4, 0},
-			                   gmres::topo_work<>::get(b));
-			auto info = slv1.apply(A, b, x);
+			auto slv1 = gmres::solver({100, 1e-4, 0},
+			                          gmres::topo_work<>::get(b)).bind(A);
+			auto info = slv1.apply(b, x);
 			EXPECT_EQ(50 + info.iters, info_restart.iters);
 			EXPECT_EQ(info.res_norm_final, info_restart.res_norm_final);
 		}

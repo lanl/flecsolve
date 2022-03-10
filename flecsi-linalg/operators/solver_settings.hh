@@ -91,63 +91,76 @@ protected:
 };
 
 
-template <class S, class P, class D>
-struct bound_op {
+template <class S, class A, class P, class D>
+struct solver_op {
 	S slv;
-	P & pre;
+	A & op;
+	P & precond;
 	D diag;
 
-	template<class Op, class DomainVec, class RangeVec>
-	auto apply(const Op & A, const RangeVec & b, DomainVec & x) {
-		return slv.apply(A, b, x, pre, diag);
+	template<class DomainVec, class RangeVec>
+	auto apply(const RangeVec & b, DomainVec & x) {
+		return slv.apply(op, b, x, precond, diag);
+	}
+
+	template<class T>
+	void reset(const T & settings) {
+		slv.reset(settings);
+	}
+
+	template<class ... Args>
+	auto rebind(Args&& ... args) {
+		return slv.bind(std::forward<Args>(args)...);
 	}
 };
-template <class S, class P, class D>
-bound_op(S&&,P&,D&&)->bound_op<S,P,D>;
+template <class S, class A, class P, class D>
+solver_op(S&&,A&,P&,D&&)->solver_op<S,A,P,D>;
 
 template <class Workspace, template<class> class Solver>
 struct solver_interface {
 	using workvec_t = typename std::remove_reference_t<Workspace>::value_type;
 	using real = typename workvec_t::real;
 
-	template<class Op, class DomainVec, class RangeVec>
-	auto apply(const Op & A, const RangeVec & b, DomainVec & x) {
-		return static_cast<
-			Solver<Workspace>&>(*this).apply(A, b, x, op::I, [](auto&...){ return false; });
-	}
-
-	template<class Op, class DomainVec, class RangeVec, class Precond>
-	auto apply(const Op & A, const RangeVec & b, DomainVec & x, Precond & pre) {
-		return static_cast<
-			Solver<Workspace>&>(*this).apply(A, b, x, pre, [](auto&...){ return false; });
-	}
-
-	template<class P, class D>
-	auto bind(P & pre, D && diag) & {
-		return bound_op{
+	template<class A, class P, class D>
+	auto bind(A & op, P & pre, D && diag) & {
+		return solver_op{
 			static_cast<Solver<Workspace>&>(*this),
-			pre, std::forward<D>(diag)};
+			op, pre, std::forward<D>(diag)};
 	}
 
-	template<class P, class D>
-	auto bind(P & pre, D && diag) && {
-		return bound_op{
+	template<class A, class P, class D>
+	auto bind(A & op, P & pre, D && diag) && {
+		return solver_op{
 			std::move(*static_cast<Solver<Workspace>*>(this)),
-			pre, std::forward<D>(diag)};
+			op, pre, std::forward<D>(diag)};
 	}
 
-	template<class P>
-	auto bind(P & pre) & {
-		return bound_op{
+	template<class A, class P>
+	auto bind(A & op, P & pre) & {
+		return solver_op{
 			static_cast<Solver<Workspace>&>(*this),
-			pre, [](const auto&...){return false;}};
+			op, pre, [](const auto&...){return false;}};
 	}
 
-	template<class P>
-	auto bind(P & pre) && {
-		return bound_op{
+	template<class A, class P>
+	auto bind(A & op, P & pre) && {
+		return solver_op{
 			std::move(*static_cast<Solver<Workspace>*>(this)),
-			pre, [](const auto&...){return false;}};
+			op, pre, [](const auto&...){return false;}};
+	}
+
+	template<class A>
+	auto bind(A & op) & {
+		return solver_op{
+			static_cast<Solver<Workspace>&>(*this),
+			op, op::I, [](const auto&...){return false;}};
+	}
+
+	template<class A>
+	auto bind(A & op) && {
+		return solver_op{
+			std::move(*static_cast<Solver<Workspace>*>(this)),
+			op, op::I, [](const auto&...){return false;}};
 	}
 
 	Workspace work;

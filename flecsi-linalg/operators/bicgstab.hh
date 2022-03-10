@@ -34,7 +34,6 @@ struct solver : solver_interface<Workspace, solver>
 	using iface = solver_interface<Workspace, solver>;
 	using real = typename iface::real;
 	using iface::work;
-	using iface::apply;
 
 	template<class W>
 	solver(const settings & params, W && workspace) :
