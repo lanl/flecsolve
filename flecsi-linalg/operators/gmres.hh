@@ -29,10 +29,6 @@ struct settings : solver_settings
 	int restart;
 };
 
-inline auto default_settings() {
-	return settings(100, 1e-9, 0);
-}
-
 template <std::size_t Version = 0>
 using topo_work = topo_work_base<nwork, Version>;
 
@@ -40,9 +36,34 @@ using topo_work = topo_work_base<nwork, Version>;
 template<class Workspace>
 struct solver : solver_interface<Workspace, solver>
 {
+	using settings_type = settings;
 	using iface = solver_interface<Workspace, solver>;
 	using real = typename iface::real;
 	using iface::work;
+
+	solver(solver<Workspace>&& o) noexcept :
+		iface{std::move(o.work)},
+		hessenberg_data(std::exchange(o.hessenberg_data, nullptr)),
+		hmat(std::exchange(o.hmat, nullptr)),
+		basis(work.data() + (nwork - krylov_dim_bound - 1), o.basis.size()),
+		sinvec(std::move(o.sinvec)), cosvec(std::move(o.cosvec)),
+		dwvec(std::move(o.dwvec)), dyvec(std::move(o.dyvec)), params(std::move(o.params))
+	{}
+
+	solver<Workspace> & operator=(solver<Workspace>&& o) noexcept {
+		if (this != &o) {
+			work = std::move(o.work);
+			hessenberg_data = std::exchange(o.hessenberg_data, nullptr);
+			hmat = std::exchange(o.hmat, nullptr);
+			basis = util::span(work.data() + (nwork - krylov_dim_bound - 1), o.basis.size());
+			sinvec = std::move(o.sinvec);
+			cosvec = std::move(o.cosvec);
+			dwvec = std::move(o.dwvec);
+			dyvec = std::move(o.dyvec);
+			params = std::move(o.params);
+		}
+		return *this;
+	}
 
 	template<class V>
 	solver(const settings & params, V && workspace) :

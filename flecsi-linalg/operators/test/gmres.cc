@@ -71,8 +71,10 @@ int gmres_test() {
 			x.set_random(1);
 
 			diagnostic diag(A, x, b, cfact);
-			auto slv = gmres::solver({100, 1e-4, 0},
-			                         gmres::topo_work<>::get(b)).bind(A, op::I, diag);
+			auto work = gmres::topo_work<>::get(b);
+			auto slv = make_op<gmres::solver>({100, 1e-4, 0},
+			                                  std::move(work),
+			                                  A, op::I, diag);
 
 			auto info = slv.apply(b, x);
 
@@ -99,8 +101,9 @@ int gmres_test() {
 
 			slv_op.apply(b, x);
 
-			auto slv1 = gmres::solver({100, 1e-4, 0},
-			                          gmres::topo_work<>::get(b)).bind(A);
+			auto slv1 = make_op<gmres::solver>({100, 1e-4, 0},
+			                                   gmres::topo_work<>::get(b),
+			                                   A);
 			auto info = slv1.apply(b, x);
 			EXPECT_EQ(50 + info.iters, info_restart.iters);
 			EXPECT_EQ(info.res_norm_final, info_restart.res_norm_final);

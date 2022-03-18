@@ -11,16 +11,13 @@ static constexpr std::size_t nwork = 4;
 
 using settings = solver_settings;
 
-inline auto default_settings() {
-	return settings{100, 1e-9, 1e-9};
-}
-
 template <std::size_t Version = 0>
 using topo_work = topo_work_base<nwork, Version>;
 
 template<class Workspace>
 struct solver : solver_interface<Workspace, solver>
 {
+	using settings_type = settings;
 	using iface = solver_interface<Workspace, solver>;
 	using iface::work;
 

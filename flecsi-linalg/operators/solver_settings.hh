@@ -166,4 +166,10 @@ struct solver_interface {
 	Workspace work;
 };
 
+template<template<class> class S, class W, class ... Ops>
+auto make_op(typename S<W>::settings_type params, W && work, Ops&&... ops) {
+	S slv(params, std::forward<W>(work));
+	return std::move(slv).bind(std::forward<Ops>(ops)...);
+}
+
 }

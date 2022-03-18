@@ -20,10 +20,6 @@ struct settings : solver_settings
 };
 
 
-inline auto default_settings() {
-	return settings(100, 1e-9, false);
-}
-
 template <std::size_t Version = 0>
 using topo_work = topo_work_base<nwork, Version>;
 
@@ -31,6 +27,7 @@ using topo_work = topo_work_base<nwork, Version>;
 template <class Workspace>
 struct solver : solver_interface<Workspace, solver>
 {
+	using settings_type = settings;
 	using iface = solver_interface<Workspace, solver>;
 	using real = typename iface::real;
 	using iface::work;
