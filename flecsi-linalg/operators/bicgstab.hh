@@ -1,9 +1,11 @@
-#pragma once
+#ifndef FLECSI_LINALG_OP_BICGSTAB_H
+#define FLECSI_LINALG_OP_BICGSTAB_H
 
 #include <flecsi/flog.hh>
 
 #include "solver_settings.hh"
 #include "shell.hh"
+#include "krylov_interface.hh"
 
 namespace flecsi::linalg::bicgstab {
 
@@ -25,10 +27,10 @@ using topo_work = topo_work_base<nwork, Version>;
 
 
 template <class Workspace>
-struct solver : solver_interface<Workspace, solver>
+struct solver : krylov_interface<Workspace, solver>
 {
 	using settings_type = settings;
-	using iface = solver_interface<Workspace, solver>;
+	using iface = krylov_interface<Workspace, solver>;
 	using real = typename iface::real;
 	using iface::work;
 
@@ -188,4 +190,17 @@ protected:
 };
 template<class V> solver(const settings&,V&&)->solver<V>;
 
+template <class W, class... Ops>
+struct params : krylov_params<solver, W, Ops...> {
+	template<class V, class... O>
+	params(settings s, V&& v, O&&... o) :
+		krylov_params<solver, W, Ops...>(std::move(s),
+		                                 std::forward<V>(v),
+		                                 std::forward<O>(o)...) {}
+};
+
+template <class W, class... O>
+params(settings, W&&, O&&...)->params<W,O...>;
+
 }
+#endif

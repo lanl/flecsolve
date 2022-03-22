@@ -42,9 +42,11 @@ int driver() {
 			b.set_random(0);
 			x.set_random(1);
 
-			auto slv = make_op<bicgstab::solver>({200, 1e-9, false},
-			                                     bicgstab::topo_work<>::get(b),
-			                                     A);
+			bicgstab::params params({200, 1e-9, false},
+			                        bicgstab::topo_work<>::get(b),
+			                        A);
+			auto slv = op::create(std::move(params));
+
 			auto info = slv.apply(b, x);
 
 			EXPECT_EQ(info.status, solve_info::stop_reason::converged_rtol);
