@@ -9,24 +9,28 @@ namespace flecsi::linalg {
 
 template <class S, class A, class P, class D>
 struct krylov_op {
-	S slv;
+	S solver;
 	A op;
 	P precond;
 	D diag;
 
 	template<class DomainVec, class RangeVec>
 	auto apply(const RangeVec & b, DomainVec & x) {
-		return slv.apply(op, b, x, precond, diag);
+		return solver.apply(op, b, x, precond, diag);
 	}
 
 	template<class T>
 	void reset(const T & settings) {
-		slv.reset(settings);
+		solver.reset(settings);
 	}
 
 	template<class ... Args>
-	auto rebind(Args&& ... args) {
-		return slv.bind(std::forward<Args>(args)...);
+	auto rebind(Args&& ... args) & {
+		return solver.bind(std::forward<Args>(args)...);
+	}
+	template<class ... Args>
+	auto rebind(Args&& ... args) && {
+		return std::forward<S>(solver).bind(std::forward<Args>(args)...);
 	}
 };
 template <class S, class A, class P, class D>
