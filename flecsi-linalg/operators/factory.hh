@@ -3,19 +3,15 @@
 
 #include <utility>
 
-namespace flecsi::linalg {
+#include "flecsi-linalg/util/traits.hh"
 
-template <class T> struct traits {};
-
-namespace op {
+namespace flecsi::linalg::op {
 
 template <class T> struct factory;
 
 template <class T>
 auto create(T&& p) {
 	return factory<typename traits<T>::op>::create(std::forward<T>(p));
-}
-
 }
 
 }

@@ -5,18 +5,19 @@
 
 #include <flecsi/execution.hh>
 
+#include "flecsi-linalg/util/traits.hh"
 #include "flecsi-linalg/vectors/data/mesh.hh"
 
 
 namespace flecsi::linalg::vec::ops {
 
-template<class VecData, class VecTypes>
+template<class VecData, class Scalar, class Len>
 struct mesh_tasks {
 
-	using scalar = typename VecTypes::scalar;
-	using real = typename VecTypes::real;
-	using len = typename VecTypes::len;
-	static constexpr bool is_complex = VecTypes::is_complex;
+	using scalar = Scalar;
+	using real = typename num_traits<Scalar>::real;
+	using len = Len;
+	static constexpr bool is_complex = num_traits<scalar>::is_complex;
 	using topo_acc = typename VecData::topo_acc;
 
 	template<partition_privilege_t priv>

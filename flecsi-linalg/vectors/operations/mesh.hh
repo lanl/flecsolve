@@ -1,20 +1,22 @@
-#pragma once
+#ifndef FLECSI_LINALG_VECTORS_OPERATIONS_H
+#define FLECSI_LINALG_VECTORS_OPERATIONS_H
 
 #include "flecsi-linalg/util/future.hh"
+#include "flecsi-linalg/util/traits.hh"
 #include "flecsi-linalg/vectors/data/mesh.hh"
 #include "mesh_tasks.hh"
 
 namespace flecsi::linalg::vec::ops {
 
-template<class Topo, typename Topo::index_space Space, class VecTypes>
+template<class Topo, typename Topo::index_space Space, class Scalar>
 struct mesh {
-	using scalar = typename VecTypes::scalar;
-	using real = typename VecTypes::real;
-	using len_t = typename VecTypes::len;
+	using scalar = Scalar;
+	using real = typename num_traits<Scalar>::real;
+	using len_t = std::size_t;
 
 	using vec_data = data::mesh<Topo, Space, scalar>;
 
-	using tasks = mesh_tasks<vec_data, VecTypes>;
+	using tasks = mesh_tasks<vec_data, scalar, len_t>;
 
 	template<class Other>
 	void copy(const Other & x, vec_data & z) {
@@ -212,3 +214,5 @@ struct mesh {
 };
 
 }
+
+#endif

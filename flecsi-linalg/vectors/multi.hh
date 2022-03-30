@@ -1,4 +1,5 @@
-#pragma once
+#ifndef FLECSI_LINALG_VECTORS_MULTI_H
+#define FLECSI_LINALG_VECTORS_MULTI_H
 
 #include <tuple>
 
@@ -13,7 +14,7 @@ template <class... Vecs> using multivector_scalar =
 template <class... Vecs> using multivector_data = std::tuple<Vecs...>;
 template <class... Vecs>
 using multivector_ops =
-	ops::multi<vector_types<multivector_scalar<Vecs...>>,
+	ops::multi<multivector_scalar<Vecs...>,
 	           multivector_data<Vecs...>, sizeof...(Vecs)>;
 
 template <class... Vecs>
@@ -86,3 +87,4 @@ struct tuple_element<I, flecsi::linalg::vec::multi<VarType, Vecs...>> {
 };
 
 }
+#endif

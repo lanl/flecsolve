@@ -4,16 +4,17 @@
 #include <functional>
 
 #include "flecsi-linalg/util/future.hh"
+#include "flecsi-linalg/util/traits.hh"
 
 namespace flecsi::linalg::vec::ops {
 
-template <class VecTypes, class VecData, std::size_t NumVecs>
+template <class Scalar, class VecData, std::size_t NumVecs>
 struct multi {
 	static constexpr std::size_t num_vecs = NumVecs;
 	using vec_data = VecData;
-	using scalar = typename VecTypes::scalar;
-	using real = typename VecTypes::real;
-	using len_t = typename VecTypes::len;
+	using scalar = Scalar;
+	using real = typename num_traits<scalar>::real;
+	using len_t = std::size_t;
 
 	void copy(const vec_data & x, vec_data & z) {
 		apply([](auto & x, const auto & y) {
