@@ -12,7 +12,7 @@ template<class Topo, typename Topo::index_space Space, class Scalar>
 struct mesh {
 	using scalar = Scalar;
 	using real = typename num_traits<Scalar>::real;
-	using len_t = std::size_t;
+	using len_t = util::id;
 
 	using vec_data = data::mesh<Topo, Space, scalar>;
 

@@ -9,12 +9,16 @@
 
 namespace flecsi::linalg::vec {
 
-template <class... Vecs> using multivector_scalar =
-	typename std::tuple_element<0, std::tuple<std::remove_reference_t<Vecs>...>>::type::scalar;
+template <class... Vecs>
+using multivector_scalar = typename std::tuple_element<
+    0, std::tuple<std::remove_reference_t<Vecs>...>>::type::scalar;
+template <class... Vecs> using multivector_len =
+	typename std::tuple_element<0, std::tuple<std::remove_reference_t<Vecs>...>>::type::len_t;
 template <class... Vecs> using multivector_data = std::tuple<Vecs...>;
 template <class... Vecs>
 using multivector_ops =
 	ops::multi<multivector_scalar<Vecs...>,
+	           multivector_len<Vecs...>,
 	           multivector_data<Vecs...>, sizeof...(Vecs)>;
 
 template <class... Vecs>

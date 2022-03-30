@@ -1,4 +1,5 @@
-#pragma once
+#ifndef FLECSI_LINALG_VECTORS_OPS_MULTI_H
+#define FLECSI_LINALG_VECTORS_OPS_MULTI_H
 
 #include <tuple>
 #include <functional>
@@ -8,13 +9,13 @@
 
 namespace flecsi::linalg::vec::ops {
 
-template <class Scalar, class VecData, std::size_t NumVecs>
+template <class Scalar, class Len, class VecData, std::size_t NumVecs>
 struct multi {
 	static constexpr std::size_t num_vecs = NumVecs;
 	using vec_data = VecData;
 	using scalar = Scalar;
 	using real = typename num_traits<scalar>::real;
-	using len_t = std::size_t;
+	using len_t = Len;
 
 	void copy(const vec_data & x, vec_data & z) {
 		apply([](auto & x, const auto & y) {
@@ -231,3 +232,4 @@ protected:
 };
 
 }
+#endif
