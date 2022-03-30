@@ -122,15 +122,13 @@ protected:
 };
 template<class V> solver(const settings&,V&&)->solver<V>;
 
+}
+
+namespace flecsi::linalg {
 template <class W, class... Ops>
-struct params : krylov_params<solver, W, Ops...> {
-	template<class V, class ... O>
-	params(settings s, V && w, O&& ... o) :
-		krylov_params<solver, W, Ops...>(std::move(s),
-		                                 std::forward<V>(w),
-		                                 std::forward<O>(o)...){}
+struct traits<krylov_params<cg::settings, W, Ops...>> {
+	using op = krylov_interface<W, cg::solver>;
 };
-template <class W, class... O>
-params(settings, W&&, O&&...)->params<W, O...>;
+
 }
 #endif

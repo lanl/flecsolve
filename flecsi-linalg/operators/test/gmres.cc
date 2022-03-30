@@ -71,7 +71,7 @@ int gmres_test() {
 			x.set_random(1);
 
 			diagnostic diag(A, x, b, cfact);
-			gmres::params params({100, 1e-4, 0},
+			krylov_params params(gmres::settings{100, 1e-4, 0},
 			                     gmres::topo_work<>::get(b),
 			                     A, op::I, diag);
 			auto slv = op::create(std::move(params));

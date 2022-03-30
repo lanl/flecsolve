@@ -42,9 +42,9 @@ int driver() {
 			b.set_random(0);
 			x.set_random(1);
 
-			bicgstab::params params({200, 1e-9, false},
-			                        bicgstab::topo_work<>::get(b),
-			                        A);
+			krylov_params params(bicgstab::settings{200, 1e-9, false},
+			                     bicgstab::topo_work<>::get(b),
+			                     A);
 			auto slv = op::create(std::move(params));
 
 			auto info = slv.apply(b, x);

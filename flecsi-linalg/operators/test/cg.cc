@@ -96,9 +96,9 @@ int cgtest() {
 			x.set_random(7);
 
 			diagnostic diag(A, x, cs.cond);
-			cg::params params({2000, 1e-9, 1e-9},
-			                  cg::topo_work<>::get(b),
-			                  std::move(A), op::I, diag);
+			krylov_params params(cg::settings{2000, 1e-9, 1e-9},
+			                     cg::topo_work<>::get(b),
+			                     std::move(A), op::I, diag);
 			auto slv = op::create(std::move(params));
 
 			auto info = slv.apply(b, x);

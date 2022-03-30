@@ -3,6 +3,7 @@
 
 #include <tuple>
 
+#include "shell.hh"
 #include "factory.hh"
 
 namespace flecsi::linalg {
@@ -85,12 +86,9 @@ struct krylov_interface {
 	Workspace work;
 };
 
-template<template<class> class S, class W, class ... Ops>
+template<class S, class W, class ... Ops>
 struct krylov_params {
-	using settings_type = typename S<W>::settings_type;
-	template<class T>
-	using solver_type = S<T>;
-	using op_class = krylov_interface<W, S>;
+	using settings_type = S;
 
 	template<class V, class ... O>
 	krylov_params(settings_type s, V&& w, O&& ... o) :
@@ -102,7 +100,8 @@ struct krylov_params {
 	W work;
 	std::tuple<Ops...> ops;
 };
-
+template <class S, class W, class... O>
+krylov_params(S, W &&, O &&...) -> krylov_params<S, W, O...>;
 
 template<template<class> class S, class W, class ... Ops>
 auto make_krylov_op(const typename S<W>::settings_type & params, W && work, Ops&&... ops) {
