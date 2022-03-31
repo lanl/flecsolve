@@ -44,7 +44,7 @@ struct solver : krylov_interface<Workspace, solver>
 	using iface::work;
 
 	solver(solver<Workspace>&& o) noexcept :
-		iface{std::move(o.work)},
+		iface{std::forward<Workspace>(o.work)},
 		hessenberg_data(std::exchange(o.hessenberg_data, nullptr)),
 		hmat(std::exchange(o.hmat, nullptr)),
 		basis(work.data() + (nwork - krylov_dim_bound - 1), o.basis.size()),
@@ -54,7 +54,7 @@ struct solver : krylov_interface<Workspace, solver>
 
 	solver<Workspace> & operator=(solver<Workspace>&& o) noexcept {
 		if (this != &o) {
-			work = std::move(o.work);
+			work = std::forward<Workspace>(o.work);
 			hessenberg_data = std::exchange(o.hessenberg_data, nullptr);
 			hmat = std::exchange(o.hmat, nullptr);
 			basis = util::span(work.data() + (nwork - krylov_dim_bound - 1), o.basis.size());

@@ -86,24 +86,23 @@ int gmres_test() {
 			b.set_random(0);
 			x.set_random(1);
 
-			gmres::settings params{100, 1e-4, 50};
-			gmres::solver slv(params,
-			                  gmres::topo_work<>::get(b));
+			krylov_params params(gmres::settings{100, 1e-4, 50},
+			                     gmres::topo_work<>::get(b), A);
 
-			auto slv_op = slv.bind(A);
-
-			auto info_restart = slv_op.apply(b, x);
+			auto slv = op::create(params);
+			auto info_restart = slv.apply(b, x);
 
 			x.set_random(1);
 
-			params.maxiter = 50;
-			slv.reset(params);
+			params.solver_settings.maxiter = 50;
+			slv.solver.reset(params.solver_settings);
 
-			slv_op.apply(b, x);
+			slv.apply(b, x);
 
-			auto slv1 = make_krylov_op<gmres::solver>({100, 1e-4, 0},
-			                                          gmres::topo_work<>::get(b),
-			                                          A);
+			params.solver_settings.maxiter = 100;
+			params.solver_settings.restart = 0;
+			auto slv1 = op::create(params);
+
 			auto info = slv1.apply(b, x);
 			EXPECT_EQ(50 + info.iters, info_restart.iters);
 			EXPECT_EQ(info.res_norm_final, info_restart.res_norm_final);
