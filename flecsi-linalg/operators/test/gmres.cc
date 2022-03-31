@@ -53,9 +53,26 @@ struct diagnostic {
 };
 
 
+static csr<> get_diag(const csr<> & in) {
+	csr<> out{in.nrows, in.nrows};
+
+	for (std::size_t i = 0; i < in.nrows; i++) {
+		for (std::size_t off = in.rowptr[i]; off < in.rowptr[i+1]; off++) {
+			if (in.colind[off] == i) {
+				out.values[i] = 1.0 / in.values[off];
+				out.colind[i] = i;
+			}
+		}
+		out.rowptr[i+1] = i+1;
+	}
+
+	return out;
+}
+
 int gmres_test() {
 	UNIT() {
 		auto mat = read_mm("Chem97ZtZ.mtx");
+		auto idiag = get_diag(mat);
 
 		double cond = 2.472189e+02;
 		double cfact = (cond*cond - 1) / (cond * cond);
@@ -63,6 +80,7 @@ int gmres_test() {
 		auto & msh = mshs[0];
 		init_mesh(mat.nrows, msh, colorings[0]);
 		csr_op A{std::move(mat)};
+		csr_op Dinv{std::move(idiag)};
 
 		vec::mesh x(msh, xd(msh)), b(msh, bd(msh));
 
@@ -81,6 +99,11 @@ int gmres_test() {
 			EXPECT_EQ(info.iters, 73);
 			EXPECT_FALSE(diag.fail_monotonic);
 			EXPECT_FALSE(diag.fail_convergence);
+
+			auto slv_pre = slv.rebind(A, Dinv);
+			x.set_random(1);
+			auto info_pre = slv_pre.apply(b, x);
+			EXPECT_EQ(info_pre.iters, 18);
 		}
 		{ // test restart
 			b.set_random(0);
