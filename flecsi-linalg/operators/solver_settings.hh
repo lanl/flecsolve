@@ -32,7 +32,7 @@ struct solve_info {
 };
 
 
-template <class Vec, std::size_t NumWork, std::size_t Version>
+template <class Vec, std::size_t NumWork, std::size_t Version, std::size_t MVIndex=0>
 struct topo_solver_state {
 
 	using field_def = typename Vec::data_t::field_definition;
@@ -63,14 +63,20 @@ struct topo_work_base {
 
 	template<class VarType, class... Vecs>
 	static auto get(const vec::multi<VarType,Vecs...> & rhs) {
-		auto wv = std::apply([](const auto & ... v) {
-			return std::make_tuple(topo_solver_state<std::remove_reference_t<decltype(v)>, NumWork, Version>::get_work(v)...);
-		}, rhs.data);
+		auto wv = make_states(rhs.data, std::make_index_sequence<sizeof...(Vecs)>());
 		return make(rhs, wv, std::make_index_sequence<NumWork>());
 	}
 
 
 protected:
+	template<class T, std::size_t... Index>
+	static auto make_states(T & t, std::index_sequence<Index...>) {
+		return std::make_tuple(
+			topo_solver_state<
+			std::remove_reference_t<std::tuple_element_t<Index, T>>,
+			NumWork, Version, Index>::get_work(std::get<Index>(t))...);
+	}
+
 	template<class T, class MV, std::size_t Index>
 	static MV make_mv(T & wv) {
 		return std::apply([](const auto&... v) {
