@@ -29,7 +29,7 @@ struct multi {
 
 	void set_to_scalar(scalar alpha, vec_data & x) {
 		apply([alpha](auto & x) {
-			x.set_to_scalar(alpha);
+			x.set_scalar(alpha);
 		}, make_is(), x);
 	}
 

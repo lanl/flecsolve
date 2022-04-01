@@ -3,6 +3,7 @@
 #include <array>
 
 #include "shell.hh"
+#include "flecsi-linalg/vectors/multi.hh"
 
 namespace flecsi::linalg {
 
@@ -58,6 +59,28 @@ struct topo_work_base {
 	template<class Vec>
 	static auto get(const Vec & rhs) {
 		return topo_solver_state<Vec, NumWork, Version>::get_work(rhs);
+	}
+
+	template<class VarType, class... Vecs>
+	static auto get(const vec::multi<VarType,Vecs...> & rhs) {
+		auto wv = std::apply([](const auto & ... v) {
+			return std::make_tuple(topo_solver_state<std::remove_reference_t<decltype(v)>, NumWork, Version>::get_work(v)...);
+		}, rhs.data);
+		return make(rhs, wv, std::make_index_sequence<NumWork>());
+	}
+
+
+protected:
+	template<class T, class MV, std::size_t Index>
+	static MV make_mv(T & wv) {
+		return std::apply([](const auto&... v) {
+			return MV(v[Index]...);
+		}, wv);
+	}
+
+	template<class MV, class T, std::size_t... Index>
+	static std::array<MV, NumWork> make(const MV &, T & wv, std::index_sequence<Index...>) {
+		return { make_mv<T, MV, Index>(wv)... };
 	}
 };
 
