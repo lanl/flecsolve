@@ -53,7 +53,7 @@ struct diagnostic {
 };
 
 
-static csr<> get_diag(const csr<> & in) {
+static csr<> get_idiag(const csr<> & in) {
 	csr<> out{in.nrows, in.nrows};
 
 	for (std::size_t i = 0; i < in.nrows; i++) {
@@ -72,7 +72,7 @@ static csr<> get_diag(const csr<> & in) {
 int gmres_test() {
 	UNIT() {
 		auto mat = read_mm("Chem97ZtZ.mtx");
-		auto idiag = get_diag(mat);
+		auto idiag = get_idiag(mat);
 
 		double cond = 2.472189e+02;
 		double cfact = (cond*cond - 1) / (cond * cond);

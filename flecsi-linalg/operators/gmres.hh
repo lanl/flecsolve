@@ -125,7 +125,11 @@ struct solver : krylov_interface<Workspace, solver>
 
 		const real terminate_tol = params.rtol * b_norm;
 
-		A.residual(b, x, res);
+		if (params.pre_side == precond_side::left) {
+			A.residual(b, x, basis[0]);
+			P.apply(basis[0], res);
+		} else
+			A.residual(b, x, res);
 
 		const real beta = res.l2norm().get();
 		info.res_norm_initial = beta;
@@ -145,13 +149,13 @@ struct solver : krylov_interface<Workspace, solver>
 
 		int k = 0;
 		for (int iter = 0; iter < params.maxiter; iter++) {
-			if (params.pre_side == precond_side::right)
+			if (params.pre_side == precond_side::right) {
 				P.apply(basis[k], z);
-			else
-				z.copy(basis[k]);
-
-			// construct krylov vector
-			A.apply(z, v);
+				A.apply(z, v);
+			} else {
+				A.apply(basis[k], z);
+				P.apply(z, v);
+			}
 
 			// orthogonalize to previous vectors and add new colum to Hessenberg matrix
 			orthogonalize(v, k+1);
@@ -210,7 +214,11 @@ struct solver : krylov_interface<Workspace, solver>
 				back_solve(k-1);
 				correct(k-1, P, z, v, x);
 
-				A.residual(b, x, res);
+				if (params.pre_side == precond_side::left) {
+					A.residual(b, x, basis[0]);
+					P.apply(basis[0], res);
+				} else
+					A.residual(b, x, res);
 				const real betar = res.l2norm().get();
 				res.scale(1.0 / betar);
 				basis[0].copy(res);
