@@ -67,9 +67,13 @@ struct multi : public multivector_base<Vecs...>
 	}
 
 	template<VarType ... vars>
-	constexpr auto subset() {
-		return multi<VarType,
-			decltype(getvar<vars>())...>(getvar<vars>()...);
+	constexpr decltype(auto) subset() {
+		if constexpr (sizeof...(vars) == 1) {
+			return getvar<vars...>();
+		} else {
+			return multi<VarType,
+			             decltype(getvar<vars>())...>(getvar<vars>()...);
+		}
 	}
 };
 
