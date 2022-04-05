@@ -75,6 +75,11 @@ struct multi : public multivector_base<Vecs...>
 			             decltype(getvar<vars>())...>(getvar<vars>()...);
 		}
 	}
+
+	template<VarType ... vars>
+	constexpr decltype(auto) subset(varlist<vars...>) {
+		return subset<vars...>();
+	}
 };
 
 template <class... VT>
