@@ -212,6 +212,15 @@ int vectest() {
 		auto & [dvec1, pvec1] = subset;
 		EXPECT_EQ(pvec.data.fid(), pvec1.data.fid());
 		EXPECT_EQ(dvec.data.fid(), dvec1.data.fid());
+
+		varlist<vars::temperature, vars::density> opvars;
+		auto subset1 = mv.subset(opvars);
+		auto & [tvec1, dvec2] = subset1;
+		EXPECT_EQ(tvec1.data.fid(), tvec.data.fid());
+		EXPECT_EQ(dvec2.data.fid(), dvec.data.fid());
+
+		auto & tvec2 = mv.subset<vars::temperature>();
+		EXPECT_EQ(tvec2.data.fid(), tvec.data.fid());
 	};
 }
 

@@ -1,4 +1,5 @@
-#pragma once
+#ifndef FLECSI_LINALG_VECTORS_VARIABLE_H
+#define FLECSI_LINALG_VECTORS_VARIABLE_H
 
 #include <string>
 #include <array>
@@ -24,3 +25,4 @@ inline variable_t<V> variable{};
 template <auto... Vs> struct varlist {};
 
 }
+#endif

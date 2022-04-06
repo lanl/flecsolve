@@ -310,6 +310,18 @@ public:
 		ops.dump(str, data);
 	}
 
+	template<auto var>
+	constexpr decltype(auto) subset() {
+		static_assert(var == Variable);
+		return *this;
+	}
+
+	template<auto var>
+	constexpr decltype(auto) subset(varlist<var>) {
+		static_assert(var == Variable);
+		return *this;
+	}
+
 	Data data;
 	Ops ops;
 	static constexpr auto var = Variable;
