@@ -1,9 +1,23 @@
+if(ENABLE_UNIT_TESTS)
+  include(FetchContent)
+  FetchContent_Declare(494_bus
+	URL https://www.cise.ufl.edu/research/sparse/MM/HB/494_bus.tar.gz
+	URL_HASH SHA256=9b2d33c6fe52ee5b4980da1a2d2b78201924a36714234757677fa5c829c483ca)
+  FetchContent_Declare(chem97ztz
+	URL https://www.cise.ufl.edu/research/sparse/MM/Bates/Chem97ZtZ.tar.gz
+	URL_HASH SHA256=bb7de09a73368e07e48f19c288743b04b220aaf28cc2b7fcfef6f1d47440a2bb)
+  FetchContent_Declare(psmigr_3
+	URL https://www.cise.ufl.edu/research/sparse/MM/HB/psmigr_3.tar.gz
+	URL_HASH SHA256=bf45ebfdb2837cdd40fa934637170d6989df1f42c81e9c9da0a88afee0b3bcd6)
+  FetchContent_MakeAvailable(494_bus Chem97ZtZ psmigr_3)
+endif()
+
 add_unit(cg
   SOURCES
   test/cg.cc
   INPUTS
-  ${PROJECT_SOURCE_DIR}/data/494_bus/494_bus.mtx
-  ${PROJECT_SOURCE_DIR}/data/Chem97ZtZ/Chem97ZtZ.mtx
+  ${494_bus_SOURCE_DIR}/494_bus.mtx
+  ${chem97ztz_SOURCE_DIR}/Chem97ZtZ.mtx
   LIBRARIES
   FleCSI::linalg
   THREADS 1)
@@ -12,7 +26,7 @@ add_unit(gmres
   SOURCES
   test/gmres.cc
   INPUTS
-  ${PROJECT_SOURCE_DIR}/data/Chem97ZtZ/Chem97ZtZ.mtx
+  ${chem97ztz_SOURCE_DIR}/Chem97ZtZ.mtx
   LIBRARIES
   FleCSI::linalg
   THREADS 1)
@@ -21,7 +35,8 @@ add_unit(bicgstab
   SOURCES
   test/bicgstab.cc
   INPUTS
-  ${PROJECT_SOURCE_DIR}/data/Chem97ZtZ/Chem97ZtZ.mtx
+  ${chem97ztz_SOURCE_DIR}/Chem97ZtZ.mtx
+  ${psmigr_3_SOURCE_DIR}/psmigr_3.mtx
   LIBRARIES
   FleCSI::linalg
   THREADS 1)
