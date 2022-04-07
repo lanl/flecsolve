@@ -22,7 +22,10 @@ template <auto V> struct variable_t {
 template<auto V>
 inline variable_t<V> variable{};
 
-template <auto... Vs> struct varlist {};
+template <auto... Vs> struct multivariable_t {};
+
+template<auto... Vs>
+inline multivariable_t<Vs...> multivariable{};
 
 }
 #endif

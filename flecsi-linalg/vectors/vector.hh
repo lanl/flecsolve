@@ -311,13 +311,13 @@ public:
 	}
 
 	template<auto var>
-	constexpr decltype(auto) subset() {
+	constexpr decltype(auto) subset(variable_t<var>) {
 		static_assert(var == Variable);
 		return *this;
 	}
 
 	template<auto var>
-	constexpr decltype(auto) subset(varlist<var>) {
+	constexpr decltype(auto) subset(multivariable_t<var>) {
 		static_assert(var == Variable);
 		return *this;
 	}
