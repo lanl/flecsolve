@@ -1,9 +1,11 @@
-#pragma once
+#ifndef FLECSI_LINALG_OP_CG_H
+#define FLECSI_LINALG_OP_CG_H
 
 #include <flecsi/flog.hh>
 
 #include "shell.hh"
 #include "solver_settings.hh"
+#include "krylov_interface.hh"
 
 namespace flecsi::linalg::cg {
 
@@ -11,19 +13,15 @@ static constexpr std::size_t nwork = 4;
 
 using settings = solver_settings;
 
-inline auto default_settings() {
-	return settings{100, 1e-9, 1e-9};
-}
-
 template <std::size_t Version = 0>
 using topo_work = topo_work_base<nwork, Version>;
 
 template<class Workspace>
-struct solver : solver_interface<Workspace, solver>
+struct solver : krylov_interface<Workspace, solver>
 {
-	using iface = solver_interface<Workspace, solver>;
+	using settings_type = settings;
+	using iface = krylov_interface<Workspace, solver>;
 	using iface::work;
-	using iface::apply;
 
 	template<class V>
 	solver(const settings & params, V && workspace) :
@@ -125,3 +123,12 @@ protected:
 template<class V> solver(const settings&,V&&)->solver<V>;
 
 }
+
+namespace flecsi::linalg {
+template <class W, class... Ops>
+struct traits<krylov_params<cg::settings, W, Ops...>> {
+	using op = krylov_interface<W, cg::solver>;
+};
+
+}
+#endif

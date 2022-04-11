@@ -1,4 +1,5 @@
-#pragma once
+#ifndef FLECSI_LINALG_OP_GMRES_H
+#define FLECSI_LINALG_OP_GMRES_H
 
 #include <cmath>
 
@@ -7,6 +8,7 @@
 
 #include "solver_settings.hh"
 #include "shell.hh"
+#include "krylov_interface.hh"
 
 namespace flecsi::linalg::gmres {
 
@@ -29,21 +31,41 @@ struct settings : solver_settings
 	int restart;
 };
 
-inline auto default_settings() {
-	return settings(100, 1e-9, 0);
-}
-
 template <std::size_t Version = 0>
 using topo_work = topo_work_base<nwork, Version>;
 
 
 template<class Workspace>
-struct solver : solver_interface<Workspace, solver>
+struct solver : krylov_interface<Workspace, solver>
 {
-	using iface = solver_interface<Workspace, solver>;
+	using settings_type = settings;
+	using iface = krylov_interface<Workspace, solver>;
 	using real = typename iface::real;
 	using iface::work;
-	using iface::apply;
+
+	solver(solver<Workspace>&& o) noexcept :
+		iface{std::forward<Workspace>(o.work)},
+		hessenberg_data(std::exchange(o.hessenberg_data, nullptr)),
+		hmat(std::exchange(o.hmat, nullptr)),
+		basis(work.data() + (nwork - krylov_dim_bound - 1), o.basis.size()),
+		sinvec(std::move(o.sinvec)), cosvec(std::move(o.cosvec)),
+		dwvec(std::move(o.dwvec)), dyvec(std::move(o.dyvec)), params(std::move(o.params))
+	{}
+
+	solver<Workspace> & operator=(solver<Workspace>&& o) noexcept {
+		if (this != &o) {
+			work = std::forward<Workspace>(o.work);
+			hessenberg_data = std::exchange(o.hessenberg_data, nullptr);
+			hmat = std::exchange(o.hmat, nullptr);
+			basis = util::span(work.data() + (nwork - krylov_dim_bound - 1), o.basis.size());
+			sinvec = std::move(o.sinvec);
+			cosvec = std::move(o.cosvec);
+			dwvec = std::move(o.dwvec);
+			dyvec = std::move(o.dyvec);
+			params = std::move(o.params);
+		}
+		return *this;
+	}
 
 	template<class V>
 	solver(const settings & params, V && workspace) :
@@ -103,7 +125,11 @@ struct solver : solver_interface<Workspace, solver>
 
 		const real terminate_tol = params.rtol * b_norm;
 
-		A.residual(b, x, res);
+		if (params.pre_side == precond_side::left) {
+			A.residual(b, x, basis[0]);
+			P.apply(basis[0], res);
+		} else
+			A.residual(b, x, res);
 
 		const real beta = res.l2norm().get();
 		info.res_norm_initial = beta;
@@ -123,13 +149,13 @@ struct solver : solver_interface<Workspace, solver>
 
 		int k = 0;
 		for (int iter = 0; iter < params.maxiter; iter++) {
-			if (params.pre_side == precond_side::right)
+			if (params.pre_side == precond_side::right) {
 				P.apply(basis[k], z);
-			else
-				z.copy(basis[k]);
-
-			// construct krylov vector
-			A.apply(z, v);
+				A.apply(z, v);
+			} else {
+				A.apply(basis[k], z);
+				P.apply(z, v);
+			}
 
 			// orthogonalize to previous vectors and add new colum to Hessenberg matrix
 			orthogonalize(v, k+1);
@@ -188,7 +214,11 @@ struct solver : solver_interface<Workspace, solver>
 				back_solve(k-1);
 				correct(k-1, P, z, v, x);
 
-				A.residual(b, x, res);
+				if (params.pre_side == precond_side::left) {
+					A.residual(b, x, basis[0]);
+					P.apply(basis[0], res);
+				} else
+					A.residual(b, x, res);
 				const real betar = res.l2norm().get();
 				res.scale(1.0 / betar);
 				basis[0].copy(res);
@@ -328,3 +358,13 @@ protected:
 template<class V> solver(const settings&,V&&) -> solver<V>;
 
 }
+
+namespace flecsi::linalg {
+
+template <class W, class... Ops>
+struct traits<krylov_params<gmres::settings, W, Ops...>> {
+	using op = krylov_interface<W, gmres::solver>;
+};
+
+}
+#endif

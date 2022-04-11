@@ -1,4 +1,5 @@
-#pragma once
+#ifndef FLECSI_LINALG_VECTORS_MULTI_H
+#define FLECSI_LINALG_VECTORS_MULTI_H
 
 #include <tuple>
 
@@ -8,12 +9,16 @@
 
 namespace flecsi::linalg::vec {
 
-template <class... Vecs> using multivector_scalar =
-	typename std::tuple_element<0, std::tuple<std::remove_reference_t<Vecs>...>>::type::scalar;
+template <class... Vecs>
+using multivector_scalar = typename std::tuple_element<
+    0, std::tuple<std::remove_reference_t<Vecs>...>>::type::scalar;
+template <class... Vecs> using multivector_len =
+	typename std::tuple_element<0, std::tuple<std::remove_reference_t<Vecs>...>>::type::len_t;
 template <class... Vecs> using multivector_data = std::tuple<Vecs...>;
 template <class... Vecs>
 using multivector_ops =
-	ops::multi<vector_types<multivector_scalar<Vecs...>>,
+	ops::multi<multivector_scalar<Vecs...>,
+	           multivector_len<Vecs...>,
 	           multivector_data<Vecs...>, sizeof...(Vecs)>;
 
 template <class... Vecs>
@@ -61,10 +66,19 @@ struct multi : public multivector_base<Vecs...>
 		return get<var, 0>();
 	}
 
+	template<VarType var>
+	constexpr decltype(auto) subset(variable_t<var>) {
+		return getvar<var>();
+	}
+
 	template<VarType ... vars>
-	constexpr auto subset() {
-		return multi<VarType,
-			decltype(getvar<vars>())...>(getvar<vars>()...);
+	constexpr decltype(auto) subset(multivariable_t<vars...>) {
+		if constexpr (sizeof...(vars) == 1) {
+			return getvar<vars...>();
+		} else {
+			return multi<VarType,
+			             decltype(getvar<vars>())...>(getvar<vars>()...);
+		}
 	}
 };
 
@@ -86,3 +100,4 @@ struct tuple_element<I, flecsi::linalg::vec::multi<VarType, Vecs...>> {
 };
 
 }
+#endif

@@ -42,10 +42,12 @@ int driver() {
 			b.set_random(0);
 			x.set_random(1);
 
-			bicgstab::solver slv(bicgstab::settings{200, 1e-9, false},
-			                     bicgstab::topo_work<>::get(b));
+			krylov_params params(bicgstab::settings{200, 1e-9, false},
+			                     bicgstab::topo_work<>::get(b),
+			                     A);
+			auto slv = op::create(std::move(params));
 
-			auto info = slv.apply(A, b, x);
+			auto info = slv.apply(b, x);
 
 			EXPECT_EQ(info.status, solve_info::stop_reason::converged_rtol);
 			EXPECT_EQ(info.iters, cs.second);

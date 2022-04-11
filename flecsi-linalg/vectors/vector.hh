@@ -2,27 +2,12 @@
 
 #include <utility>
 #include <random>
-#include <complex>
 #include <type_traits>
 #include <optional>
 
 #include "variable.hh"
 
 namespace flecsi::linalg {
-
-template <class Scalar, class Len = std::size_t>
-struct vector_types {
-	template<class T>
-	struct detail { using real_type = T; };
-	template<class T>
-	struct detail<std::complex<T>> { using real_type = T; };
-
-	using scalar = Scalar;
-	using len = Len;
-	using real = typename detail<Scalar>::real_type;
-	static constexpr bool is_complex = not std::is_same_v<scalar, real>;
-};
-
 
 template <class Data, class Ops, auto Variable=anon_var::anonymous>
 class vector
@@ -323,6 +308,18 @@ public:
 
 	void dump(std::string_view str) {
 		ops.dump(str, data);
+	}
+
+	template<auto var>
+	constexpr decltype(auto) subset(variable_t<var>) {
+		static_assert(var == Variable);
+		return *this;
+	}
+
+	template<auto var>
+	constexpr decltype(auto) subset(multivariable_t<var>) {
+		static_assert(var == Variable);
+		return *this;
 	}
 
 	Data data;
