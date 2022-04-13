@@ -3,40 +3,33 @@
 #include <fstream>
 #include <iostream>
 
-
 #include "test_mesh.hh"
 
 namespace flecsi::linalg {
 
 using realf = field<double>;
 
-inline void init_mesh(std::size_t nrows, testmesh::slot & msh, testmesh::cslot & coloring) {
+inline void
+init_mesh(std::size_t nrows, testmesh::slot & msh, testmesh::cslot & coloring) {
 	std::vector<std::size_t> extents{nrows};
 	auto colors = testmesh::distribute(flecsi::processes(), extents);
 	coloring.allocate(colors, extents);
 	msh.allocate(coloring.get());
 }
 
-
-template <class scalar = double, class size = std::size_t>
-struct csr
-{
-	csr(size nrows, size nnz) :
-		valbuf(std::make_unique<scalar[]>(nnz)),
-		colindbuf(std::make_unique<size[]>(nnz)),
-		rowptrbuf(std::make_unique<size[]>(nrows+1)),
-		nrows(nrows), nnz(nnz),
-		colind(colindbuf.get()),
-		rowptr(rowptrbuf.get()),
-		values(valbuf.get()) {
+template<class scalar = double, class size = std::size_t>
+struct csr {
+	csr(size nrows, size nnz)
+		: valbuf(std::make_unique<scalar[]>(nnz)),
+		  colindbuf(std::make_unique<size[]>(nnz)),
+		  rowptrbuf(std::make_unique<size[]>(nrows + 1)), nrows(nrows),
+		  nnz(nnz), colind(colindbuf.get()), rowptr(rowptrbuf.get()),
+		  values(valbuf.get()) {
 		rowptr[0] = 0;
 		rowptr[nrows] = nnz;
 	}
-	csr(size nrows, size nnz,
-	    size *colind, size *rowptr,
-	    scalar *data) :
-		nrows(nrows), nnz(nnz),
-		colind(colind), rowptr(rowptr), valbuf(data) {
+	csr(size nrows, size nnz, size * colind, size * rowptr, scalar * data)
+		: nrows(nrows), nnz(nnz), colind(colind), rowptr(rowptr), valbuf(data) {
 		rowptr[0] = 0;
 		rowptr[nrows] = nnz;
 	}
@@ -44,7 +37,7 @@ struct csr
 	void dump(const char * fname) {
 		std::ofstream ofile(fname);
 		for (size i = 0; i < nrows; i++) {
-			for (size off = rowptr[i]; off < rowptr[i+1]; off++) {
+			for (size off = rowptr[i]; off < rowptr[i + 1]; off++) {
 				ofile << "(" << colind[off] << " => " << values[off] << ')';
 			}
 			ofile << '\n';
@@ -55,13 +48,13 @@ protected:
 	std::unique_ptr<scalar[]> valbuf;
 	std::unique_ptr<size[]> colindbuf;
 	std::unique_ptr<size[]> rowptrbuf;
+
 public:
 	size nrows, nnz;
-	size   *colind;
-	size   *rowptr;
-	scalar *values;
+	size * colind;
+	size * rowptr;
+	scalar * values;
 };
-
 
 struct mm_header {
 	std::size_t nrows;
@@ -100,14 +93,17 @@ inline mm_header read_header(std::ifstream & mfile) {
 
 template<std::size_t I>
 auto stov(std::string & s) {
-	if constexpr (I == 2) return std::stof(s);
-	else return std::stoi(s) - 1;
+	if constexpr (I == 2)
+		return std::stof(s);
+	else
+		return std::stoi(s) - 1;
 }
-template <class T, std::size_t... I>
-void parse_entry_impl(T & t, std::istringstream & iss, std::index_sequence<I...>) {
+template<class T, std::size_t... I>
+void parse_entry_impl(T & t,
+                      std::istringstream & iss,
+                      std::index_sequence<I...>) {
 	std::string tok;
-	((std::getline(iss, tok, ' '),
-	  std::get<I>(t) = stov<I>(tok)),...);
+	((std::getline(iss, tok, ' '), std::get<I>(t) = stov<I>(tok)), ...);
 }
 
 inline auto parse_entry(std::string & line) {
@@ -126,9 +122,7 @@ inline auto read_mm(const char * fname) {
 
 	std::vector<std::size_t> I, J;
 	std::vector<double> V;
-	[=](auto & ... v) {
-		((v.reserve(header.nnz)),...);
-	}(I,J,V);
+	[=](auto &... v) { ((v.reserve(header.nnz)), ...); }(I, J, V);
 
 	std::string line;
 	while (std::getline(mfile, line)) {
@@ -148,8 +142,10 @@ inline auto read_mm(const char * fname) {
 	// argsort by rows
 	std::vector<std::size_t> ind(I.size());
 	std::iota(ind.begin(), ind.end(), 0);
-	std::stable_sort(ind.begin(), ind.end(),
-	                 [&](std::size_t i1, std::size_t i2) { return I[i1] < I[i2]; });
+	std::stable_sort(
+		ind.begin(), ind.end(), [&](std::size_t i1, std::size_t i2) {
+			return I[i1] < I[i2];
+		});
 
 	csr mat(header.nrows, ind.size());
 
@@ -164,8 +160,7 @@ inline auto read_mm(const char * fname) {
 	return mat;
 };
 
-
-template <class CSR>
+template<class CSR>
 void spmv(const CSR & mat,
           testmesh::accessor<ro> m,
           realf::accessor<ro, na> x,
@@ -174,7 +169,7 @@ void spmv(const CSR & mat,
 	for (std::size_t i = 0; i < mat.nrows; i++) {
 		auto dof = dofs[i];
 		y[dof] = 0.;
-		for (std::size_t off = mat.rowptr[i]; off < mat.rowptr[i+1]; off++) {
+		for (std::size_t off = mat.rowptr[i]; off < mat.rowptr[i + 1]; off++) {
 			y[dof] += x[dofs[mat.colind[off]]] * mat.values[off];
 		}
 	}
@@ -189,16 +184,15 @@ struct csr_op {
 	}
 
 	template<class domain_vec, class range_vec>
-	void residual(const domain_vec & b, const range_vec & x,
-	              range_vec & r) const {
+	void
+	residual(const domain_vec & b, const range_vec & x, range_vec & r) const {
 		apply(x, r);
 		r.subtract(b, r);
 	}
 
 	CSR mat;
 };
-template <class CSR>
-csr_op(CSR)->csr_op<CSR>;
-
+template<class CSR>
+csr_op(CSR) -> csr_op<CSR>;
 
 }

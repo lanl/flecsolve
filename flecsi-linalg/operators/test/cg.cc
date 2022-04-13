@@ -4,10 +4,8 @@
 #include "flecsi/util/unit.hh"
 #include "flecsi/util/unit/types.hh"
 
-
 #include "flecsi-linalg/vectors/mesh.hh"
 #include "flecsi-linalg/operators/cg.hh"
-
 
 #include "csr_utils.hh"
 
@@ -19,17 +17,11 @@ std::array<testmesh::cslot, ncases> colorings;
 
 const realf::definition<testmesh, testmesh::cells> xd, bd;
 
-
-
-template <class Op, class Vec>
-struct diagnostic
-{
-	diagnostic(const Op & A, const Vec & x0, double cond) :
-		iter(0), cond(cond), A(A),
-		Ax(x0.data.topo, axdef(x0.data.topo)),
-		monotonic_fail(false),
-		convergence_fail(false)
-	{
+template<class Op, class Vec>
+struct diagnostic {
+	diagnostic(const Op & A, const Vec & x0, double cond)
+		: iter(0), cond(cond), A(A), Ax(x0.data.topo, axdef(x0.data.topo)),
+		  monotonic_fail(false), convergence_fail(false) {
 		A.apply(x0, Ax);
 		auto nrm = x0.dot(Ax).get();
 		e_0 = std::sqrt(nrm);
@@ -65,23 +57,19 @@ struct diagnostic
 	static inline const realf::definition<testmesh, testmesh::cells> axdef;
 };
 
-
 struct tcase {
 	const char * fname; // filename
-	float        cond;  // condition number
-	int          iters; // expected iterations to converge
+	float cond; // condition number
+	int iters; // expected iterations to converge
 };
 
-
 int cgtest() {
-	std::array cases{
-		tcase{"494_bus.mtx", 2.415411e+06, 1822},
-		tcase{"Chem97ZtZ.mtx", 2.472189e+02, 161}
-	};
+	std::array cases{tcase{"494_bus.mtx", 2.415411e+06, 1822},
+	                 tcase{"Chem97ZtZ.mtx", 2.472189e+02, 161}};
 
 	static_assert(cases.size() <= ncases);
 
-	UNIT() {
+	UNIT () {
 		std::size_t i = 0;
 		for (const auto & cs : cases) {
 			auto mat = read_mm(cs.fname);
@@ -98,7 +86,9 @@ int cgtest() {
 			diagnostic diag(A, x, cs.cond);
 			krylov_params params(cg::settings{2000, 1e-9, 1e-9},
 			                     cg::topo_work<>::get(b),
-			                     std::move(A), op::I, diag);
+			                     std::move(A),
+			                     op::I,
+			                     diag);
 			auto slv = op::create(std::move(params));
 
 			auto info = slv.apply(b, x);
@@ -111,11 +101,9 @@ int cgtest() {
 		}
 	};
 
-
 	return 0;
 }
 
 unit::driver<cgtest> driver;
 
 }
-

@@ -8,13 +8,17 @@
 
 namespace flecsi::linalg {
 
-enum class anon_var : std::size_t { anonymous = std::numeric_limits<std::size_t>::max() };
-
-template <auto V> struct variable_name {
-  static constexpr const char *value = "";
+enum class anon_var : std::size_t {
+	anonymous = std::numeric_limits<std::size_t>::max()
 };
 
-template <auto V> struct variable_t {
+template<auto V>
+struct variable_name {
+	static constexpr const char * value = "";
+};
+
+template<auto V>
+struct variable_t {
 	static constexpr auto val = V;
 	static constexpr const char * name = variable_name<V>::value;
 };
@@ -22,7 +26,8 @@ template <auto V> struct variable_t {
 template<auto V>
 inline variable_t<V> variable{};
 
-template <auto... Vs> struct multivariable_t {};
+template<auto... Vs>
+struct multivariable_t {};
 
 template<auto... Vs>
 inline multivariable_t<Vs...> multivariable{};

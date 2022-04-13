@@ -15,15 +15,15 @@ namespace flecsi::linalg::gmres {
 enum class precond_side { left, right };
 
 static constexpr std::size_t krylov_dim_bound = 100;
-static constexpr std::size_t nwork = (krylov_dim_bound+1) + 3;
+static constexpr std::size_t nwork = (krylov_dim_bound + 1) + 3;
 
-struct settings : solver_settings
-{
+struct settings : solver_settings {
 	using base_t = solver_settings;
-	settings(int maxiter, float rtol, int restart) :
-		base_t{maxiter, rtol, 0.0},
-		max_krylov_dim(100), pre_side{precond_side::right}, restart(restart) {
-		flog_assert(max_krylov_dim <= krylov_dim_bound, "GMRES: max_krylov_dim is larger than bound");
+	settings(int maxiter, float rtol, int restart)
+		: base_t{maxiter, rtol, 0.0},
+		  max_krylov_dim(100), pre_side{precond_side::right}, restart(restart) {
+		flog_assert(max_krylov_dim <= krylov_dim_bound,
+		            "GMRES: max_krylov_dim is larger than bound");
 	}
 
 	int max_krylov_dim;
@@ -31,33 +31,32 @@ struct settings : solver_settings
 	int restart;
 };
 
-template <std::size_t Version = 0>
+template<std::size_t Version = 0>
 using topo_work = topo_work_base<nwork, Version>;
 
-
 template<class Workspace>
-struct solver : krylov_interface<Workspace, solver>
-{
+struct solver : krylov_interface<Workspace, solver> {
 	using settings_type = settings;
 	using iface = krylov_interface<Workspace, solver>;
 	using real = typename iface::real;
 	using iface::work;
 
-	solver(solver<Workspace>&& o) noexcept :
-		iface{std::forward<Workspace>(o.work)},
-		hessenberg_data(std::exchange(o.hessenberg_data, nullptr)),
-		hmat(std::exchange(o.hmat, nullptr)),
-		basis(work.data() + (nwork - krylov_dim_bound - 1), o.basis.size()),
-		sinvec(std::move(o.sinvec)), cosvec(std::move(o.cosvec)),
-		dwvec(std::move(o.dwvec)), dyvec(std::move(o.dyvec)), params(std::move(o.params))
-	{}
+	solver(solver<Workspace> && o) noexcept
+		: iface{std::forward<Workspace>(o.work)},
+		  hessenberg_data(std::exchange(o.hessenberg_data, nullptr)),
+		  hmat(std::exchange(o.hmat, nullptr)),
+		  basis(work.data() + (nwork - krylov_dim_bound - 1), o.basis.size()),
+		  sinvec(std::move(o.sinvec)), cosvec(std::move(o.cosvec)),
+		  dwvec(std::move(o.dwvec)), dyvec(std::move(o.dyvec)),
+		  params(std::move(o.params)) {}
 
-	solver<Workspace> & operator=(solver<Workspace>&& o) noexcept {
+	solver<Workspace> & operator=(solver<Workspace> && o) noexcept {
 		if (this != &o) {
 			work = std::forward<Workspace>(o.work);
 			hessenberg_data = std::exchange(o.hessenberg_data, nullptr);
 			hmat = std::exchange(o.hmat, nullptr);
-			basis = util::span(work.data() + (nwork - krylov_dim_bound - 1), o.basis.size());
+			basis = util::span(work.data() + (nwork - krylov_dim_bound - 1),
+			                   o.basis.size());
 			sinvec = std::move(o.sinvec);
 			cosvec = std::move(o.cosvec);
 			dwvec = std::move(o.dwvec);
@@ -68,9 +67,8 @@ struct solver : krylov_interface<Workspace, solver>
 	}
 
 	template<class V>
-	solver(const settings & params, V && workspace) :
-		iface{std::forward<V>(workspace)}, params(params)
-	{
+	solver(const settings & params, V && workspace)
+		: iface{std::forward<V>(workspace)}, params(params) {
 		reset();
 	}
 
@@ -82,15 +80,18 @@ struct solver : krylov_interface<Workspace, solver>
 	void reset() {
 		std::size_t max_dim = std::min(params.max_krylov_dim, params.maxiter);
 		if (params.restart > 0)
-			max_dim = std::min(max_dim, static_cast<std::size_t>(params.restart));
+			max_dim =
+				std::min(max_dim, static_cast<std::size_t>(params.restart));
 
-		hessenberg_data = std::make_unique<real[]>((max_dim+1)*(max_dim+1));
-		hmat = std::make_unique<hessenberg_mat>(hessenberg_data.get(),
-		                                        std::array<std::size_t, 2>{max_dim + 1, max_dim + 1});
+		hessenberg_data =
+			std::make_unique<real[]>((max_dim + 1) * (max_dim + 1));
+		hmat = std::make_unique<hessenberg_mat>(
+			hessenberg_data.get(),
+			std::array<std::size_t, 2>{max_dim + 1, max_dim + 1});
 		auto & hessenberg = *hmat;
 		for (int j = 0; j < max_dim + 1; j++) {
 			for (int i = 0; i < max_dim + 1; i++) {
-				hessenberg(i,j) = 0.0;
+				hessenberg(i, j) = 0.0;
 			}
 		}
 		cosvec.resize(max_dim + 1, 0.0);
@@ -98,12 +99,16 @@ struct solver : krylov_interface<Workspace, solver>
 		dwvec.resize(max_dim + 1, 0.0);
 		dyvec.resize(max_dim + 1, 0.0);
 
-		basis = util::span(work.data() + (nwork - krylov_dim_bound - 1), max_dim+1);
+		basis = util::span(work.data() + (nwork - krylov_dim_bound - 1),
+		                   max_dim + 1);
 	}
 
 	template<class Op, class DomainVec, class RangeVec, class Pre, class F>
-	solve_info apply(const Op & A, const RangeVec & b, DomainVec & x,
-	                 Pre & P, F && user_diagnostic) {
+	solve_info apply(const Op & A,
+	                 const RangeVec & b,
+	                 DomainVec & x,
+	                 Pre & P,
+	                 F && user_diagnostic) {
 		solve_info info;
 		auto & hessenberg = *hmat;
 
@@ -111,7 +116,8 @@ struct solver : krylov_interface<Workspace, solver>
 		auto & res = work[wrk++];
 		auto & z = work[wrk++];
 		auto & v = work[wrk++];
-		flog_assert(wrk == (nwork - krylov_dim_bound - 1), "GMRES: incorrect number of work vectors");
+		flog_assert(wrk == (nwork - krylov_dim_bound - 1),
+		            "GMRES: incorrect number of work vectors");
 
 		using scalar = typename DomainVec::scalar;
 
@@ -128,7 +134,8 @@ struct solver : krylov_interface<Workspace, solver>
 		if (params.pre_side == precond_side::left) {
 			A.residual(b, x, basis[0]);
 			P.apply(basis[0], res);
-		} else
+		}
+		else
 			A.residual(b, x, res);
 
 		const real beta = res.l2norm().get();
@@ -152,23 +159,26 @@ struct solver : krylov_interface<Workspace, solver>
 			if (params.pre_side == precond_side::right) {
 				P.apply(basis[k], z);
 				A.apply(z, v);
-			} else {
+			}
+			else {
 				A.apply(basis[k], z);
 				P.apply(z, v);
 			}
 
-			// orthogonalize to previous vectors and add new colum to Hessenberg matrix
-			orthogonalize(v, k+1);
+			// orthogonalize to previous vectors and add new colum to Hessenberg
+			// matrix
+			orthogonalize(v, k + 1);
 
-			v_norm = hessenberg(k+1, k);
+			v_norm = hessenberg(k + 1, k);
 			if (v_norm != 0.0) {
-				v.scale( 1.0 / v_norm);
+				v.scale(1.0 / v_norm);
 			}
 
 			// update basis with new orthonormal vector
-			basis[k+1].copy(v);
+			basis[k + 1].copy(v);
 
-			// apply all previous Givens rotations to kth column of Hessenberg matrix
+			// apply all previous Givens rotations to kth column of Hessenberg
+			// matrix
 			for (int i = 0; i < k; i++) {
 				apply_givens_rotation(i, k);
 			}
@@ -176,10 +186,11 @@ struct solver : krylov_interface<Workspace, solver>
 			if (v_norm != 0.0) {
 				// compute and store the Givens rotation that zeroes out
 				// the subdiagonal for the current column
-				compute_givens_rotation( k );
+				compute_givens_rotation(k);
 				// zero out the subdiagonal
-				apply_givens_rotation( k, k );
-				hessenberg( k + 1, k ) = 0.0; // explicitly set subdiag to zero to prevent round-off
+				apply_givens_rotation(k, k);
+				hessenberg(k + 1, k) =
+					0.0; // explicitly set subdiag to zero to prevent round-off
 
 				// explicitly apply the newly computed
 				// Givens rotations to the rhs vector
@@ -190,34 +201,35 @@ struct solver : krylov_interface<Workspace, solver>
 				dwvec[k]     = c * x;
 				dwvec[k + 1] = s * x;
 #else
-				dwvec[k]     = c * x;
+				dwvec[k] = c * x;
 				dwvec[k + 1] = -s * x;
 #endif
 			}
 
-			v_norm = std::fabs(dwvec[k+1]);
+			v_norm = std::fabs(dwvec[k + 1]);
 
 			if (user_diagnostic(x, v_norm)) {
 				info.status = solve_info::stop_reason::converged_user;
-				info.iters = iter+1;
+				info.iters = iter + 1;
 				break;
 			}
 
 			if (v_norm < terminate_tol) {
 				info.status = solve_info::stop_reason::converged_rtol;
-				info.iters = iter+1;
+				info.iters = iter + 1;
 				break;
 			}
 
 			++k;
-			if (k == params.restart and iter != params.maxiter-1) {
-				back_solve(k-1);
-				correct(k-1, P, z, v, x);
+			if (k == params.restart and iter != params.maxiter - 1) {
+				back_solve(k - 1);
+				correct(k - 1, P, z, v, x);
 
 				if (params.pre_side == precond_side::left) {
 					A.residual(b, x, basis[0]);
 					P.apply(basis[0], res);
-				} else
+				}
+				else
 					A.residual(b, x, res);
 				const real betar = res.l2norm().get();
 				res.scale(1.0 / betar);
@@ -230,19 +242,19 @@ struct solver : krylov_interface<Workspace, solver>
 		}
 
 		if (k > 0) {
-			back_solve(k-1);
+			back_solve(k - 1);
 
 			// update current approximation with correction
-			correct(k-1, P, z, v, x);
+			correct(k - 1, P, z, v, x);
 		}
 
 		info.res_norm_final = v_norm;
 		info.sol_norm_final = x.l2norm().get();
-		if (info.iters == 0) info.status = solve_info::stop_reason::diverged_iters;
+		if (info.iters == 0)
+			info.status = solve_info::stop_reason::diverged_iters;
 
 		return info;
 	}
-
 
 protected:
 	template<class Op, class W, class T>
@@ -256,13 +268,13 @@ protected:
 
 			P.apply(z, v);
 			x.axpy(1.0, v, x);
-		} else {
+		}
+		else {
 			for (int i = 0; i <= nr; i++) {
 				x.axpy(dyvec[i], basis[i], x);
 			}
 		}
 	}
-
 
 	template<class T>
 	void orthogonalize(T & v, int k) {
@@ -271,19 +283,19 @@ protected:
 		for (int j = 0; j < k; j++) {
 			const double h_jk = v.dot(basis[j]).get();
 			v.axpy(-h_jk, basis[j], v);
-			hessenberg(j, k-1) = h_jk;
+			hessenberg(j, k - 1) = h_jk;
 		}
 
 		// h_{k+1, k}
 		const auto v_norm = v.l2norm().get();
-		hessenberg(k, k-1) = v_norm; // adjusting for zero starting index
+		hessenberg(k, k - 1) = v_norm; // adjusting for zero starting index
 	}
 
 	void apply_givens_rotation(int i, int k) {
 		auto & hessenberg = *hmat;
 
-		auto x = hessenberg( i, k );
-		auto y = hessenberg( i + 1, k );
+		auto x = hessenberg(i, k);
+		auto y = hessenberg(i + 1, k);
 		auto c = cosvec[i];
 		auto s = sinvec[i];
 
@@ -291,8 +303,8 @@ protected:
 		hessenberg( i, k )     = c * x - s * y;
 		hessenberg( i + 1, k ) = s * x + c * y;
 #else
-		hessenberg( i, k ) = c * x + s * y;
-		hessenberg( i + 1, k ) = -s * x + c * y;
+		hessenberg(i, k) = c * x + s * y;
+		hessenberg(i + 1, k) = -s * x + c * y;
 #endif
 	}
 
@@ -308,21 +320,23 @@ protected:
 		auto & hessenberg = *hmat;
 
 		auto f = hessenberg(k, k);
-		auto g = hessenberg(k+1, k);
+		auto g = hessenberg(k + 1, k);
 
 		real c, s;
-		if ( g == 0.0 ) {
+		if (g == 0.0) {
 			c = 1.0;
 			s = 0.0;
-		} else if ( f == 0.0 ) {
+		}
+		else if (f == 0.0) {
 			c = 0.0;
-			s = ( g < 0.0 ) ? -1.0 : 1.0;
-		} else {
+			s = (g < 0.0) ? -1.0 : 1.0;
+		}
+		else {
 			real r;
-			r = std::sqrt( f * f + g * g );
+			r = std::sqrt(f * f + g * g);
 			r = 1.0 / r;
-			c = std::fabs( f ) * r;
-			s = std::copysign( g * r, f );
+			c = std::fabs(f) * r;
+			s = std::copysign(g * r, f);
 		}
 
 		cosvec[k] = c;
@@ -339,10 +353,10 @@ protected:
 			dyvec[k] = dwvec[k];
 
 			for (int i = k + 1; i <= nr; i++) {
-				dyvec[k] -= hessenberg( k, i ) * dyvec[i];
+				dyvec[k] -= hessenberg(k, i) * dyvec[i];
 			}
 
-			dyvec[k] = dyvec[k] / hessenberg( k, k );
+			dyvec[k] = dyvec[k] / hessenberg(k, k);
 		}
 	}
 
@@ -355,13 +369,14 @@ protected:
 	std::vector<real> dwvec, dyvec;
 	settings params;
 };
-template<class V> solver(const settings&,V&&) -> solver<V>;
+template<class V>
+solver(const settings &, V &&) -> solver<V>;
 
 }
 
 namespace flecsi::linalg {
 
-template <class W, class... Ops>
+template<class W, class... Ops>
 struct traits<krylov_params<gmres::settings, W, Ops...>> {
 	using op = krylov_interface<W, gmres::solver>;
 };

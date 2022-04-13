@@ -7,9 +7,7 @@
 #include "flecsi-linalg/vectors/mesh.hh"
 #include "flecsi-linalg/operators/gmres.hh"
 
-
 #include "csr_utils.hh"
-
 
 namespace flecsi::linalg {
 
@@ -19,11 +17,11 @@ std::array<testmesh::cslot, ncases> colorings;
 
 const realf::definition<testmesh, testmesh::cells> xd, bd;
 
-template <class Op, class Vec>
+template<class Op, class Vec>
 struct diagnostic {
-	diagnostic(const Op & A, const Vec & x0, const Vec & b, double cfact) :
-		iter(0), cfact(cfact), fail_monotonic(false),
-		fail_convergence(false) {
+	diagnostic(const Op & A, const Vec & x0, const Vec & b, double cfact)
+		: iter(0), cfact(cfact), fail_monotonic(false),
+		  fail_convergence(false) {
 		Vec r(x0.data.topo, resdef(x0.data.topo));
 		A.residual(b, x0, r);
 		rnorm0 = r.l2norm().get();
@@ -52,30 +50,29 @@ struct diagnostic {
 	static inline const realf::definition<testmesh, testmesh::cells> resdef;
 };
 
-
 static csr<> get_idiag(const csr<> & in) {
 	csr<> out{in.nrows, in.nrows};
 
 	for (std::size_t i = 0; i < in.nrows; i++) {
-		for (std::size_t off = in.rowptr[i]; off < in.rowptr[i+1]; off++) {
+		for (std::size_t off = in.rowptr[i]; off < in.rowptr[i + 1]; off++) {
 			if (in.colind[off] == i) {
 				out.values[i] = 1.0 / in.values[off];
 				out.colind[i] = i;
 			}
 		}
-		out.rowptr[i+1] = i+1;
+		out.rowptr[i + 1] = i + 1;
 	}
 
 	return out;
 }
 
 int gmres_test() {
-	UNIT() {
+	UNIT () {
 		auto mat = read_mm("Chem97ZtZ.mtx");
 		auto idiag = get_idiag(mat);
 
 		double cond = 2.472189e+02;
-		double cfact = (cond*cond - 1) / (cond * cond);
+		double cfact = (cond * cond - 1) / (cond * cond);
 
 		auto & msh = mshs[0];
 		init_mesh(mat.nrows, msh, colorings[0]);
@@ -91,7 +88,9 @@ int gmres_test() {
 			diagnostic diag(A, x, b, cfact);
 			krylov_params params(gmres::settings{100, 1e-4, 0},
 			                     gmres::topo_work<>::get(b),
-			                     A, op::I, diag);
+			                     A,
+			                     op::I,
+			                     diag);
 			auto slv = op::create(std::move(params));
 
 			auto info = slv.apply(b, x);
@@ -109,8 +108,8 @@ int gmres_test() {
 			b.set_random(0);
 			x.set_random(1);
 
-			krylov_params params(gmres::settings{100, 1e-4, 50},
-			                     gmres::topo_work<>::get(b), A);
+			krylov_params params(
+				gmres::settings{100, 1e-4, 50}, gmres::topo_work<>::get(b), A);
 
 			auto slv = op::create(params);
 			auto info_restart = slv.apply(b, x);
@@ -134,7 +133,6 @@ int gmres_test() {
 
 	return 0;
 }
-
 
 unit::driver<gmres_test> driver;
 

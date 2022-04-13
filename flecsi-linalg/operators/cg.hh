@@ -13,28 +13,31 @@ static constexpr std::size_t nwork = 4;
 
 using settings = solver_settings;
 
-template <std::size_t Version = 0>
+template<std::size_t Version = 0>
 using topo_work = topo_work_base<nwork, Version>;
 
 template<class Workspace>
-struct solver : krylov_interface<Workspace, solver>
-{
+struct solver : krylov_interface<Workspace, solver> {
 	using settings_type = settings;
 	using iface = krylov_interface<Workspace, solver>;
 	using iface::work;
 
 	template<class V>
-	solver(const settings & params, V && workspace) :
-		iface{std::forward<V>(workspace)}, params(params) {}
+	solver(const settings & params, V && workspace)
+		: iface{std::forward<V>(workspace)}, params(params) {}
 
-	void reset(const settings & params) {
-		this->params = params;
-	}
+	void reset(const settings & params) { this->params = params; }
 
-	template<class Op, class DomainVec, class RangeVec, class Precond, class Diag>
-	solve_info apply(const Op & A, const RangeVec & b, DomainVec & x,
-	                 Precond & P, Diag && user_diagnostic)
-	{
+	template<class Op,
+	         class DomainVec,
+	         class RangeVec,
+	         class Precond,
+	         class Diag>
+	solve_info apply(const Op & A,
+	                 const RangeVec & b,
+	                 DomainVec & x,
+	                 Precond & P,
+	                 Diag && user_diagnostic) {
 		solve_info info;
 		using scalar = typename DomainVec::scalar;
 		using real = typename DomainVec::real;
@@ -42,10 +45,10 @@ struct solver : krylov_interface<Workspace, solver>
 		auto & [r, z, p, w] = work;
 		real b_norm = b.l2norm().get();
 
-		if (b_norm == 0.0) b_norm = 1.0;
+		if (b_norm == 0.0)
+			b_norm = 1.0;
 
 		const real terminate_tol = params.rtol * b_norm;
-
 
 		info.sol_norm_initial = x.l2norm().get();
 		info.rhs_norm = b_norm;
@@ -80,23 +83,24 @@ struct solver : krylov_interface<Workspace, solver>
 
 			// sanity check, the curvature should be positive
 			if (alpha <= 0.0) {
-				flog(error) << "PCG: negative curvature encountered!" << std::endl;
+				flog(error)
+					<< "PCG: negative curvature encountered!" << std::endl;
 			}
 
 			alpha = rho[1] / alpha;
 
-			x.axpy(alpha, p, x);  // x = x + alpha * p
+			x.axpy(alpha, p, x); // x = x + alpha * p
 			r.axpy(-alpha, w, r); // r = r - alpha * w
 
 			current_res = r.l2norm().get();
 			if (user_diagnostic(x, current_res)) {
-				info.iters = iter+1;
+				info.iters = iter + 1;
 				info.status = solve_info::stop_reason::converged_user;
 				break;
 			}
 
 			if (current_res < terminate_tol) {
-				info.iters = iter+1;
+				info.iters = iter + 1;
 				info.status = solve_info::stop_reason::converged_rtol;
 				break;
 			}
@@ -112,7 +116,8 @@ struct solver : krylov_interface<Workspace, solver>
 
 		info.res_norm_final = current_res;
 		info.sol_norm_final = x.l2norm().get();
-		if (info.iters == 0) info.status = solve_info::stop_reason::diverged_iters;
+		if (info.iters == 0)
+			info.status = solve_info::stop_reason::diverged_iters;
 
 		return info;
 	}
@@ -120,12 +125,13 @@ struct solver : krylov_interface<Workspace, solver>
 protected:
 	settings params;
 };
-template<class V> solver(const settings&,V&&)->solver<V>;
+template<class V>
+solver(const settings &, V &&) -> solver<V>;
 
 }
 
 namespace flecsi::linalg {
-template <class W, class... Ops>
+template<class W, class... Ops>
 struct traits<krylov_params<cg::settings, W, Ops...>> {
 	using op = krylov_interface<W, cg::solver>;
 };

@@ -4,10 +4,8 @@
 #include "flecsi/util/unit.hh"
 #include "flecsi/util/unit/types.hh"
 
-
 #include "flecsi-linalg/vectors/mesh.hh"
 #include "flecsi-linalg/operators/bicgstab.hh"
-
 
 #include "csr_utils.hh"
 
@@ -20,14 +18,12 @@ std::array<testmesh::cslot, ncases> colorings;
 const realf::definition<testmesh, testmesh::cells> xd, bd;
 
 int driver() {
-	std::array cases{
-		std::make_pair("Chem97ZtZ.mtx", 91),
-		std::make_pair("psmigr_3.mtx", 32)
-	};
+	std::array cases{std::make_pair("Chem97ZtZ.mtx", 91),
+	                 std::make_pair("psmigr_3.mtx", 32)};
 
 	static_assert(cases.size() <= ncases);
 
-	UNIT() {
+	UNIT () {
 		std::size_t i = 0;
 		for (const auto & cs : cases) {
 			auto mat = read_mm(cs.first);
@@ -56,7 +52,6 @@ int driver() {
 		}
 	};
 }
-
 
 unit::driver<driver> drv;
 

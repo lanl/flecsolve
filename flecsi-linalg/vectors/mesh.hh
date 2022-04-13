@@ -8,35 +8,44 @@
 
 namespace flecsi::linalg::vec {
 
-
-template <auto V, class Topo, typename Topo::index_space Space, class Scalar>
-struct mesh
-	: vector<data::mesh<Topo, Space, Scalar>,
-	         ops::mesh<Topo, Space, Scalar>, V> {
+template<auto V, class Topo, typename Topo::index_space Space, class Scalar>
+struct mesh : vector<data::mesh<Topo, Space, Scalar>,
+                     ops::mesh<Topo, Space, Scalar>,
+                     V> {
 	using base_t = vector<data::mesh<Topo, Space, Scalar>,
-	                      ops::mesh<Topo, Space, Scalar>, V>;
+	                      ops::mesh<Topo, Space, Scalar>,
+	                      V>;
 
 	template<class Slot, class Ref>
-	mesh(variable_t<V>, Slot & topo, Ref ref) : base_t(data::mesh<Topo, Space, Scalar>{topo, ref}) {}
+	mesh(variable_t<V>, Slot & topo, Ref ref)
+		: base_t(data::mesh<Topo, Space, Scalar>{topo, ref}) {}
 };
 
 template<auto V, class Slot, class Ref>
-mesh(variable_t<V>, Slot &, Ref)->mesh<V, typename Ref::Base::Topology, Ref::space, typename Ref::value_type>;
+mesh(variable_t<V>, Slot &, Ref) -> mesh<V,
+                                         typename Ref::Base::Topology,
+                                         Ref::space,
+                                         typename Ref::value_type>;
 
-
-template <class Topo, typename Topo::index_space Space, class Scalar>
+template<class Topo, typename Topo::index_space Space, class Scalar>
 struct mesh<anon_var::anonymous, Topo, Space, Scalar>
 	: vector<data::mesh<Topo, Space, Scalar>,
-	         ops::mesh<Topo, Space, Scalar>, anon_var::anonymous> {
+             ops::mesh<Topo, Space, Scalar>,
+             anon_var::anonymous> {
 	using base_t = vector<data::mesh<Topo, Space, Scalar>,
-	                      ops::mesh<Topo, Space, Scalar>, anon_var::anonymous>;
+	                      ops::mesh<Topo, Space, Scalar>,
+	                      anon_var::anonymous>;
 
 	template<class Slot, class Ref>
-	mesh(Slot & topo, Ref ref) : base_t(data::mesh<Topo, Space, Scalar>{topo, ref}) {}
+	mesh(Slot & topo, Ref ref)
+		: base_t(data::mesh<Topo, Space, Scalar>{topo, ref}) {}
 };
 
 template<class Slot, class Ref>
-mesh(Slot &, Ref)->mesh<anon_var::anonymous, typename Ref::Base::Topology, Ref::space, typename Ref::value_type>;
+mesh(Slot &, Ref) -> mesh<anon_var::anonymous,
+                          typename Ref::Base::Topology,
+                          Ref::space,
+                          typename Ref::value_type>;
 
 }
 
