@@ -8,38 +8,22 @@
 #include <tuple>
 #include <utility>
 
-#include "operators/operator_utils.hh"
+#include "flecsi-linalg/discrete_operators/common/operator_utils.hh"
 
-namespace flecsi
-namespace linalg
-namespace discrete_operators{
+namespace flecsi {
+namespace linalg {
+namespace discrete_operators {
 
-template<typename T, flecsi::data::layout L = flecsi::data::layout::dense>
+template <typename T, flecsi::data::layout L = flecsi::data::layout::dense>
 using field = flecsi::field<T, L>;
 
-struct operator_mesh : topo::specialization<topo::narray, operator_mesh>
-{
-  enum index_space
-  {
-    cells,
-    faces
-  };
+struct operator_mesh : topo::specialization<topo::narray, operator_mesh> {
+  enum index_space { cells, faces };
   using index_spaces = has<cells, faces>;
 
-  enum domain
-  {
-    logical,
-    all,
-    global,
-    boundary_low,
-    boundary_high
-  };
+  enum domain { logical, all, global, boundary_low, boundary_high };
 
-  enum axis
-  {
-    x_axis,
-    y_axis
-  };
+  enum axis { x_axis, y_axis };
   using axes = has<x_axis, y_axis>;
 
   using coord = base::coord;
@@ -47,20 +31,16 @@ struct operator_mesh : topo::specialization<topo::narray, operator_mesh>
   using hypercube = base::hypercube;
   using coloring_definition = base::coloring_definition;
 
-  struct meta_data
-  {
+  struct meta_data {
     double xdelta;
     double ydelta;
   };
 
   static constexpr std::size_t dimension = 2;
 
-  template<auto>
-  static constexpr std::size_t privilege_count = 2;
+  template <auto> static constexpr std::size_t privilege_count = 2;
 
-  template<class B>
-  struct interface : B
-  {
+  template <class B> struct interface : B {
     /**
      * @brief Currently, the domain enum of the topology is not mapped into the
      * interface, this is workaround
@@ -68,9 +48,7 @@ struct operator_mesh : topo::specialization<topo::narray, operator_mesh>
      * @tparam DM interface domain
      * @return constexpr decltype(auto) topo domain
      */
-    template<domain DM>
-    static constexpr decltype(auto) __dm()
-    {
+    template <domain DM> static constexpr decltype(auto) __dm() {
       if constexpr (DM == logical)
         return B::domain::logical;
       else if (DM == all)
@@ -83,63 +61,47 @@ struct operator_mesh : topo::specialization<topo::narray, operator_mesh>
         return B::domain::boundary_high;
     }
 
-    template<index_space IS, axis A, domain DM = logical>
-    auto range()
-    {
+    template <index_space IS, axis A, domain DM = logical> auto range() {
       return B::template range<IS, A, __dm<DM>()>();
     }
 
-    template<index_space IS, axis A, domain DM = logical>
-    std::size_t size() const
-    {
+    template <index_space IS, axis A, domain DM = logical>
+    std::size_t size() const {
       return B::template size<IS, A, __dm<DM>()>();
     }
 
-    template<axis A, index_space IS = cells>
-    std::size_t global_id(std::size_t i) const
-    {
+    template <axis A, index_space IS = cells>
+    std::size_t global_id(std::size_t i) const {
       return B::template global_id<IS, A>(i);
     }
 
-    template<axis A>
-    static constexpr std::uint32_t to_idx()
-    {
+    template <axis A> static constexpr std::uint32_t to_idx() {
       return B::template to_idx<A>();
     }
 
-    template<index_space Space>
-    auto dofs()
-    {
-      return utils::make_subrange_ids<Space, axes::size>(
-          grid_subrange<Space>(axes()), strides_array<Space>(axes()));
+    template <index_space Space> auto dofs() {
+      return get_stencil<x_axis, Space>(utils::offset_seq<>());
+      // return utils::make_subrange_ids<Space, axes::size>(
+      //     grid_subrange<Space>(axes()), strides_array<Space>(axes()));
     }
 
-    template<axis A>
-    double dx()
-    {
+    template <axis A> double dx() {
       return (A == x_axis ? (*(this->policy_meta_)).xdelta
                           : (*(this->policy_meta_)).ydelta);
     }
-    template<axis A>
-    double value(std::size_t i)
-    {
+    template <axis A> double value(std::size_t i) {
       return (dx<A>() *
               (static_cast<double>(global_id<A>(i) +
-                                   B::template size<index_space::cells,
-                                                    A,
+                                   B::template size<index_space::cells, A,
                                                     B::domain::ghost_low>())));
     }
 
-    template<axis A>
-    double normal_dA()
-    {
+    template <axis A> double normal_dA() {
       using nrm = utils::mp::complement_list<has<A>, axes>;
       return product(nrm());
     }
 
-    template<axis... As>
-    constexpr auto product(has<As...>)
-    {
+    template <axis... As> constexpr auto product(has<As...>) {
       return (dx<As>() * ... * 1.0);
     }
 
@@ -156,13 +118,9 @@ struct operator_mesh : topo::specialization<topo::narray, operator_mesh>
      * 1} for left, right
      * @return decltype(auto)
      */
-    template<axis Along,
-             index_space From,
-             index_space To = From,
-             domain DM = logical,
-             int... II>
-    decltype(auto) get_stencil(std::integer_sequence<int, II...>)
-    {
+    template <axis Along, index_space From, index_space To = From,
+              domain DM = logical, int... II>
+    decltype(auto) get_stencil(std::integer_sequence<int, II...>) {
       // get an axis list "rotated" into the axis to get indicies
       using xx = utils::mp::rotate_to<Along, axes>;
 
@@ -194,10 +152,9 @@ struct operator_mesh : topo::specialization<topo::narray, operator_mesh>
       }
     }
 
-   protected:
-    template<index_space Space, domain DM, axis Along, axis A>
-    utils::srange grid_subrange()
-    {
+  protected:
+    template <index_space Space, domain DM, axis Along, axis A>
+    utils::srange grid_subrange() {
       if constexpr (Along != A) {
         const std::size_t start =
             B::template logical<index_space::cells, A, 0>();
@@ -223,49 +180,43 @@ struct operator_mesh : topo::specialization<topo::narray, operator_mesh>
       }
     }
 
-    template<index_space Space, domain DM, auto Along, auto... Axis>
-    auto grid_subrange(flecsi::util::constants<Axis...>)
-    {
-      return std::array<utils::srange, sizeof...(Axis)> {
+    template <index_space Space, domain DM, auto Along, auto... Axis>
+    auto grid_subrange(flecsi::util::constants<Axis...>) {
+      return std::array<utils::srange, sizeof...(Axis)>{
           {grid_subrange<Space, DM, Along, Axis>()...}};
     }
 
-    template<index_space Space, auto... Axis>
-    auto grid_subrange(flecsi::util::constants<Axis...>)
-    {
+    template <index_space Space, auto... Axis>
+    auto grid_subrange(flecsi::util::constants<Axis...>) {
       return grid_subrange<Space, domain::logical, x_axis>(axes());
     }
 
-    template<index_space Space, axis A>
-    std::size_t strides_array(std::size_t& stride)
-    {
+    template <index_space Space, axis A>
+    std::size_t strides_array(std::size_t &stride) {
       std::size_t ret = stride;
       stride *= B::template extents<Space>().template get<A>();
       return ret;
     }
 
-    template<index_space Space, auto... Axis>
-    auto strides_array(flecsi::util::constants<Axis...>)
-    {
+    template <index_space Space, auto... Axis>
+    auto strides_array(flecsi::util::constants<Axis...>) {
       std::size_t stride = 1;
-      return std::array<std::size_t, sizeof...(Axis)> {
+      return std::array<std::size_t, sizeof...(Axis)>{
           {strides_array<Space, Axis>(stride)...}};
     }
 
-  };  // interface
+  }; // interface
 
-  static auto distribute(std::size_t np, std::vector<std::size_t> indices)
-  {
+  static auto distribute(std::size_t np, std::vector<std::size_t> indices) {
     return flecsi::topo::narray_utils::distribute(np, indices);
   }
 
-  static coloring color(colors axis_colors, coord axis_extents)
-  {
-    coord hdepths {1, 1};
-    coord bdepths {1, 1};
-    std::vector<bool> periodic {false, false};
-    coloring_definition cd {axis_colors, axis_extents, hdepths, bdepths,
-                            periodic};
+  static coloring color(colors axis_colors, coord axis_extents) {
+    coord hdepths{1, 1};
+    coord bdepths{1, 1};
+    std::vector<bool> periodic{false, false};
+    coloring_definition cd{axis_colors, axis_extents, hdepths, bdepths,
+                           periodic};
 
     auto [nc, ne, pcs, partitions] =
         flecsi::topo::narray_utils::color(cd, MPI_COMM_WORLD);
@@ -289,33 +240,28 @@ struct operator_mesh : topo::specialization<topo::narray, operator_mesh>
   using grect = std::array<std::array<double, 2>, 2>;
 
   static void set_geometry(operator_mesh::accessor<flecsi::rw> sm,
-                           grect const& g)
-  {
-    meta_data& md = sm.policy_meta_;
-    double xdelta =
-        std::abs(g[0][1] - g[0][0]) / (sm.size<operator_mesh::cells,
-                                               operator_mesh::x_axis,
-                                               operator_mesh::global>() -
-                                       1);
-    double ydelta =
-        std::abs(g[1][1] - g[1][0]) / (sm.size<operator_mesh::cells,
-                                               operator_mesh::y_axis,
-                                               operator_mesh::global>() -
-                                       1);
+                           grect const &g) {
+    meta_data &md = sm.policy_meta_;
+    double xdelta = std::abs(g[0][1] - g[0][0]) /
+                    (sm.size<operator_mesh::cells, operator_mesh::x_axis,
+                             operator_mesh::global>() -
+                     1);
+    double ydelta = std::abs(g[1][1] - g[1][0]) /
+                    (sm.size<operator_mesh::cells, operator_mesh::y_axis,
+                             operator_mesh::global>() -
+                     1);
     // std::cout << "dx: " << xdelta << ", " << ydelta << "\n";
 
     md.xdelta = xdelta;
     md.ydelta = ydelta;
   }
 
-  static void initialize(flecsi::data::topology_slot<operator_mesh>& s,
-                         coloring const&,
-                         grect const& geometry)
-  {
+  static void initialize(flecsi::data::topology_slot<operator_mesh> &s,
+                         coloring const &, grect const &geometry) {
     flecsi::execute<set_geometry, flecsi::mpi>(s, geometry);
-  }  // initialize
+  } // initialize
 };
 
-}
-}
-}  // namespace flecsi::linalg::operators
+} // namespace discrete_operators
+} // namespace linalg
+} // namespace flecsi

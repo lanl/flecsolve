@@ -6,13 +6,15 @@
 #include <unordered_map>
 #include <utility>
 
+#include "flecsi-linalg/discrete_operators/common/operator_utils.hh"
 #include "flecsi/data.hh"
-#include "operator_utils.hh"
-namespace flecsi::linalg::operators::tasks {
 
-template<class Topo, class Field>
-struct topology_tasks
-{
+namespace flecsi {
+namespace linalg {
+namespace discrete_operators {
+namespace tasks {
+
+template <class Topo, class Field> struct topology_tasks {
   using topo_t = Topo;
   using topo_acc = typename topo_t::template accessor<ro>;
   using index_space = typename topo_t::index_space;
@@ -25,33 +27,27 @@ struct topology_tasks
   static inline constexpr PrivilegeCount num_priv =
       topo_t::template privilege_count<0>;
 
-  template<partition_privilege_t priv>
+  template <partition_privilege_t priv>
   static inline constexpr Privileges dofs_priv =
       privilege_cat<privilege_repeat<priv, num_priv - (num_priv > 1)>,
                     privilege_repeat<na, (num_priv > 1)>>;
 
-  template<partition_privilege_t priv>
+  template <partition_privilege_t priv>
   using acc = typename Field::template accessor1<dofs_priv<priv>>;
 
-  template<partition_privilege_t priv>
+  template <partition_privilege_t priv>
   using acc_all =
       typename Field::template accessor1<privilege_repeat<priv, num_priv>>;
 
-  template<std::size_t I>
-  static constexpr auto cast_idx()
-  {
+  template <std::size_t I> static constexpr auto cast_idx() {
     return static_cast<axis>(I);
   }
 
-  template<auto Axis, std::size_t I>
-  static constexpr auto jump_idx()
-  {
+  template <auto Axis, std::size_t I> static constexpr auto jump_idx() {
     return static_cast<axis>((Axis + I) % dim);
   }
 
-  template<auto Axis>
-  static constexpr auto next_idx()
-  {
+  template <auto Axis> static constexpr auto next_idx() {
     return jump_idx<Axis, 1>();
   }
 
@@ -86,9 +82,8 @@ struct topology_tasks
    * @param[in] u field with the index space From
    * @param[out] fu field with index space To
    */
-  template<class K, axis A, index_space From, index_space To = From>
-  static void operate_kernel(topo_acc m, acc_all<ro> u, acc_all<rw> fu)
-  {
+  template <class K, axis A, index_space From, index_space To = From>
+  static void operate_kernel(topo_acc m, acc_all<ro> u, acc_all<rw> fu) {
     auto [jj, jm1, jp1] =
         m.template get_stencil<A, From, To>(utils::offset_seq<-1, 1>());
 
@@ -124,8 +119,7 @@ struct topology_tasks
    * @param m topology accessor
    * @param u field to zero
    */
-  static void zero_op(topo_acc m, acc_all<wo> u)
-  {
+  static void zero_op(topo_acc m, acc_all<wo> u) {
     auto jj = m.template get_stencil<topo_t::x_axis, topo_t::cells>(
         utils::offset_seq<>());
     for (auto j : jj) {
@@ -143,9 +137,8 @@ struct topology_tasks
    * @param b_x face-centered directional difffusion coefficent
    * @param fu_x face-centered field for flux component along axis A
    */
-  template<axis A>
-  static void flux_op(topo_acc m, acc_all<ro> u_x, acc<ro> b_x, acc<rw> fu_x)
-  {
+  template <axis A>
+  static void flux_op(topo_acc m, acc_all<ro> u_x, acc<ro> b_x, acc<rw> fu_x) {
     const scalar_t dA = m.template normal_dA<A>();
     const scalar_t idx = m.template dx<A>();
 
@@ -168,9 +161,8 @@ struct topology_tasks
    * @param fu_x face-centered field of flux components along axis A
    * @param du cell-centered field with quantity change.
    */
-  template<axis A>
-  static void flux_sum(topo_acc m, acc_all<ro> fu_x, acc<rw> du)
-  {
+  template <axis A>
+  static void flux_sum(topo_acc m, acc_all<ro> fu_x, acc<rw> du) {
     const scalar_t i_dx = m.template dx<A>();
     auto [jj, jp1] =
         m.template get_stencil<A, topo_t::cells>(utils::offset_seq<1>());
@@ -192,14 +184,8 @@ struct topology_tasks
    * @param du cell-centered field of integrated surface fluxes
    * @param un cell-centered field after operation
    */
-  static void diffuse_op(topo_acc m,
-                         scalar_t beta,
-                         scalar_t alpha,
-                         acc<ro> a,
-                         acc<ro> u,
-                         acc<ro> du,
-                         acc<rw> un)
-  {
+  static void diffuse_op(topo_acc m, scalar_t beta, scalar_t alpha, acc<ro> a,
+                         acc<ro> u, acc<ro> du, acc<rw> un) {
     auto jj = m.template get_stencil<topo_t::x_axis, topo_t::cells>(
         utils::offset_seq<>());
 
@@ -269,9 +255,8 @@ struct topology_tasks
    * @param m topology accessor
    * @param u cell-centered field which operation is applied on
    */
-  template<axis A, domain D>
-  static void boundary_set(scalar_t v, topo_acc m, acc<wo> u)
-  {
+  template <axis A, domain D>
+  static void boundary_set(scalar_t v, topo_acc m, acc<wo> u) {
     auto jj = m.template get_stencil<A, topo_t::cells, topo_t::cells, D>(
         utils::offset_seq<>());
 
@@ -280,15 +265,13 @@ struct topology_tasks
     }
   }
 
-  template<axis A, domain D>
-  static void boundary_fluxset(topo_acc m, acc<ro> b, acc<rw> u)
-  {
+  template <axis A, domain D>
+  static void boundary_fluxset(topo_acc m, acc<ro> b, acc<rw> u) {
     constexpr int nd = (D == topo_t::boundary_low ? 1 : -1);
     auto [jj, jo] = m.template get_stencil<A, topo_t::cells, topo_t::cells, D>(
         utils::offset_seq<nd>());
 
     for (auto j : jj) {
-      const auto _tmp = u[j];
       u[j] = b[j + jo] * u[j + jo];
     }
   }
@@ -298,8 +281,7 @@ struct topology_tasks
   // for 2D test problems. These likely won't survive
   // many updates, and don't belong here anyway
   // **********************************************
-  static void print_boxff(topo_acc m, acc_all<ro> u)
-  {
+  static void print_boxff(topo_acc m, acc_all<ro> u) {
     auto uv = m.template mdspan<topo_t::cells>(u);
 
     std::ostringstream oss;
@@ -319,8 +301,7 @@ struct topology_tasks
     std ::cout << oss.str();
   }
 
-  static void print_boxfful(topo_acc m, acc_all<ro> u)
-  {
+  static void print_boxfful(topo_acc m, acc_all<ro> u) {
     auto uv = m.template mdspan<topo_t::cells>(u);
 
     std::ostringstream oss;
@@ -340,8 +321,7 @@ struct topology_tasks
     std ::cout << oss.str();
   }
 
-  static void print_boxffy(topo_acc m, acc_all<ro> u)
-  {
+  static void print_boxffy(topo_acc m, acc_all<ro> u) {
     auto uv = m.template mdspan<topo_t::cells>(u);
 
     std::ostringstream oss;
@@ -360,8 +340,7 @@ struct topology_tasks
     oss << "====================\n";
     std ::cout << oss.str();
   }
-  static void print_boxffx(topo_acc m, acc_all<ro> u)
-  {
+  static void print_boxffx(topo_acc m, acc_all<ro> u) {
     auto uv = m.template mdspan<topo_t::cells>(u);
 
     std::ostringstream oss;
@@ -382,4 +361,7 @@ struct topology_tasks
   }
 };
 
-}  // namespace flecsi::linalg::operators::tasks
+} // namespace tasks
+} // namespace discrete_operators
+} // namespace linalg
+} // namespace flecsi

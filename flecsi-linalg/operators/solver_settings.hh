@@ -1,10 +1,10 @@
 #ifndef FLECSI_LINALG_OP_SOLVER_SETTINGS_H
 #define FLECSI_LINALG_OP_SOLVER_SETTINGS_H
 
-#include <array>
-
 #include "flecsi-linalg/vectors/multi.hh"
 #include "shell.hh"
+#include <array>
+#include <type_traits>
 
 namespace flecsi::linalg {
 
@@ -52,7 +52,11 @@ protected:
   static std::array<Vec, NumWork>
   make_work(topo_slot_t &slot, std::array<const field_def, NumWork> &defs,
             std::index_sequence<Index...>) {
-    return {Vec(slot, defs[Index](slot))...};
+    if constexpr (std::is_same_v<std::decay_t<decltype(Vec::var)>,
+                                 decltype(anon_var::anonymous)>)
+      return {Vec(slot, defs[Index](slot))...};
+    else
+      return {Vec(variable_t<Vec::var>{}, slot, defs[Index](slot))...};
   }
 };
 
@@ -78,7 +82,7 @@ protected:
   }
 
   template <class T, class MV, std::size_t Index> static MV make_mv(T &wv) {
-    return std::apply([](const auto &...v) { return MV(v[Index]...); }, wv);
+    return std::apply([](auto &...v) { return MV(v[Index]...); }, wv);
   }
 
   template <class MV, class T, std::size_t... Index>
