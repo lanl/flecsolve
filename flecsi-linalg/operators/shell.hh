@@ -15,8 +15,8 @@ struct shell {
 	}
 
 	template<class domain_vec, class range_vec>
-	constexpr void residual(const domain_vec & b, const range_vec & x,
-	                        range_vec & r) const {
+	constexpr void
+	residual(const domain_vec & b, const range_vec & x, range_vec & r) const {
 		f(x, r);
 		r.subtract(b, r);
 	}
@@ -24,8 +24,9 @@ struct shell {
 protected:
 	F f;
 };
-template <class F> shell(F) -> shell<F>;
+template<class F>
+shell(F) -> shell<F>;
 
-static inline const shell I([](const auto &x, auto &y) { y.copy(x); });
+static inline const shell I([](const auto & x, auto & y) { y.copy(x); });
 
 }

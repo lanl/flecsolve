@@ -4,24 +4,24 @@
 
 namespace flecsi::linalg::vec::ops {
 
-struct petsc_tasks
-{
+struct petsc_tasks {
 	using real = PetscScalar;
 	using len = std::size_t;
 
 	template<class Util, class Topo, class OtherAcc>
-	static PetscErrorCode copy(Topo m,
-	                           Vec za, OtherAcc xa) {
+	static PetscErrorCode copy(Topo m, Vec za, OtherAcc xa) {
 		PetscErrorCode ierr;
-		PetscScalar *arr;
+		PetscScalar * arr;
 
-		ierr = VecGetArray(za, &arr);CHKERRQ(ierr);
+		ierr = VecGetArray(za, &arr);
+		CHKERRQ(ierr);
 		len cnt{0};
 		for (auto dof : Util::dofs(m)) {
 			arr[cnt++] = xa[dof];
 		}
 
-		ierr = VecRestoreArray(za, &arr);CHKERRQ(ierr);
+		ierr = VecRestoreArray(za, &arr);
+		CHKERRQ(ierr);
 
 		return 0;
 	}
@@ -29,7 +29,8 @@ struct petsc_tasks
 	static PetscErrorCode set(Vec x, real alpha) {
 		PetscErrorCode ierr;
 
-		ierr = VecSet(x, alpha);CHKERRQ(ierr);
+		ierr = VecSet(x, alpha);
+		CHKERRQ(ierr);
 
 		return 0;
 	}
@@ -37,7 +38,8 @@ struct petsc_tasks
 	static PetscErrorCode scale_self(Vec x, real alpha) {
 		PetscErrorCode ierr;
 
-		ierr = VecScale(x, alpha);CHKERRQ(ierr);
+		ierr = VecScale(x, alpha);
+		CHKERRQ(ierr);
 
 		return 0;
 	}
@@ -45,8 +47,10 @@ struct petsc_tasks
 	static PetscErrorCode scale(Vec x, Vec y, real alpha) {
 		PetscErrorCode ierr;
 
-		ierr = VecCopy(y, x);CHKERRQ(ierr);
-		ierr = VecScale(y, alpha);CHKERRQ(ierr);
+		ierr = VecCopy(y, x);
+		CHKERRQ(ierr);
+		ierr = VecScale(y, alpha);
+		CHKERRQ(ierr);
 
 		return 0;
 	}
@@ -54,7 +58,8 @@ struct petsc_tasks
 	static PetscErrorCode add_self(Vec z, Vec x) {
 		PetscErrorCode ierr;
 
-		ierr = VecAXPY(z, 1, x);CHKERRQ(ierr);
+		ierr = VecAXPY(z, 1, x);
+		CHKERRQ(ierr);
 
 		return 0;
 	}

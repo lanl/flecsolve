@@ -13,120 +13,130 @@ static constexpr std::size_t nwork = 4;
 
 using settings = solver_settings;
 
-template <std::size_t Version = 0>
+template<std::size_t Version = 0>
 using topo_work = topo_work_base<nwork, Version>;
 
-template <class Workspace> struct solver : krylov_interface<Workspace, solver> {
-  using settings_type = settings;
-  using iface = krylov_interface<Workspace, solver>;
-  using iface::work;
+template<class Workspace>
+struct solver : krylov_interface<Workspace, solver> {
+	using settings_type = settings;
+	using iface = krylov_interface<Workspace, solver>;
+	using iface::work;
 
-  template <class V>
-  solver(const settings &params, V &&workspace)
-      : iface{std::forward<V>(workspace)}, params(params) {}
+	template<class V>
+	solver(const settings & params, V && workspace)
+		: iface{std::forward<V>(workspace)}, params(params) {}
 
-  void reset(const settings &params) { this->params = params; }
+	void reset(const settings & params) { this->params = params; }
 
-  template <class Op, class DomainVec, class RangeVec, class Precond,
-            class Diag>
-  solve_info apply(const Op &A, const RangeVec &b, DomainVec &x, Precond &P,
-                   Diag &&user_diagnostic) {
-    solve_info info;
-    using scalar = typename DomainVec::scalar;
-    using real = typename DomainVec::real;
+	template<class Op,
+	         class DomainVec,
+	         class RangeVec,
+	         class Precond,
+	         class Diag>
+	solve_info apply(const Op & A,
+	                 const RangeVec & b,
+	                 DomainVec & x,
+	                 Precond & P,
+	                 Diag && user_diagnostic) {
+		solve_info info;
+		using scalar = typename DomainVec::scalar;
+		using real = typename DomainVec::real;
 
-    auto &[r, z, p, w] = work;
-    real b_norm = b.l2norm().get();
+		auto & [r, z, p, w] = work;
+		real b_norm = b.l2norm().get();
 
-    if (b_norm == 0.0)
-      b_norm = 1.0;
+		if (b_norm == 0.0)
+			b_norm = 1.0;
 
-    const real terminate_tol = params.rtol * b_norm;
+		const real terminate_tol = params.rtol * b_norm;
 
-    info.sol_norm_initial = x.l2norm().get();
-    info.rhs_norm = b_norm;
+		info.sol_norm_initial = x.l2norm().get();
+		info.rhs_norm = b_norm;
 
-    // compute initial residual
-    //		A.residual(b, x, r);
-    A.apply(x, r);
-    r.subtract(b, r);
+		// compute initial residual
+		//		A.residual(b, x, r);
+		A.apply(x, r);
+		r.subtract(b, r);
 
-    real current_res = r.l2norm().get();
+		real current_res = r.l2norm().get();
 
-    if (current_res < terminate_tol) {
-      info.res_norm_initial = current_res;
-      info.res_norm_final = current_res;
-      info.status = solve_info::stop_reason::converged_rtol;
-      return info;
-    }
+		if (current_res < terminate_tol) {
+			info.res_norm_initial = current_res;
+			info.res_norm_final = current_res;
+			info.status = solve_info::stop_reason::converged_rtol;
+			return info;
+		}
 
-    P.apply(r, z);
+		P.apply(r, z);
 
-    std::array<scalar, 2> rho{2.0, 0.0};
-    rho[1] = z.dot(r).get();
-    rho[0] = rho[1];
+		std::array<scalar, 2> rho{2.0, 0.0};
+		rho[1] = z.dot(r).get();
+		rho[0] = rho[1];
 
-    p.copy(z);
-    for (auto iter = 0; iter < params.maxiter; iter++) {
-      scalar beta = 1.0;
+		p.copy(z);
+		for (auto iter = 0; iter < params.maxiter; iter++) {
+			scalar beta = 1.0;
 
-      // w = Ap
-      A.apply(p, w);
+			// w = Ap
+			A.apply(p, w);
 
-      // alpha = p'Ap
-      auto alpha = w.dot(p).get();
+			// alpha = p'Ap
+			auto alpha = w.dot(p).get();
 
-      // sanity check, the curvature should be positive
-      if (alpha <= 0.0) {
-        flog(error) << "PCG: negative curvature encountered!" << std::endl;
-      }
+			// sanity check, the curvature should be positive
+			if (alpha <= 0.0) {
+				flog(error)
+					<< "PCG: negative curvature encountered!" << std::endl;
+			}
 
-      alpha = rho[1] / alpha;
+			alpha = rho[1] / alpha;
 
-      x.axpy(alpha, p, x);  // x = x + alpha * p
-      r.axpy(-alpha, w, r); // r = r - alpha * w
+			x.axpy(alpha, p, x); // x = x + alpha * p
+			r.axpy(-alpha, w, r); // r = r - alpha * w
 
-      current_res = r.l2norm().get();
-      if (user_diagnostic(x, current_res)) {
-        info.iters = iter + 1;
-        info.status = solve_info::stop_reason::converged_user;
-        break;
-      }
+			current_res = r.l2norm().get();
+			if (user_diagnostic(x, current_res)) {
+				info.iters = iter + 1;
+				info.status = solve_info::stop_reason::converged_user;
+				break;
+			}
 
-      if (current_res < terminate_tol) {
-        info.iters = iter + 1;
-        info.status = solve_info::stop_reason::converged_rtol;
-        break;
-      }
+			if (current_res < terminate_tol) {
+				info.iters = iter + 1;
+				info.status = solve_info::stop_reason::converged_rtol;
+				break;
+			}
 
-      P.apply(r, z);
+			P.apply(r, z);
 
-      rho[0] = rho[1];
-      rho[1] = r.dot(z).get();
+			rho[0] = rho[1];
+			rho[1] = r.dot(z).get();
 
-      beta = rho[1] / rho[0];
-      p.axpy(beta, p, z);
-    }
+			beta = rho[1] / rho[0];
+			p.axpy(beta, p, z);
+		}
 
-    info.res_norm_final = current_res;
-    info.sol_norm_final = x.l2norm().get();
-    if (info.iters == 0)
-      info.status = solve_info::stop_reason::diverged_iters;
+		info.res_norm_final = current_res;
+		info.sol_norm_final = x.l2norm().get();
+		if (info.iters == 0)
+			info.status = solve_info::stop_reason::diverged_iters;
 
-    return info;
-  }
+		return info;
+	}
 
 protected:
-  settings params;
+	settings params;
 };
-template <class V> solver(const settings &, V &&) -> solver<V>;
+
+template<class V>
+solver(const settings &, V &&) -> solver<V>;
 
 } // namespace flecsi::linalg::cg
 
 namespace flecsi::linalg {
-template <class W, class... Ops>
+template<class W, class... Ops>
 struct traits<krylov_params<cg::settings, W, Ops...>> {
-  using op = krylov_interface<W, cg::solver>;
+	using op = krylov_interface<W, cg::solver>;
 };
 
 } // namespace flecsi::linalg

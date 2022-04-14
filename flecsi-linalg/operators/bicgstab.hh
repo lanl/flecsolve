@@ -11,41 +11,36 @@ namespace flecsi::linalg::bicgstab {
 
 static constexpr std::size_t nwork = 8;
 
-struct settings : solver_settings
-{
+struct settings : solver_settings {
 	using base_t = solver_settings;
-	settings(int maxiter, float rtol, bool use_zero_guess) :
-		base_t{maxiter, rtol, 0.0},
-		use_zero_guess(use_zero_guess) {}
+	settings(int maxiter, float rtol, bool use_zero_guess)
+		: base_t{maxiter, rtol, 0.0}, use_zero_guess(use_zero_guess) {}
 
 	bool use_zero_guess;
 };
 
-
-template <std::size_t Version = 0>
+template<std::size_t Version = 0>
 using topo_work = topo_work_base<nwork, Version>;
 
-
-template <class Workspace>
-struct solver : krylov_interface<Workspace, solver>
-{
+template<class Workspace>
+struct solver : krylov_interface<Workspace, solver> {
 	using settings_type = settings;
 	using iface = krylov_interface<Workspace, solver>;
 	using real = typename iface::real;
 	using iface::work;
 
 	template<class W>
-	solver(const settings & params, W && workspace) :
-		iface{std::forward<W>(workspace)}, params(params) {}
+	solver(const settings & params, W && workspace)
+		: iface{std::forward<W>(workspace)}, params(params) {}
 
-	void reset(const settings & params) {
-		this->params = params;
-	}
+	void reset(const settings & params) { this->params = params; }
 
 	template<class Op, class DomainVec, class RangeVec, class Pre, class F>
-	solve_info apply(const Op & A, const RangeVec & b, DomainVec & x,
-	                 Pre & P, F && user_diagnostic)
-	{
+	solve_info apply(const Op & A,
+	                 const RangeVec & b,
+	                 DomainVec & x,
+	                 Pre & P,
+	                 F && user_diagnostic) {
 		solve_info info;
 
 		using scalar = typename DomainVec::scalar;
@@ -66,7 +61,8 @@ struct solver : krylov_interface<Workspace, solver>
 
 		if (params.use_zero_guess) {
 			res.copy(b);
-		} else {
+		}
+		else {
 			A.residual(b, x, res);
 		}
 
@@ -115,7 +111,8 @@ struct solver : krylov_interface<Workspace, solver>
 
 			if (iter == 0) {
 				p.copy(res);
-			} else {
+			}
+			else {
 				beta = (rho[1] / rho[0]) * (alpha / omega);
 				p.axpy(-omega, v, p);
 				p.axpy(beta, p, res);
@@ -159,18 +156,18 @@ struct solver : krylov_interface<Workspace, solver>
 
 			if (user_diagnostic(x, res_norm)) {
 				info.status = solve_info::stop_reason::converged_user;
-				info.iters = iter+1;
+				info.iters = iter + 1;
 				break;
 			}
 
 			if (res_norm < terminate_tol) {
 				info.status = solve_info::stop_reason::converged_rtol;
-				info.iters = iter+1;
+				info.iters = iter + 1;
 				break;
 			}
 
 			if (omega == 0.0) {
-				info.iters = iter+1;
+				info.iters = iter + 1;
 				info.status = solve_info::stop_reason::diverged_breakdown;
 				break;
 			}
@@ -180,7 +177,8 @@ struct solver : krylov_interface<Workspace, solver>
 
 		info.res_norm_final = res_norm;
 		info.sol_norm_final = x.l2norm().get();
-		if (info.iters == 0) info.status = solve_info::stop_reason::diverged_iters;
+		if (info.iters == 0)
+			info.status = solve_info::stop_reason::diverged_iters;
 
 		return info;
 	}
@@ -188,13 +186,14 @@ struct solver : krylov_interface<Workspace, solver>
 protected:
 	settings params;
 };
-template<class V> solver(const settings&,V&&)->solver<V>;
+template<class V>
+solver(const settings &, V &&) -> solver<V>;
 
 }
 
 namespace flecsi::linalg {
 
-template <class W, class... Ops>
+template<class W, class... Ops>
 struct traits<krylov_params<bicgstab::settings, W, Ops...>> {
 	using op = krylov_interface<W, bicgstab::solver>;
 };

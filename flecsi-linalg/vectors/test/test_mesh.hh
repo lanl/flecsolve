@@ -2,14 +2,13 @@
 
 namespace flecsi::linalg {
 
-struct testmesh : topo::specialization<topo::narray, testmesh>
-{
+struct testmesh : topo::specialization<topo::narray, testmesh> {
 	enum index_space { cells };
 	using index_spaces = has<cells>;
 	enum domain { logical, all, global };
 	enum axis { x_axis };
 	using axes = has<x_axis>;
-	enum boundary {low, high};
+	enum boundary { low, high };
 	using coord = base::coord;
 	using colors = base::colors;
 	using hypercube = base::hypercube;
@@ -26,32 +25,33 @@ struct testmesh : topo::specialization<topo::narray, testmesh>
 
 		template<axis A, domain DM = logical>
 		std::size_t size() {
-			if constexpr(DM == logical) {
-				return B::template size<index_space::cells, A, B::domain::logical>();
+			if constexpr (DM == logical) {
+				return B::
+					template size<index_space::cells, A, B::domain::logical>();
 			}
-			else if(DM == all) {
-				return B::template size<index_space::cells, A, B::domain::all>();
+			else if (DM == all) {
+				return B::
+					template size<index_space::cells, A, B::domain::all>();
 			}
-			else if(DM == global) {
-				return B::template size<index_space::cells, A, B::domain::global>();
+			else if (DM == global) {
+				return B::
+					template size<index_space::cells, A, B::domain::global>();
 			}
 		}
 
 		std::size_t global_id(std::size_t i) const {
-			return B::template global_id<index_space::cells, testmesh::x_axis>(i);
+			return B::template global_id<index_space::cells, testmesh::x_axis>(
+				i);
 		}
 
 		template<index_space Space>
 		auto dofs() {
-			const std::size_t start =
-				B::template logical<Space, x_axis, 0>();
-			const std::size_t end =
-				B::template logical<Space, x_axis, 1>();
+			const std::size_t start = B::template logical<Space, x_axis, 0>();
+			const std::size_t end = B::template logical<Space, x_axis, 1>();
 
 			return flecsi::topo::make_ids<Space>(
 				flecsi::util::iota_view<flecsi::util::id>(start, end));
 		}
-
 	};
 
 	static auto distribute(std::size_t np, std::vector<std::size_t> indices) {
