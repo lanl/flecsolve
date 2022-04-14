@@ -76,12 +76,14 @@ public:
 	void add(const vec & x, const vec & y) { ops.add(x.data, y.data, data); }
 
 	/**
-	 * Set this to alpha * x + beta * this.
+	 * Component-wise subtraction of two vectors.
 	 *
-	 * \f$\mathit{this}_i = alpha * x_i + beta * \mathit{this}_i\f$
+	 * \f$\mathit{this}_i = x_i - y_i\f$
+	 * \param[in] x vector
+	 * \param[in] y vector
 	 */
-	void axpby(scalar alpha, scalar beta, const vec & x) {
-		ops.axpby(alpha, beta, x.data, data);
+	void subtract(const vec & x, const vec & y) {
+		ops.subtract(x.data, y.data, data);
 	}
 
 	/**
