@@ -21,20 +21,14 @@ struct OpExpr<std::tuple<Ps...>> {
 	OpExpr(Ps... ps) : ops(std::make_tuple(ps...)) {}
 
 	template<class U, class V>
-	constexpr void apply(U && u, V && v) const {
-		std::apply(
-			[&](auto &&... a) {
-				(a.apply(std::forward<decltype(u)>(u),
-			             std::forward<decltype(v)>(v)),
-			     ...);
-			},
-			ops);
+	constexpr void apply(const U & u, V & v) const {
+		std::apply([&](const auto &... a) { (a.apply(u, v), ...); }, ops);
 	}
 
 	template<class F, class U, class V>
-	constexpr void residual(F && f, U && u, V && v) const {
-		this->apply(std::forward<decltype(u)>(u), std::forward<decltype(v)>(v));
-		v.subtract(std::forward<decltype(f)>(f), std::forward<decltype(v)>(v));
+	constexpr void residual(const F & f, const U & u, V & v) const {
+		this->apply(u, v);
+		v.subtract(f, v);
 	}
 
 	constexpr decltype(auto) get_parameters() const {

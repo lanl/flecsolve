@@ -247,13 +247,13 @@ public:
 	void dump(std::string_view str) { ops.dump(str, data); }
 
 	template<auto var>
-	constexpr decltype(auto) subset(variable_t<var>) {
+	constexpr decltype(auto) subset(variable_t<var>) const {
 		static_assert(var == Variable);
 		return *this;
 	}
 
 	template<auto var>
-	constexpr decltype(auto) subset(multivariable_t<var>) {
+	constexpr decltype(auto) subset(multivariable_t<var>) const {
 		static_assert(var == Variable);
 		return *this;
 	}

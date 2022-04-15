@@ -70,8 +70,8 @@ struct dirchilet
 	dirchilet(param_type p) : base_type(p) {}
 
 	template<class U, class V>
-	constexpr auto apply(U && u, V && v) const {
-		auto & subu = u.template subset(variable<Var>);
+	constexpr auto apply(const U & u, V & v) const {
+		const auto & subu = u.template subset(variable<Var>);
 		_apply(subu.data.topo, subu.data.ref());
 	}
 
