@@ -74,14 +74,13 @@ void fill_field(msh::accessor<ro, ro> vm,
 /**
  * @brief initalizes values to slope upwards in 𝒙
  *
-
-    │
-    │        ┌──┐
-  ▲ │     ┌──┤  │
-  │ │  ┌──┤  │  │
-  Y ├──┤  │  │  │
-    └──┴──┴──┴──┴───
-     X───►
+ *   │
+ *   │        ┌──┐
+ *   │     ┌──┤  │
+ *   │  ┌──┤  │  │
+ *   ├──┤  │  │  │
+ *   └──┴──┴──┴──┴───
+ *   X───►
  * @param vm mesh accessor (read-only)
  * @param xa field accessor (write-only)
  */
@@ -121,15 +120,15 @@ constexpr decltype(auto) make_boundary_operator_dirichlet(const Vec & v) {
 	using namespace linalg::discrete_operators;
 
 	auto bndxl =
-		make_operator<dirchilet<Vec::var, msh, msh::x_axis, msh::boundary_low>>(
+		make_operator<dirichlet<Vec::var, msh, msh::x_axis, msh::boundary_low>>(
 			0.0);
 	auto bndxh = make_operator<
-		dirchilet<Vec::var, msh, msh::x_axis, msh::boundary_high>>(0.0);
+		dirichlet<Vec::var, msh, msh::x_axis, msh::boundary_high>>(0.0);
 	auto bndyl =
-		make_operator<dirchilet<Vec::var, msh, msh::y_axis, msh::boundary_low>>(
+		make_operator<dirichlet<Vec::var, msh, msh::y_axis, msh::boundary_low>>(
 			0.0);
 	auto bndyh = make_operator<
-		dirchilet<Vec::var, msh, msh::y_axis, msh::boundary_high>>(0.0);
+		dirichlet<Vec::var, msh, msh::y_axis, msh::boundary_high>>(0.0);
 
 	return op_expr(bndxl, bndxh, bndyl, bndyh);
 }

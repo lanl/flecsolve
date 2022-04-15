@@ -96,29 +96,6 @@ struct topology_tasks {
 		}
 	}
 
-	// /**
-	//  * @brief get the face-centered values of the gradient through cell
-	//  centers
-	//  * along an axis
-	//  *
-	//  * @tparam A axis
-	//  * @param m topology accessor
-	//  * @param u cell-centered field values
-	//  * @param du_x face-centered field with gradient values along A
-	//  */
-	// template<axis A>
-	// static void gradient_op(topo_acc m, acc_all<ro> u, acc_all<rw> du_x)
-	// {
-	//   const scalar_t i_dx = 1. / m.template dx<A>();
-	//   auto [jj, jm1] = m.template get_stencil<A, topo_t::cells,
-	//   topo_t::faces>(
-	//       utils::offset_seq<-1>());
-
-	//   for (auto j : jj) {
-	//     du_x[j] = (u[j] - u[j + jm1]) * i_dx;
-	//   }
-	// }
-
 	/**
 	 * @brief blanks a field
 	 *
@@ -208,58 +185,6 @@ struct topology_tasks {
 		}
 	}
 
-	// /**
-	//  * @brief a diffusion coefficent operation, meant for temperature field.
-	//  This
-	//  * and other diffusion coefficent operations take cell-centered values of
-	//  the
-	//  * some domain to determine directional face-centered coefficents
-	//  *
-	//  * @tparam A axis
-	//  * @param m toplogy accessor
-	//  * @param avg_x face-centered value of average cell values along axis A
-	//  * @param coef_x face-centered directional values of coefficents
-	//  */
-	// template<axis A>
-	// static void fluxtemp_op(topo_acc m, acc<ro> avg_x, acc<wo> coef_x)
-	// {
-	//   auto jj = m.template get_stencil<A, topo_t::cells, topo_t::faces>(
-	//       utils::offset_seq<>());
-	//   const scalar_t k_ph = 0.01;
-	//   for (auto j : jj) {
-	//     coef_x[j] = k_ph * std::pow(avg_x[j], 2.5);
-	//   }
-	// }
-
-	// /**
-	//  * @brief a diffusion coefficent operation, mean for energy. This
-	//  operation
-	//  * pulls from values on a seperate domain (e.g. temperature)
-	//  *
-	//  * @tparam A axis
-	//  * @param m topology accessor
-	//  * @param w_x face-centered values of independent domain
-	//  * @param du_x face-centered gradient along axis A
-	//  * @param avg_x face-centered average along axis A
-	//  * @param coef_x face-centered directional values of coefficients
-	//  */
-	// template<axis A>
-	// static void fluxlim_op(topo_acc m,
-	//                        acc<ro> w_x,
-	//                        acc<ro> du_x,
-	//                        acc<ro> avg_x,
-	//                        acc<wo> coef_x)
-	// {
-	//   auto jj = m.template get_stencil<A, topo_t::cells, topo_t::faces>(
-	//       utils::offset_seq<>());
-	//   for (auto j : jj) {
-	//     const scalar_t z3_ph = 1.0;
-	//     const scalar_t dr = (w_x[j] * w_x[j] * w_x[j]) / (3. * (z3_ph +
-	//     z3_ph)); coef_x[j] = (2.0 * dr) / (1.0 + dr * (std::abs(du_x[j]) /
-	//     avg_x[j]));
-	//   }
-	// }
-
 	/**
 	 * @brief simple boundary operation, used by dirchilet operator
 	 *
@@ -279,6 +204,14 @@ struct topology_tasks {
 		}
 	}
 
+	/**
+	 * @brief zero-flux boundary operation, used by neumann operator
+	 *
+	 * @tparam A boundary axis
+	 * @tparam D boundary domain (e.g. low, high)
+	 * @param m topology accessor
+	 * @param u cell-centered field which operation is applied on
+	 */
 	template<axis A, domain D>
 	static void boundary_fluxset(topo_acc m, acc<ro> b, acc<rw> u) {
 		constexpr int nd = (D == topo_t::boundary_low ? 1 : -1);
@@ -289,97 +222,6 @@ struct topology_tasks {
 		for (auto j : jj) {
 			u[j] = b[j + jo] * u[j + jo];
 		}
-	}
-	// **********************************************
-	// The remainder of these functions are ineligant debuging
-	// routines. Mostly just copy-pasted screen-dumps meant
-	// for 2D test problems. These likely won't survive
-	// many updates, and don't belong here anyway
-	// **********************************************
-	static void print_boxff(topo_acc m, acc_all<ro> u) {
-		auto uv = m.template mdspan<topo_t::cells>(u);
-
-		std::ostringstream oss;
-
-		oss << "[" << flecsi::process() << "] \n";
-		for (auto j : m.template range<topo_t::cells,
-		                               topo_t::y_axis,
-		                               topo_t::logical>()) {
-			oss << "j = " << j << std::setw(4) << " | ";
-			for (auto i : m.template range<topo_t::cells,
-			                               topo_t::x_axis,
-			                               topo_t::logical>()) {
-				oss << std::setw(5) << uv[j][i] << " ";
-			}
-			oss << "\n";
-		}
-
-		oss << "====================\n";
-		std ::cout << oss.str();
-	}
-
-	static void print_boxfful(topo_acc m, acc_all<ro> u) {
-		auto uv = m.template mdspan<topo_t::cells>(u);
-
-		std::ostringstream oss;
-
-		oss << "[" << flecsi::process() << "] \n";
-		for (auto j :
-		     m.template range<topo_t::cells, topo_t::y_axis, topo_t::all>()) {
-			oss << "j = " << j << std::setw(4) << " | ";
-			for (auto i : m.template range<topo_t::cells,
-			                               topo_t::x_axis,
-			                               topo_t::all>()) {
-				oss << std::setw(5) << uv[j][i] << " ";
-			}
-			oss << "\n";
-		}
-
-		oss << "====================\n";
-		std ::cout << oss.str();
-	}
-
-	static void print_boxffy(topo_acc m, acc_all<ro> u) {
-		auto uv = m.template mdspan<topo_t::cells>(u);
-
-		std::ostringstream oss;
-
-		oss << "[" << flecsi::process() << "] \n";
-		for (auto j : m.template range<topo_t::faces,
-		                               topo_t::y_axis,
-		                               topo_t::logical>()) {
-			oss << "j = " << j << std::setw(4) << " | ";
-			for (auto i : m.template range<topo_t::cells,
-			                               topo_t::x_axis,
-			                               topo_t::logical>()) {
-				oss << uv[j][i] << " ";
-			}
-			oss << "\n";
-		}
-
-		oss << "====================\n";
-		std ::cout << oss.str();
-	}
-	static void print_boxffx(topo_acc m, acc_all<ro> u) {
-		auto uv = m.template mdspan<topo_t::cells>(u);
-
-		std::ostringstream oss;
-
-		oss << "[" << flecsi::process() << "] \n";
-		for (auto j : m.template range<topo_t::cells,
-		                               topo_t::y_axis,
-		                               topo_t::logical>()) {
-			oss << "j = " << j << std::setw(4) << " | ";
-			for (auto i : m.template range<topo_t::faces,
-			                               topo_t::x_axis,
-			                               topo_t::logical>()) {
-				oss << uv[j][i] << " ";
-			}
-			oss << "\n";
-		}
-
-		oss << "====================\n";
-		std ::cout << oss.str();
 	}
 };
 

@@ -18,14 +18,14 @@ template<auto Var,
          typename Topo::axis Axis,
          typename Topo::domain Boundary,
          class Scalar = double>
-struct dirchilet;
+struct dirichlet;
 
 template<auto Var,
          class Topo,
          typename Topo::axis Axis,
          typename Topo::domain Boundary,
          class Scalar>
-struct operator_traits<dirchilet<Var, Topo, Axis, Boundary, Scalar>> {
+struct operator_traits<dirichlet<Var, Topo, Axis, Boundary, Scalar>> {
 	using scalar_t = Scalar;
 	using topo_t = Topo;
 	using topo_slot_t = flecsi::data::topology_slot<Topo>;
@@ -47,7 +47,7 @@ template<auto Var,
          typename Topo::axis Axis,
          typename Topo::domain Boundary,
          class Scalar>
-struct operator_parameters<dirchilet<Var, Topo, Axis, Boundary, Scalar>> {
+struct operator_parameters<dirichlet<Var, Topo, Axis, Boundary, Scalar>> {
 	Scalar boundary_value;
 };
 
@@ -56,18 +56,18 @@ template<auto Var,
          typename Topo::axis Axis,
          typename Topo::domain Boundary,
          class Scalar>
-struct dirchilet
-	: operator_settings<dirchilet<Var, Topo, Axis, Boundary, Scalar>> {
+struct dirichlet
+	: operator_settings<dirichlet<Var, Topo, Axis, Boundary, Scalar>> {
 
 	using base_type =
-		operator_settings<dirchilet<Var, Topo, Axis, Boundary, Scalar>>;
+		operator_settings<dirichlet<Var, Topo, Axis, Boundary, Scalar>>;
 	using exact_type = typename base_type::exact_type;
 	using param_type = typename base_type::param_type;
 	using topo_slot_t = typename operator_traits<exact_type>::topo_slot_t;
 	using cell_ref = typename operator_traits<exact_type>::cell_ref;
 	using tasks_f = typename operator_traits<exact_type>::tasks_f;
 
-	dirchilet(param_type p) : base_type(p) {}
+	dirichlet(param_type p) : base_type(p) {}
 
 	template<class U, class V>
 	constexpr auto apply(const U & u, V & v) const {
