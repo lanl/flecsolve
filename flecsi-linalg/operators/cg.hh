@@ -54,7 +54,7 @@ struct solver : krylov_interface<Workspace, solver> {
 		info.rhs_norm = b_norm;
 
 		// compute initial residual
-		//		A.residual(b, x, r);
+		// A.residual(b, x, r);
 		A.apply(x, r);
 		r.subtract(b, r);
 

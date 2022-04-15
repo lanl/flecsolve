@@ -4,18 +4,18 @@
 #include <flecsi/flog.hh>
 #include <flecsi/util/annotation.hh>
 
-int main(int argc, char **argv) {
-  auto status = flecsi::initialize(argc, argv);
+int main(int argc, char ** argv) {
+	auto status = flecsi::initialize(argc, argv);
 
-  if (status != flecsi::run::status::success) {
-    return status < flecsi::run::status::help ? 0 : status;
-  }
+	if (status != flecsi::run::status::success) {
+		return status < flecsi::run::status::help ? 0 : status;
+	}
 
-  flecsi::flog::add_output_stream("clog", std::clog, true);
+	flecsi::flog::add_output_stream("clog", std::clog, true);
 
-  status = flecsi::start(diffusion::driver);
+	status = flecsi::start(diffusion::driver);
 
-  flecsi::finalize();
+	flecsi::finalize();
 
-  return status;
+	return status;
 } // main

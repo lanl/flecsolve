@@ -21,133 +21,144 @@
 using namespace flecsi;
 namespace diffusion {
 void init_mesh() {
-  std::vector<std::size_t> extents{{NX, NY}};
-  auto colors = msh::distribute(processes(), extents);
-  coloring.allocate(colors, extents);
+	std::vector<std::size_t> extents{{NX, NY}};
+	auto colors = msh::distribute(processes(), extents);
+	coloring.allocate(colors, extents);
 
-  msh::grect geometry;
-  geometry[0][0] = 0.0;
-  geometry[0][1] = 1.0;
-  geometry[1] = geometry[0];
+	msh::grect geometry;
+	geometry[0][0] = 0.0;
+	geometry[0][1] = 1.0;
+	geometry[1] = geometry[0];
 
-  m.allocate(coloring.get(), geometry);
+	m.allocate(coloring.get(), geometry);
 }
 
-template <auto Space>
+template<auto Space>
 void check_vals(msh::accessor<ro, ro> vm,
                 field<scalar_t>::accessor<ro, na> xa) {
-  auto xv = vm.mdspan<Space>(xa);
+	auto xv = vm.mdspan<Space>(xa);
 
-  std::ostringstream oss;
+	std::ostringstream oss;
 
-  oss << "[" << flecsi::process() << "] \n";
-  for (auto j : vm.range<Space, msh::y_axis, msh::all>()) {
-    oss << "j = " << j << std::setw(4) << " | ";
-    for (auto i : vm.range<Space, msh::x_axis, msh::all>()) {
-      oss << xv[j][i] << " ";
-    }
-    oss << "\n";
-  }
-  oss << "====================\n";
+	oss << "[" << flecsi::process() << "] \n";
+	for (auto j : vm.range<Space, msh::y_axis, msh::all>()) {
+		oss << "j = " << j << std::setw(4) << " | ";
+		for (auto i : vm.range<Space, msh::x_axis, msh::all>()) {
+			oss << xv[j][i] << " ";
+		}
+		oss << "\n";
+	}
+	oss << "====================\n";
 
-  oss << "\n";
-  std ::cout << oss.str();
+	oss << "\n";
+	std ::cout << oss.str();
 }
 
-template <auto Space>
-void fill_field(msh::accessor<ro, ro> vm, field<scalar_t>::accessor<wo, na> xa,
+template<auto Space>
+void fill_field(msh::accessor<ro, ro> vm,
+                field<scalar_t>::accessor<wo, na> xa,
                 scalar_t val)
 
 {
-  auto xv = vm.mdspan<Space>(xa);
-  for (auto j : vm.range<Space, msh::y_axis, msh::all>()) {
-    for (auto i : vm.range<Space, msh::x_axis, msh::all>()) {
-      xv[j][i] = val;
-    }
-  }
+	auto xv = vm.mdspan<Space>(xa);
+	for (auto j : vm.range<Space, msh::y_axis, msh::all>()) {
+		for (auto i : vm.range<Space, msh::x_axis, msh::all>()) {
+			xv[j][i] = val;
+		}
+	}
 }
 
 void slope_field(msh::accessor<ro, ro> vm,
                  field<scalar_t>::accessor<wo, na> xa) {
-  auto xv = vm.mdspan<msh::cells>(xa);
+	auto xv = vm.mdspan<msh::cells>(xa);
 
-  for (auto j : vm.range<msh::cells, msh::y_axis, msh::logical>()) {
-    for (auto i : vm.range<msh::cells, msh::x_axis, msh::logical>()) {
-      // xv[j][i] = dis(gen);
-      xv[j][i] = vm.value<msh::x_axis>(i);
-    }
-  }
+	for (auto j : vm.range<msh::cells, msh::y_axis, msh::logical>()) {
+		for (auto i : vm.range<msh::cells, msh::x_axis, msh::logical>()) {
+			// xv[j][i] = dis(gen);
+			xv[j][i] = vm.value<msh::x_axis>(i);
+		}
+	}
 }
 
-template <auto Var> constexpr decltype(auto) make_boundary_operator_neumann() {
-  using namespace linalg::discrete_operators;
+template<class Vec>
+constexpr decltype(auto) make_boundary_operator_neumann(const Vec & v) {
+	using namespace linalg::discrete_operators;
+	// using Var = typename std::decay_t<decltype(Vec::var)>;
 
-  auto bndxl = make_operator<neumann<Var, msh, msh::x_axis, msh::boundary_low>>(
-      diffb(m));
-  auto bndxh =
-      make_operator<neumann<Var, msh, msh::x_axis, msh::boundary_high>>(
-          diffb(m));
-  auto bndyl = make_operator<neumann<Var, msh, msh::y_axis, msh::boundary_low>>(
-      diffb(m));
-  auto bndyh =
-      make_operator<neumann<Var, msh, msh::y_axis, msh::boundary_high>>(
-          diffb(m));
+	auto bndxl =
+		make_operator<neumann<Vec::var, msh, msh::x_axis, msh::boundary_low>>(
+			diffb(m));
+	auto bndxh =
+		make_operator<neumann<Vec::var, msh, msh::x_axis, msh::boundary_high>>(
+			diffb(m));
+	auto bndyl =
+		make_operator<neumann<Vec::var, msh, msh::y_axis, msh::boundary_low>>(
+			diffb(m));
+	auto bndyh =
+		make_operator<neumann<Vec::var, msh, msh::y_axis, msh::boundary_high>>(
+			diffb(m));
 
-  return op_expr(bndxl, bndxh, bndyl, bndyh);
+	return op_expr(bndxl, bndxh, bndyl, bndyh);
 }
 
-template <auto Var> constexpr decltype(auto) make_volume_operator() {
-  using namespace linalg::discrete_operators;
+template<class Vec>
+constexpr decltype(auto) make_volume_operator(const Vec & v) {
+	using namespace linalg::discrete_operators;
 
-  volume_diffusion_op<Var, msh> voldiff(
-      m, {diff_beta, diff_alpha, diffa(m), diffb(m)});
+	volume_diffusion_op<Vec::var, msh> voldiff(
+		m, {diff_beta, diff_alpha, diffa(m), diffb(m)});
 
-  return op_expr(voldiff);
+	return op_expr(voldiff);
 }
+
+//#define _RUN_MULTI
 
 int driver() {
 
-  init_mesh();
+	init_mesh();
 
-  execute<fill_field<msh::cells>>(m, diffa(m), DEFAULT_VAL);
-  execute<fill_field<msh::faces>>(m, diffb(m), DEFAULT_VAL);
+	execute<fill_field<msh::cells>>(m, diffa(m), DEFAULT_VAL);
+	execute<fill_field<msh::faces>>(m, diffb(m), DEFAULT_VAL);
 
-  execute<slope_field>(m, v1d(m));
-  execute<slope_field>(m, v2d(m));
+	execute<slope_field>(m, v1d(m));
+	execute<slope_field>(m, v2d(m));
 
-  linalg::vec::mesh vec1(linalg::variable<diffusion_var::v1>, m, v1d(m));
-  linalg::vec::mesh vec2(linalg::variable<diffusion_var::v2>, m, v2d(m));
+#ifdef _RUN_MULTI
+	linalg::vec::mesh vec1(linalg::variable<diffusion_var::v1>, m, v1d(m));
+	linalg::vec::mesh vec2(linalg::variable<diffusion_var::v2>, m, v2d(m));
+	linalg::vec::multi X(vec1, vec2);
+	linalg::vec::mesh rhs1(linalg::variable<diffusion_var::v1>, m, rhs1d(m));
+	linalg::vec::mesh rhs2(linalg::variable<diffusion_var::v2>, m, rhs2d(m));
+	linalg::vec::multi RHS(rhs1, rhs2);
 
-  // linalg::vec::multi X(vec1, vec2);
+	auto A = linalg::discrete_operators::op_expr(
+		make_boundary_operator_neumann(vec1),
+		make_volume_operator(vec1),
+		make_boundary_operator_neumann(vec2),
+		make_volume_operator(vec2));
+#else
 
-  linalg::vec::mesh rhs1(linalg::variable<diffusion_var::v1>, m, rhs1d(m));
-  linalg::vec::mesh rhs2(linalg::variable<diffusion_var::v2>, m, rhs2d(m));
+	linalg::vec::mesh X(linalg::variable<diffusion_var::v1>, m, v1d(m));
 
-  // linalg::vec::multi RHS(rhs1, rhs2);
+	linalg::vec::mesh RHS(linalg::variable<diffusion_var::v1>, m, rhs1d(m));
 
-  rhs1.set_scalar(0.0);
-  // RHS.set_scalar(0.0);
+	auto A = linalg::discrete_operators::op_expr(
+		make_boundary_operator_neumann(X), make_volume_operator(X));
+#endif
 
-  // auto A = linalg::discrete_operators::op_expr(
-  //     make_boundary_operator_neumann<diffusion_var::v1>(),
-  //     make_volume_operator<diffusion_var::v1>(),
-  //     make_boundary_operator_neumann<diffusion_var::v2>(),
-  //     make_volume_operator<diffusion_var::v2>());
+	RHS.set_scalar(0.0);
 
-  auto A = make_boundary_operator_neumann<diffusion_var::v1>();
+	linalg::krylov_params params(linalg::cg::settings{100, 1e-9, 1e-9},
+	                             linalg::cg::topo_work<>::get(RHS),
+	                             std::move(A));
 
-  linalg::krylov_params params(linalg::cg::settings{100, 1e-9, 1e-9},
-                               linalg::cg::topo_work<>::get(rhs1),
-                               std::move(A));
+	auto slv = linalg::op::create(std::move(params));
 
-  auto slv = linalg::op::create(std::move(params));
+	auto info = slv.apply(RHS, X);
 
-  // auto info = slv.apply(RHS, X);
-  auto info = slv.apply(rhs1, vec1);
+	flog(info) << "norm = " << info.res_norm_final << "\n";
+	flog(info) << "iters = " << info.iters << "\n";
 
-  flog(info) << "norm = " << info.res_norm_final << "\n";
-  flog(info) << "iters = " << info.iters << "\n";
-
-  return 0;
+	return 0;
 }
 } // namespace diffusion

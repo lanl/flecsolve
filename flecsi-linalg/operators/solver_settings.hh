@@ -60,7 +60,7 @@ protected:
 		                             decltype(anon_var::anonymous)>)
 			return {Vec(slot, defs[Index](slot))...};
 		else
-			return {Vec(variable_t<Vec::var>{}, slot, defs[Index](slot))...};
+			return {Vec(variable<Vec::var>, slot, defs[Index](slot))...};
 	}
 };
 
@@ -90,13 +90,14 @@ protected:
 	}
 
 	template<class T, class MV, std::size_t Index>
-	static MV make_mv(T & wv) {
-		return std::apply([](auto &... v) { return MV(v[Index]...); }, wv);
+	static MV make_mv(const T & wv) {
+		return std::apply([](const auto &... v) { return MV(v[Index]...); },
+		                  wv);
 	}
 
 	template<class MV, class T, std::size_t... Index>
 	static std::array<MV, NumWork>
-	make(const MV &, T & wv, std::index_sequence<Index...>) {
+	make(const MV &, const T & wv, std::index_sequence<Index...>) {
 		return {make_mv<T, MV, Index>(wv)...};
 	}
 };

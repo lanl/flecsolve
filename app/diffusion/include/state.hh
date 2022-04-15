@@ -14,7 +14,8 @@ using msh = linalg::discrete_operators::operator_mesh;
 msh::slot m;
 msh::cslot coloring;
 
-field<scalar_t>::definition<msh, msh::cells> v1d, v2d, rhs1d, rhs2d, diffa;
-field<scalar_t>::definition<msh, msh::faces> diffb;
+const field<scalar_t>::definition<msh, msh::cells> v1d, v2d, rhs1d, rhs2d,
+	diffa;
+const field<scalar_t>::definition<msh, msh::faces> diffb;
 
 } // namespace diffusion
