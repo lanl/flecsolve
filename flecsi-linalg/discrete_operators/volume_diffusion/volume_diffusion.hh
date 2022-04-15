@@ -103,7 +103,7 @@ struct volume_diffusion_op
 		  du(du_store_t::get_state(s)) {}
 
 	template<class U, class V>
-	constexpr auto apply(U && u, V && v) const {
+	constexpr auto apply(U & u, V & v) const {
 		auto & subu = u.template subset(variable<Var>);
 		auto & subv = v.template subset(variable<Var>);
 		_apply(subu.data.topo, subu.data.ref(), subv.data.ref());

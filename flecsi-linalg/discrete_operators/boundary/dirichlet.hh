@@ -71,7 +71,6 @@ struct dirchilet
 
 	template<class U, class V>
 	constexpr auto apply(U && u, V && v) const {
-		// auto subu = u.template getvar<Var>();
 		auto & subu = u.template subset(variable<Var>);
 		_apply(subu.data.topo, subu.data.ref());
 	}

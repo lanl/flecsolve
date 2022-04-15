@@ -33,17 +33,20 @@ void init_mesh() {
 	m.allocate(coloring.get(), geometry);
 }
 
-template<auto Space>
 void check_vals(msh::accessor<ro, ro> vm,
-                field<scalar_t>::accessor<ro, na> xa) {
-	auto xv = vm.mdspan<Space>(xa);
+                field<scalar_t>::accessor<ro, na> xa,
+                std::string title) {
+	auto xv = vm.mdspan<msh::cells>(xa);
 
 	std::ostringstream oss;
 
-	oss << "[" << flecsi::process() << "] \n";
-	for (auto j : vm.range<Space, msh::y_axis, msh::all>()) {
-		oss << "j = " << j << std::setw(4) << " | ";
-		for (auto i : vm.range<Space, msh::x_axis, msh::all>()) {
+	oss << "====================\n";
+	oss << "--------------------\n";
+	oss << title << "\n";
+	oss << "--------------------\n";
+	for (auto j : vm.range<msh::cells, msh::y_axis, msh::logical>()) {
+		oss << "j = " << j << std::setw(6) << " | ";
+		for (auto i : vm.range<msh::cells, msh::x_axis, msh::logical>()) {
 			oss << xv[j][i] << " ";
 		}
 		oss << "\n";
@@ -68,13 +71,26 @@ void fill_field(msh::accessor<ro, ro> vm,
 	}
 }
 
+/**
+ * @brief initalizes values to slope upwards in 𝒙
+ *
+
+    │
+    │        ┌──┐
+  ▲ │     ┌──┤  │
+  │ │  ┌──┤  │  │
+  Y ├──┤  │  │  │
+    └──┴──┴──┴──┴───
+     X───►
+ * @param vm mesh accessor (read-only)
+ * @param xa field accessor (write-only)
+ */
 void slope_field(msh::accessor<ro, ro> vm,
                  field<scalar_t>::accessor<wo, na> xa) {
 	auto xv = vm.mdspan<msh::cells>(xa);
 
 	for (auto j : vm.range<msh::cells, msh::y_axis, msh::logical>()) {
 		for (auto i : vm.range<msh::cells, msh::x_axis, msh::logical>()) {
-			// xv[j][i] = dis(gen);
 			xv[j][i] = vm.value<msh::x_axis>(i);
 		}
 	}
@@ -83,7 +99,6 @@ void slope_field(msh::accessor<ro, ro> vm,
 template<class Vec>
 constexpr decltype(auto) make_boundary_operator_neumann(const Vec & v) {
 	using namespace linalg::discrete_operators;
-	// using Var = typename std::decay_t<decltype(Vec::var)>;
 
 	auto bndxl =
 		make_operator<neumann<Vec::var, msh, msh::x_axis, msh::boundary_low>>(
@@ -102,6 +117,24 @@ constexpr decltype(auto) make_boundary_operator_neumann(const Vec & v) {
 }
 
 template<class Vec>
+constexpr decltype(auto) make_boundary_operator_dirichlet(const Vec & v) {
+	using namespace linalg::discrete_operators;
+
+	auto bndxl =
+		make_operator<dirchilet<Vec::var, msh, msh::x_axis, msh::boundary_low>>(
+			0.0);
+	auto bndxh = make_operator<
+		dirchilet<Vec::var, msh, msh::x_axis, msh::boundary_high>>(0.0);
+	auto bndyl =
+		make_operator<dirchilet<Vec::var, msh, msh::y_axis, msh::boundary_low>>(
+			0.0);
+	auto bndyh = make_operator<
+		dirchilet<Vec::var, msh, msh::y_axis, msh::boundary_high>>(0.0);
+
+	return op_expr(bndxl, bndxh, bndyl, bndyh);
+}
+
+template<class Vec>
 constexpr decltype(auto) make_volume_operator(const Vec & v) {
 	using namespace linalg::discrete_operators;
 
@@ -111,53 +144,79 @@ constexpr decltype(auto) make_volume_operator(const Vec & v) {
 	return op_expr(voldiff);
 }
 
-//#define _RUN_MULTI
-
 int driver() {
 
+	// initialize the mesh
 	init_mesh();
 
+	// fill auxiliary data fields
 	execute<fill_field<msh::cells>>(m, diffa(m), DEFAULT_VAL);
 	execute<fill_field<msh::faces>>(m, diffb(m), DEFAULT_VAL);
 
+	// set up initial conditions
 	execute<slope_field>(m, v1d(m));
 	execute<slope_field>(m, v2d(m));
 
-#ifdef _RUN_MULTI
-	linalg::vec::mesh vec1(linalg::variable<diffusion_var::v1>, m, v1d(m));
-	linalg::vec::mesh vec2(linalg::variable<diffusion_var::v2>, m, v2d(m));
-	linalg::vec::multi X(vec1, vec2);
-	linalg::vec::mesh rhs1(linalg::variable<diffusion_var::v1>, m, rhs1d(m));
-	linalg::vec::mesh rhs2(linalg::variable<diffusion_var::v2>, m, rhs2d(m));
-	linalg::vec::multi RHS(rhs1, rhs2);
+	// helper output of ICs
+	if (processes() == 1) {
+		execute<check_vals>(m, v1d(m), "[variable1] initial field");
+		execute<check_vals>(m, v2d(m), "[variable2] initial field");
+	}
 
+	//===================================================
+	//===============multivector diffusion===============
+	//===================================================
+
+	// define the solution and RHS MVs and assign them to a variable/field
+	linalg::vec::multi X(
+		linalg::vec::mesh(linalg::variable<diffusion_var::v1>, m, v1d(m)),
+		linalg::vec::mesh(linalg::variable<diffusion_var::v2>, m, v2d(m)));
+
+	linalg::vec::multi RHS(
+		linalg::vec::mesh(linalg::variable<diffusion_var::v1>, m, rhs1d(m)),
+		linalg::vec::mesh(linalg::variable<diffusion_var::v2>, m, rhs2d(m)));
+
+	auto & [vec1, vec2] = X;
+
+	// build the operator on the variables
 	auto A = linalg::discrete_operators::op_expr(
 		make_boundary_operator_neumann(vec1),
 		make_volume_operator(vec1),
-		make_boundary_operator_neumann(vec2),
+		make_boundary_operator_dirichlet(vec2),
 		make_volume_operator(vec2));
-#else
 
-	linalg::vec::mesh X(linalg::variable<diffusion_var::v1>, m, v1d(m));
-
-	linalg::vec::mesh RHS(linalg::variable<diffusion_var::v1>, m, rhs1d(m));
-
-	auto A = linalg::discrete_operators::op_expr(
-		make_boundary_operator_neumann(X), make_volume_operator(X));
-#endif
-
+	// set the RHS to vanish
 	RHS.set_scalar(0.0);
 
+	// get the solver parameters and workspace, & bind the operator to the
+	// solver
 	linalg::krylov_params params(linalg::cg::settings{100, 1e-9, 1e-9},
 	                             linalg::cg::topo_work<>::get(RHS),
 	                             std::move(A));
 
+	// create the solver
 	auto slv = linalg::op::create(std::move(params));
 
+	// run the solver
 	auto info = slv.apply(RHS, X);
 
+	// print some statistics on the solve
 	flog(info) << "norm = " << info.res_norm_final << "\n";
 	flog(info) << "iters = " << info.iters << "\n";
+
+	// helper print of final solutions
+	if (processes() == 1) {
+		execute<check_vals>(
+			m,
+			v1d(m),
+			"[variable1] solution with zero-flux boundary (n ⋅ ∇ u=0 on ∂Ω) ");
+		execute<check_vals>(
+			m, v2d(m), "[variable2] solution vanishes at boundary (u=0 on ∂Ω)");
+	}
+	else {
+		flog(info) << "to see asci representation of ivs & solutions, run on a "
+					  "single core.\n";
+	}
 
 	return 0;
 }

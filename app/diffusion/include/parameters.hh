@@ -6,8 +6,8 @@ namespace diffusion {
 
 using scalar_t = double;
 
-constexpr std::size_t NX = 4;
-constexpr std::size_t NY = 4;
+constexpr std::size_t NX = 8;
+constexpr std::size_t NY = 8;
 
 enum class diffusion_var { v1, v2 };
 

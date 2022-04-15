@@ -31,11 +31,11 @@ struct OpExpr<std::tuple<Ps...>> {
 			ops);
 	}
 
-	// template<class F, class U, class V>
-	// constexpr void residual(F && f, U && u, V && v) const {
-	// 	this->apply(std::forward<decltype(u)>(u), std::forward<decltype(v)>(v));
-	// 	f.subtract(v, f);
-	// }
+	template<class F, class U, class V>
+	constexpr void residual(F && f, U && u, V && v) const {
+		this->apply(std::forward<decltype(u)>(u), std::forward<decltype(v)>(v));
+		v.subtract(std::forward<decltype(f)>(f), std::forward<decltype(v)>(v));
+	}
 
 	constexpr decltype(auto) get_parameters() const {
 		return _gp(std::make_index_sequence<sizeof...(Ps)>{});
