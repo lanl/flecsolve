@@ -77,6 +77,7 @@ struct neumann : operator_settings<neumann<Var, Topo, Axis, Boundary, Scalar>> {
 		_apply(subu.data.topo, subu.data.ref());
 	}
 
+	// TODO: allow default value (=1.0)
 	void _apply(topo_slot_t & m, cell_ref u) const {
 		flecsi::execute<tasks_f::template boundary_fluxset<Axis, Boundary>>(
 			m, *(this->parameters.b), u);
