@@ -51,7 +51,7 @@ struct multi : public multivector_base<Vecs...> {
 	}
 
 	template<VarType var, std::size_t I>
-	constexpr decltype(auto) get() {
+	constexpr decltype(auto) get() const {
 		using tuple_t = std::tuple<std::remove_reference_t<Vecs>...>;
 		using curr = typename std::tuple_element<I, tuple_t>::type;
 		if constexpr (curr::var == var)
@@ -65,17 +65,17 @@ struct multi : public multivector_base<Vecs...> {
 	}
 
 	template<VarType var>
-	constexpr decltype(auto) getvar() {
+	constexpr decltype(auto) getvar() const {
 		return get<var, 0>();
 	}
 
 	template<VarType var>
-	constexpr decltype(auto) subset(variable_t<var>) {
+	constexpr decltype(auto) subset(variable_t<var>) const {
 		return getvar<var>();
 	}
 
 	template<VarType... vars>
-	constexpr decltype(auto) subset(multivariable_t<vars...>) {
+	constexpr decltype(auto) subset(multivariable_t<vars...>) const {
 		if constexpr (sizeof...(vars) == 1) {
 			return getvar<vars...>();
 		}

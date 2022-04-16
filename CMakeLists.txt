@@ -4,6 +4,7 @@ project(flecsi-linalg VERSION 0.0.1 LANGUAGES CXX C)
 
 set(CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "9.0")
@@ -18,7 +19,6 @@ endif()
 find_package(FleCSI REQUIRED)
 
 find_package(FleCSICMake REQUIRED)
-list(APPEND CMAKE_MODULE_PATH ${FleCSICMake_PREFIX})
 
 set(ENABLE_FLOG ${FleCSI_ENABLE_FLOG})
 set(FLECSI_RUNTIME_MODEL ${FleCSI_RUNTIME_MODEL})
@@ -35,13 +35,14 @@ include(format)
 if(NOT FORMAT_ONLY)
   add_library(linalg INTERFACE)
   add_library(FleCSI::linalg ALIAS linalg)
-  target_link_libraries(linalg INTERFACE FleCSI::FleCSI)
+  target_link_libraries(linalg INTERFACE FleCSI::FleCSI MPI::MPI_CXX)
 
   target_include_directories(linalg INTERFACE
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 	$<INSTALL_INTERFACE:include>)
 
   add_subdirectory(flecsi-linalg)
+  add_subdirectory(app)
 
   install(TARGETS linalg EXPORT flecsi-linalgTargets
 	INCLUDES DESITNATION include)

@@ -1,0 +1,6 @@
+build*
+.vscode*
+.cache*
+compile_commands.json
+.clang-format
+data/*

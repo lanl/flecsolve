@@ -3,9 +3,9 @@
 
 #include <flecsi/flog.hh>
 
+#include "krylov_interface.hh"
 #include "shell.hh"
 #include "solver_settings.hh"
-#include "krylov_interface.hh"
 
 namespace flecsi::linalg::cg {
 
@@ -125,10 +125,11 @@ struct solver : krylov_interface<Workspace, solver> {
 protected:
 	settings params;
 };
+
 template<class V>
 solver(const settings &, V &&) -> solver<V>;
 
-}
+} // namespace flecsi::linalg::cg
 
 namespace flecsi::linalg {
 template<class W, class... Ops>
@@ -136,5 +137,5 @@ struct traits<krylov_params<cg::settings, W, Ops...>> {
 	using op = krylov_interface<W, cg::solver>;
 };
 
-}
+} // namespace flecsi::linalg
 #endif
