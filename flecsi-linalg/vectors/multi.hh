@@ -8,6 +8,22 @@
 
 namespace flecsi::linalg::vec {
 
+// https://stackoverflow.com/a/47369227
+template<typename T>
+constexpr T & as_mutable(T const & value) noexcept {
+	return const_cast<T &>(value);
+}
+template<typename T>
+constexpr T * as_mutable(T const * value) noexcept {
+	return const_cast<T *>(value);
+}
+template<typename T>
+constexpr T * as_mutable(T * value) noexcept {
+	return value;
+}
+template<typename T>
+void as_mutable(T const &&) = delete;
+
 template<class... Vecs>
 using multivector_scalar = typename std::tuple_element<
 	0,
@@ -64,8 +80,18 @@ struct multi : public multivector_base<Vecs...> {
 			return get<var, I + 1>();
 	}
 
+	template<VarType var, std::size_t I>
+	constexpr decltype(auto) get() {
+		return as_mutable(std::as_const(*this).template get<var, I>());
+	}
+
 	template<VarType var>
 	constexpr decltype(auto) getvar() const {
+		return get<var, 0>();
+	}
+
+	template<VarType var>
+	constexpr decltype(auto) getvar() {
 		return get<var, 0>();
 	}
 
@@ -74,8 +100,24 @@ struct multi : public multivector_base<Vecs...> {
 		return getvar<var>();
 	}
 
+	template<VarType var>
+	constexpr decltype(auto) subset(variable_t<var>) {
+		return getvar<var>();
+	}
+
 	template<VarType... vars>
 	constexpr decltype(auto) subset(multivariable_t<vars...>) const {
+		if constexpr (sizeof...(vars) == 1) {
+			return getvar<vars...>();
+		}
+		else {
+			return multi<VarType, decltype(getvar<vars>())...>(
+				getvar<vars>()...);
+		}
+	}
+
+	template<VarType... vars>
+	constexpr decltype(auto) subset(multivariable_t<vars...>) {
 		if constexpr (sizeof...(vars) == 1) {
 			return getvar<vars...>();
 		}

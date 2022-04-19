@@ -264,4 +264,15 @@ public:
 	using var_t = decltype(var);
 };
 
+template<class Data, class Ops, auto Variable>
+bool operator==(const vector<Data, Ops, Variable> & v1,
+                const vector<Data, Ops, Variable> & v2) {
+	return v1.data == v2.data;
+}
+template<class Data, class Ops, auto Variable>
+bool operator!=(const vector<Data, Ops, Variable> & v1,
+                const vector<Data, Ops, Variable> & v2) {
+	return v1.data != v2.data;
+}
+
 } // namespace flecsi::linalg

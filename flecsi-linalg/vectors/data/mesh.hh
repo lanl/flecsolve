@@ -1,4 +1,5 @@
-#pragma once
+#ifndef FLECSI_LINALG_VEC_DATA_MESH_H
+#define FLECSI_LINALG_VEC_DATA_MESH_H
 
 #include <flecsi/data.hh>
 
@@ -50,4 +51,18 @@ template<class Slot, class Ref>
 mesh(Slot &, Ref)
 	-> mesh<typename Ref::Base::Topology, Ref::space, typename Ref::value_type>;
 
+template<class Topo, typename Topo::index_space Space, class T>
+bool operator==(const mesh<Topo, Space, T> & d1,
+                const mesh<Topo, Space, T> & d2) {
+	return d1.fid() == d2.fid();
 }
+
+template<class Topo, typename Topo::index_space Space, class T>
+bool operator!=(const mesh<Topo, Space, T> & d1,
+                const mesh<Topo, Space, T> & d2) {
+	return d1.fid() != d2.fid();
+}
+
+}
+
+#endif
