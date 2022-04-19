@@ -70,7 +70,7 @@ struct multi : public multivector_base<Vecs...> {
 	constexpr decltype(auto) get() const {
 		using tuple_t = std::tuple<std::remove_reference_t<Vecs>...>;
 		using curr = typename std::tuple_element<I, tuple_t>::type;
-		if constexpr (curr::var == var)
+		if constexpr (curr::var == variable<var>)
 			return std::get<I>(data);
 		else if constexpr (I + 1 == sizeof...(Vecs)) {
 			static_assert(I + 1 < sizeof...(Vecs));
@@ -126,6 +126,9 @@ struct multi : public multivector_base<Vecs...> {
 				getvar<vars>()...);
 		}
 	}
+
+	static constexpr auto var =
+		multivariable<std::remove_reference_t<Vecs>::var.value...>;
 };
 
 template<class... VT>

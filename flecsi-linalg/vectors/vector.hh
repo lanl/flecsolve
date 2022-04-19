@@ -260,8 +260,8 @@ public:
 
 	Data data;
 	Ops ops;
-	static constexpr auto var = Variable;
-	using var_t = decltype(var);
+	static constexpr auto var = variable<Variable>;
+	using var_t = decltype(var.value);
 };
 
 template<class Data, class Ops, auto Variable>

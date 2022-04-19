@@ -19,9 +19,17 @@ struct variable_name {
 
 template<auto V>
 struct variable_t {
-	static constexpr auto val = V;
+	static constexpr auto value = V;
 	static constexpr const char * name = variable_name<V>::value;
 };
+template<auto V0, auto V1>
+constexpr bool operator==(const variable_t<V0> &, const variable_t<V1> &) {
+	return V0 == V1;
+}
+template<auto V0, auto V1>
+constexpr bool operator!=(const variable_t<V0> &, const variable_t<V1> &) {
+	return V0 != V1;
+}
 
 template<auto V>
 inline variable_t<V> variable{};

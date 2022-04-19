@@ -43,7 +43,7 @@ struct krylov_op {
 	template<class T, class O>
 	static const auto & subset_input(const T & x, const O &) {
 		if constexpr (op::has_input_variable_v<O>)
-			return x.subset(variable<O::input_var>);
+			return x.subset(O::input_var);
 		else
 			return x;
 	}
@@ -51,7 +51,7 @@ struct krylov_op {
 	template<class T, class O>
 	static auto & subset_output(T & x, const O &) {
 		if constexpr (op::has_output_variable_v<O>)
-			return x.subset(variable<O::output_var>);
+			return x.subset(O::output_var);
 		else
 			return x;
 	}

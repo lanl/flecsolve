@@ -99,18 +99,16 @@ template<class Vec>
 constexpr decltype(auto) make_boundary_operator_neumann(const Vec & v) {
 	using namespace linalg::discrete_operators;
 
-	auto bndxl =
-		make_operator<neumann<Vec::var, msh, msh::x_axis, msh::boundary_low>>(
-			diffb(m));
-	auto bndxh =
-		make_operator<neumann<Vec::var, msh, msh::x_axis, msh::boundary_high>>(
-			diffb(m));
-	auto bndyl =
-		make_operator<neumann<Vec::var, msh, msh::y_axis, msh::boundary_low>>(
-			diffb(m));
-	auto bndyh =
-		make_operator<neumann<Vec::var, msh, msh::y_axis, msh::boundary_high>>(
-			diffb(m));
+	auto bndxl = make_operator<
+		neumann<Vec::var.value, msh, msh::x_axis, msh::boundary_low>>(diffb(m));
+	auto bndxh = make_operator<
+		neumann<Vec::var.value, msh, msh::x_axis, msh::boundary_high>>(
+		diffb(m));
+	auto bndyl = make_operator<
+		neumann<Vec::var.value, msh, msh::y_axis, msh::boundary_low>>(diffb(m));
+	auto bndyh = make_operator<
+		neumann<Vec::var.value, msh, msh::y_axis, msh::boundary_high>>(
+		diffb(m));
 
 	return op_expr(bndxl, bndxh, bndyl, bndyh);
 }
@@ -119,16 +117,14 @@ template<class Vec>
 constexpr decltype(auto) make_boundary_operator_dirichlet(const Vec & v) {
 	using namespace linalg::discrete_operators;
 
-	auto bndxl =
-		make_operator<dirichlet<Vec::var, msh, msh::x_axis, msh::boundary_low>>(
-			0.0);
+	auto bndxl = make_operator<
+		dirichlet<Vec::var.value, msh, msh::x_axis, msh::boundary_low>>(0.0);
 	auto bndxh = make_operator<
-		dirichlet<Vec::var, msh, msh::x_axis, msh::boundary_high>>(0.0);
-	auto bndyl =
-		make_operator<dirichlet<Vec::var, msh, msh::y_axis, msh::boundary_low>>(
-			0.0);
+		dirichlet<Vec::var.value, msh, msh::x_axis, msh::boundary_high>>(0.0);
+	auto bndyl = make_operator<
+		dirichlet<Vec::var.value, msh, msh::y_axis, msh::boundary_low>>(0.0);
 	auto bndyh = make_operator<
-		dirichlet<Vec::var, msh, msh::y_axis, msh::boundary_high>>(0.0);
+		dirichlet<Vec::var.value, msh, msh::y_axis, msh::boundary_high>>(0.0);
 
 	return op_expr(bndxl, bndxh, bndyl, bndyh);
 }
@@ -137,7 +133,7 @@ template<class Vec>
 constexpr decltype(auto) make_volume_operator(const Vec & v) {
 	using namespace linalg::discrete_operators;
 
-	volume_diffusion_op<Vec::var, msh> voldiff(
+	volume_diffusion_op<Vec::var.value, msh> voldiff(
 		m, {diff_beta, diff_alpha, diffa(m), diffb(m)});
 
 	return op_expr(voldiff);

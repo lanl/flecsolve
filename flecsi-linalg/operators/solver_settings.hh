@@ -56,11 +56,11 @@ protected:
 	make_work(topo_slot_t & slot,
 	          std::array<const field_def, NumWork> & defs,
 	          std::index_sequence<Index...>) {
-		if constexpr (std::is_same_v<std::decay_t<decltype(Vec::var)>,
+		if constexpr (std::is_same_v<std::decay_t<decltype(Vec::var.value)>,
 		                             decltype(anon_var::anonymous)>)
 			return {Vec(slot, defs[Index](slot))...};
 		else
-			return {Vec(variable<Vec::var>, slot, defs[Index](slot))...};
+			return {Vec(Vec::var, slot, defs[Index](slot))...};
 	}
 };
 

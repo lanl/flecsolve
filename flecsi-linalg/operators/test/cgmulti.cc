@@ -39,8 +39,8 @@ struct test_op
 		r.subtract(b, r);
 	}
 
-	static constexpr auto input_var = var;
-	static constexpr auto output_var = var;
+	static constexpr auto input_var = variable<var>;
+	static constexpr auto output_var = variable<var>;
 
 protected:
 	const Op & op;
