@@ -261,7 +261,7 @@ public:
 	Data data;
 	Ops ops;
 	static constexpr auto var = variable<Variable>;
-	using var_t = decltype(var.value);
+	using var_t = std::remove_const_t<decltype(var.value)>;
 };
 
 template<class Data, class Ops, auto Variable>
