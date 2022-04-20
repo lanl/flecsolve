@@ -56,8 +56,7 @@ protected:
 	make_work(topo_slot_t & slot,
 	          std::array<const field_def, NumWork> & defs,
 	          std::index_sequence<Index...>) {
-		if constexpr (std::is_same_v<typename Vec::var_t,
-		              anon_var>)
+		if constexpr (std::is_same_v<typename Vec::var_t, anon_var>)
 			return {Vec(slot, defs[Index](slot))...};
 		else
 			return {Vec(Vec::var, slot, defs[Index](slot))...};
@@ -75,30 +74,30 @@ struct topo_work_base {
 	static auto get(const vec::multi<VarType, Vecs...> & rhs) {
 		auto wv =
 			make_states(rhs.data, std::make_index_sequence<sizeof...(Vecs)>());
-		return make(rhs, wv, std::make_index_sequence<NumWork>());
+		return make(std::move(wv), std::make_index_sequence<NumWork>());
 	}
 
 protected:
 	template<class T, std::size_t... Index>
 	static auto make_states(T & t, std::index_sequence<Index...>) {
 		return std::make_tuple(
-			topo_solver_state<
-				std::remove_reference_t<std::tuple_element_t<Index, T>>,
-				NumWork,
-				Version,
-				Index>::get_work(std::get<Index>(t))...);
+			topo_solver_state<std::remove_cv_t<std::remove_reference_t<
+								  std::tuple_element_t<Index, T>>>,
+		                      NumWork,
+		                      Version,
+		                      Index>::get_work(std::get<Index>(t))...);
 	}
 
-	template<class T, class MV, std::size_t Index>
-	static MV make_mv(const T & wv) {
-		return std::apply([](const auto &... v) { return MV(v[Index]...); },
-		                  wv);
+	template<class T, std::size_t Index>
+	static auto make_mv(T && wv) {
+		return std::apply(
+			[](auto &&... v) { return vec::multi(std::move(v[Index])...); },
+			std::forward<T>(wv));
 	}
 
-	template<class MV, class T, std::size_t... Index>
-	static std::array<MV, NumWork>
-	make(const MV &, const T & wv, std::index_sequence<Index...>) {
-		return {make_mv<T, MV, Index>(wv)...};
+	template<class T, std::size_t... Index>
+	static auto make(T && wv, std::index_sequence<Index...>) {
+		return std::array{make_mv<T, Index>(std::forward<T>(wv))...};
 	}
 };
 

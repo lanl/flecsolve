@@ -56,7 +56,10 @@ public:
 	 * \param[in] alpha scalar
 	 * \param[in] x vector
 	 */
-	void scale(scalar alpha, const vec & x) { ops.scale(alpha, x.data, data); }
+	template<class T>
+	void scale(scalar alpha, const T & x) {
+		ops.scale(alpha, x.data, data);
+	}
 
 	/**
 	 * Scale vector components.
@@ -73,7 +76,10 @@ public:
 	 * \param[in] x vector
 	 * \param[in] y vector
 	 */
-	void add(const vec & x, const vec & y) { ops.add(x.data, y.data, data); }
+	template<class T0, class T1>
+	void add(const T0 & x, const T1 & y) {
+		ops.add(x.data, y.data, data);
+	}
 
 	/**
 	 * Component-wise subtraction of two vectors.
@@ -82,7 +88,8 @@ public:
 	 * \param[in] x vector
 	 * \param[in] y vector
 	 */
-	void subtract(const vec & x, const vec & y) {
+	template<class T0, class T1>
+	void subtract(const T0 & x, const T1 & y) {
 		ops.subtract(x.data, y.data, data);
 	}
 
@@ -93,7 +100,8 @@ public:
 	 * \param[in] x vector
 	 * \param[in] y vector
 	 */
-	void multiply(const vec & x, const vec & y) {
+	template<class T0, class T1>
+	void multiply(const T0 & x, const T1 & y) {
 		ops.multiply(x.data, y.data, data);
 	}
 
@@ -104,7 +112,8 @@ public:
 	 * \param[in] x vector
 	 * \param[in] y vector
 	 */
-	void divide(const vec & x, const vec & y) {
+	template<class T0, class T1>
+	void divide(const T0 & x, const T1 & y) {
 		ops.divide(x.data, y.data, data);
 	}
 
@@ -113,14 +122,18 @@ public:
 	 *
 	 * \f$\mathit{this} = 1.0 / x_i\f$
 	 */
-	void reciprocal(const vec & x) { ops.reciprocal(x.data, data); }
+	template<class T>
+	void reciprocal(const T & x) {
+		ops.reciprocal(x.data, data);
+	}
 
 	/**
 	 * Set this to linear combination of two vectors.
 	 *
 	 * \f$\mathit{this}_i = alpha * x_i + beta * y_i\f$
 	 */
-	void linear_sum(scalar alpha, const vec & x, scalar beta, const vec & y) {
+	template<class T0, class T1>
+	void linear_sum(scalar alpha, const T0 & x, scalar beta, const T1 & y) {
 		ops.linear_sum(alpha, x.data, beta, y.data, data);
 	}
 
@@ -129,7 +142,8 @@ public:
 	 *
 	 * \f$\mathit{this}_i = alpha x_i + y_i\f$
 	 */
-	void axpy(scalar alpha, const vec & x, const vec & y) {
+	template<class T0, class T1>
+	void axpy(scalar alpha, const T0 & x, const T1 & y) {
 		ops.axpy(alpha, x.data, y.data, data);
 	}
 
@@ -138,7 +152,8 @@ public:
 	 *
 	 * \f$\mathit{this}_i = alpha * x_i + beta * \mathit{this}_i\f$
 	 */
-	void axpby(scalar alpha, scalar beta, const vec & x) {
+	template<class T>
+	void axpby(scalar alpha, scalar beta, const T & x) {
 		ops.axpby(alpha, beta, x.data, data);
 	}
 
@@ -147,14 +162,18 @@ public:
 	 *
 	 * \f$\mathit{this} = \abs{x_i}\f$
 	 */
-	void abs(const vec & x) { ops.abs(x.data, data); }
+	template<class T>
+	void abs(const T & x) {
+		ops.abs(x.data, data);
+	}
 
 	/**
 	 * Set this to the scalar translation of a vector
 	 *
 	 * \f$\mathit{this}_i = alpha x_i\f$
 	 */
-	void add_scalar(const vec & x, scalar alpha) {
+	template<class T>
+	void add_scalar(const T & x, scalar alpha) {
 		ops.add_scalar(x.data, alpha, data);
 	}
 
@@ -215,7 +234,10 @@ public:
 	 * \f$ \sum_i x_i^H \mathit{this}_i \f$
 	 * \return future containing the inner product
 	 */
-	auto dot(const vec & x) const { return ops.dot(data, x.data); }
+	template<class T>
+	auto dot(const T & x) const {
+		return ops.dot(data, x.data);
+	}
 
 	/**
 	 * Compute the global size of this vector.

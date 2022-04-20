@@ -17,7 +17,8 @@ struct multi {
 	using real = typename num_traits<scalar>::real;
 	using len_t = Len;
 
-	void copy(const vec_data & x, vec_data & z) {
+	template<class T>
+	void copy(const T & x, vec_data & z) {
 		apply([](auto & x, const auto & y) { x.copy(y); }, make_is(), z, x);
 	}
 
@@ -33,14 +34,16 @@ struct multi {
 		apply([alpha](auto & x) { x.scale(alpha); }, make_is(), x);
 	}
 
-	void scale(scalar alpha, const vec_data & x, vec_data & y) {
+	template<class T>
+	void scale(scalar alpha, const T & x, vec_data & y) {
 		apply([alpha](auto & v, const auto & y) { v.scale(alpha, y); },
 		      make_is(),
 		      y,
 		      x);
 	}
 
-	void add(const vec_data & x, const vec_data & y, vec_data & z) {
+	template<class T0, class T1>
+	void add(const T0 & x, const T1 & y, vec_data & z) {
 		apply([](auto & x, const auto & y, const auto & z) { x.add(y, z); },
 		      make_is(),
 		      z,
@@ -48,7 +51,8 @@ struct multi {
 		      y);
 	}
 
-	void subtract(const vec_data & x, const vec_data & y, vec_data & z) {
+	template<class T0, class T1>
+	void subtract(const T0 & x, const T1 & y, vec_data & z) {
 		apply(
 			[](auto & x, const auto & y, const auto & z) { x.subtract(y, z); },
 			make_is(),
@@ -57,7 +61,8 @@ struct multi {
 			y);
 	}
 
-	void multiply(const vec_data & x, const vec_data & y, vec_data & z) {
+	template<class T0, class T1>
+	void multiply(const T0 & x, const T1 & y, vec_data & z) {
 		apply(
 			[](auto & x, const auto & y, const auto & z) { x.multiply(y, z); },
 			make_is(),
@@ -66,7 +71,8 @@ struct multi {
 			y);
 	}
 
-	void divide(const vec_data & x, const vec_data & y, vec_data & z) {
+	template<class T0, class T1>
+	void divide(const T0 & x, const T1 & y, vec_data & z) {
 		apply([](auto & x, const auto & y, const auto & z) { x.divide(y, z); },
 		      make_is(),
 		      z,
@@ -74,15 +80,17 @@ struct multi {
 		      y);
 	}
 
-	void reciprocal(const vec_data & x, vec_data & y) {
+	template<class T>
+	void reciprocal(const T & x, vec_data & y) {
 		apply(
 			[](auto & x, const auto & y) { x.reciprocal(y); }, make_is(), y, x);
 	}
 
+	template<class T0, class T1>
 	void linear_sum(scalar alpha,
-	                const vec_data & x,
+	                const T0 & x,
 	                scalar beta,
-	                const vec_data & y,
+	                const T1 & y,
 	                vec_data & z) {
 		apply(
 			[alpha, beta](auto & z, const auto & x, const auto & y) {
@@ -94,8 +102,8 @@ struct multi {
 			y);
 	}
 
-	void
-	axpy(scalar alpha, const vec_data & x, const vec_data & y, vec_data & z) {
+	template<class T0, class T1>
+	void axpy(scalar alpha, const T0 & x, const T1 & y, vec_data & z) {
 		apply([alpha](auto & z,
 		              const auto & x,
 		              const auto & y) { z.axpy(alpha, x, y); },
@@ -105,7 +113,8 @@ struct multi {
 		      y);
 	}
 
-	void axpby(scalar alpha, scalar beta, const vec_data & x, vec_data & z) {
+	template<class T>
+	void axpby(scalar alpha, scalar beta, const T & x, vec_data & z) {
 		apply([alpha, beta](auto & z,
 		                    const auto & x) { z.axpby(alpha, beta, x); },
 		      make_is(),
@@ -113,11 +122,13 @@ struct multi {
 		      x);
 	}
 
-	void abs(const vec_data & x, vec_data & y) {
+	template<class T>
+	void abs(const T & x, vec_data & y) {
 		apply([](auto & z, const auto & y) { z.abs(y); }, make_is(), y, x);
 	}
 
-	void add_scalar(const vec_data & x, scalar alpha, vec_data & y) {
+	template<class T>
+	void add_scalar(const T & x, scalar alpha, vec_data & y) {
 		apply([alpha](auto & z, const auto & x) { z.add_scalar(x, alpha); },
 		      make_is(),
 		      y,
@@ -200,7 +211,8 @@ struct multi {
 			}};
 	}
 
-	auto dot(const vec_data & x, const vec_data & y) const {
+	template<class T>
+	auto dot(const vec_data & x, const T & y) const {
 		auto futs =
 			apply_ret([](const auto & x, const auto & y) { return x.dot(y); },
 		              make_is(),
