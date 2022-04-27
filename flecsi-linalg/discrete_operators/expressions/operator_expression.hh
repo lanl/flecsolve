@@ -11,11 +11,11 @@ namespace discrete_operators {
 #include <functional>
 #include <tuple>
 
-template<class T>
+template<class VT, class T>
 struct OpExpr;
 
-template<class... Ps>
-struct OpExpr<std::tuple<Ps...>> {
+template<auto... vars, class... Ps>
+struct OpExpr<multivariable_t<vars...>, std::tuple<Ps...>> {
 	std::tuple<Ps...> ops;
 
 	OpExpr(Ps... ps) : ops(std::make_tuple(ps...)) {}
@@ -42,11 +42,14 @@ struct OpExpr<std::tuple<Ps...>> {
 				std::tuple_element_t<II, decltype(ops)>>::param_type{}...);
 	}
 	// reset
+
+	static constexpr auto input_var = multivariable<vars...>;
+	static constexpr auto output_var = multivariable<vars...>;
 };
 
-template<class... Ps>
-inline constexpr auto op_expr(Ps... ps) {
-	return OpExpr<std::tuple<Ps...>>(ps...);
+template<auto... vars, class... Ps>
+inline constexpr auto op_expr(multivariable_t<vars...>, Ps... ps) {
+	return OpExpr<multivariable_t<vars...>, std::tuple<Ps...>>(ps...);
 }
 
 } // namespace discrete_operators

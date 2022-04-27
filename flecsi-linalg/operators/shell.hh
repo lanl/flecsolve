@@ -2,9 +2,13 @@
 
 #include <algorithm>
 
+#include <flecsi-linalg/vectors/variable.hh>
+
 namespace flecsi::linalg::op {
 
-template<class F>
+template<class F,
+         auto ivar = anon_var::anonymous,
+         auto ovar = anon_var::anonymous>
 struct shell {
 
 	constexpr shell(F f) : f(std::move(f)) {}
@@ -20,6 +24,9 @@ struct shell {
 		f(x, r);
 		r.subtract(b, r);
 	}
+
+	static constexpr auto input_var = variable<ivar>;
+	static constexpr auto output_var = variable<ovar>;
 
 protected:
 	F f;

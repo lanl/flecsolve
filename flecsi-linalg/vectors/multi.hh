@@ -137,6 +137,17 @@ multi(VT &&... vs) -> multi<
 		type::var_t,
 	VT...>;
 
+template<class VarType, class... V0, class... V1>
+bool operator==(const multi<VarType, V0...> & v0,
+                const multi<VarType, V1...> & v1) {
+	return v0.data == v1.data;
+}
+template<class VarType, class... V0, class... V1>
+bool operator!=(const multi<VarType, V0...> & v0,
+                const multi<VarType, V1...> & v1) {
+	return v0.data != v1.data;
+}
+
 }
 
 namespace std {

@@ -18,8 +18,8 @@ struct krylov_op {
 
 	template<class DomainVec, class RangeVec>
 	auto apply(const RangeVec & b, DomainVec & x) {
-		const auto & bs = subset_input(b, op);
-		auto & xs = subset_output(x, op);
+		decltype(auto) bs = subset_input(b, op);
+		decltype(auto) xs = subset_output(x, op);
 
 		flog_assert(xs != bs, "Input and output vectors must be distinct");
 
@@ -41,19 +41,15 @@ struct krylov_op {
 	}
 
 	template<class T, class O>
-	static const auto & subset_input(const T & x, const O &) {
-		if constexpr (op::has_input_variable_v<O>)
-			return x.subset(O::input_var);
-		else
-			return x;
+	static decltype(auto) subset_input(const T & x, const O &) {
+		static_assert(op::has_input_variable_v<O>);
+		return x.subset(O::input_var);
 	}
 
 	template<class T, class O>
-	static auto & subset_output(T & x, const O &) {
-		if constexpr (op::has_output_variable_v<O>)
-			return x.subset(O::output_var);
-		else
-			return x;
+	static decltype(auto) subset_output(T & x, const O &) {
+		static_assert(op::has_output_variable_v<O>);
+		return x.subset(O::output_var);
 	}
 };
 template<class S, class A, class P, class D>

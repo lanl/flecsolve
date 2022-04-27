@@ -3,6 +3,8 @@
 #include <fstream>
 #include <iostream>
 
+#include "flecsi-linalg/vectors/variable.hh"
+
 #include "test_mesh.hh"
 
 namespace flecsi::linalg {
@@ -191,6 +193,9 @@ struct csr_op {
 	}
 
 	CSR mat;
+
+	static constexpr auto input_var = variable<anon_var::anonymous>;
+	static constexpr auto output_var = variable<anon_var::anonymous>;
 };
 template<class CSR>
 csr_op(CSR) -> csr_op<CSR>;

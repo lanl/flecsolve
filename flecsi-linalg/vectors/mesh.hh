@@ -19,6 +19,18 @@ struct mesh : vector<data::mesh<Topo, Space, Scalar>,
 	template<class Slot, class Ref>
 	mesh(variable_t<V>, Slot & topo, Ref ref)
 		: base_t(data::mesh<Topo, Space, Scalar>{topo, ref}) {}
+
+	template<auto var>
+	const auto & subset(variable_t<var>) const {
+		static_assert(var == V);
+		return *this;
+	}
+
+	template<auto var>
+	auto & subset(variable_t<var>) {
+		static_assert(var == V);
+		return *this;
+	}
 };
 
 template<auto V, class Slot, class Ref>
@@ -39,6 +51,18 @@ struct mesh<anon_var::anonymous, Topo, Space, Scalar>
 	template<class Slot, class Ref>
 	mesh(Slot & topo, Ref ref)
 		: base_t(data::mesh<Topo, Space, Scalar>{topo, ref}) {}
+
+	template<auto var>
+	const auto & subset(variable_t<var>) const {
+		static_assert(var == anon_var::anonymous);
+		return *this;
+	}
+
+	template<auto var>
+	auto & subset(variable_t<var>) {
+		static_assert(var == anon_var::anonymous);
+		return *this;
+	}
 };
 
 template<class Slot, class Ref>

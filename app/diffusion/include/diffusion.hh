@@ -110,7 +110,8 @@ constexpr decltype(auto) make_boundary_operator_neumann(const Vec & v) {
 		neumann<Vec::var.value, msh, msh::y_axis, msh::boundary_high>>(
 		diffb(m));
 
-	return op_expr(bndxl, bndxh, bndyl, bndyh);
+	return op_expr(
+		linalg::multivariable<Vec::var.value>, bndxl, bndxh, bndyl, bndyh);
 }
 
 template<class Vec>
@@ -126,7 +127,8 @@ constexpr decltype(auto) make_boundary_operator_dirichlet(const Vec & v) {
 	auto bndyh = make_operator<
 		dirichlet<Vec::var.value, msh, msh::y_axis, msh::boundary_high>>(0.0);
 
-	return op_expr(bndxl, bndxh, bndyl, bndyh);
+	return op_expr(
+		linalg::multivariable<Vec::var.value>, bndxl, bndxh, bndyl, bndyh);
 }
 
 template<class Vec>
@@ -136,7 +138,7 @@ constexpr decltype(auto) make_volume_operator(const Vec & v) {
 	volume_diffusion_op<Vec::var.value, msh> voldiff(
 		m, {diff_beta, diff_alpha, diffa(m), diffb(m)});
 
-	return op_expr(voldiff);
+	return op_expr(linalg::multivariable<Vec::var.value>, voldiff);
 }
 
 int driver() {
@@ -175,6 +177,7 @@ int driver() {
 
 	// build the operator on the variables
 	auto A = linalg::discrete_operators::op_expr(
+		linalg::multivariable<diffusion_var::v1, diffusion_var::v2>,
 		make_boundary_operator_neumann(vec1),
 		make_volume_operator(vec1),
 		make_boundary_operator_dirichlet(vec2),
