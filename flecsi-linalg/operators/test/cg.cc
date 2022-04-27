@@ -61,11 +61,12 @@ struct tcase {
 	const char * fname; // filename
 	float cond; // condition number
 	int iters; // expected iterations to converge
+	int iters_rel;
 };
 
 int cgtest() {
-	std::array cases{tcase{"494_bus.mtx", 2.415411e+06, 1822},
-	                 tcase{"Chem97ZtZ.mtx", 2.472189e+02, 161}};
+	std::array cases{tcase{"494_bus.mtx", 2.415411e+06, 1822, 1829},
+	                 tcase{"Chem97ZtZ.mtx", 2.472189e+02, 161, 161}};
 
 	static_assert(cases.size() <= ncases);
 
@@ -93,7 +94,8 @@ int cgtest() {
 
 			auto info = slv.apply(b, x);
 
-			EXPECT_EQ(info.iters, cs.iters);
+			EXPECT_TRUE((info.iters == cs.iters) ||
+			            (info.iters == cs.iters_rel));
 			EXPECT_FALSE(diag.monotonic_fail);
 			EXPECT_FALSE(diag.convergence_fail);
 

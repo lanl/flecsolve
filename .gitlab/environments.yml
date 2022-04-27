@@ -1,0 +1,114 @@
+include: .gitlab/templates.yml
+
+mpich:
+  extends: .env_template
+  dependencies: []
+  only:
+    - merge_requests
+  variables:
+    ENVIRONMENT: '2'
+    MPI_PROVIDER: mpich
+    REGISTRY: gitlab.lanl.gov:5050/flecsi/flecsi
+    IMAGE: rockylinux
+    VERSION: flecsi
+    VARIANTS_LEGION: +hdf5 +kokkos +flog +unit ^legion network=gasnet conduit=mpi +hdf5 +kokkos
+    VARIANTS_MPI: +hdf5 +kokkos +flog +unit
+
+mpich-debug:
+  extends: .env_template
+  dependencies: []
+  only:
+    - merge_requests
+  variables:
+    ENVIRONMENT: '2'
+    MPI_PROVIDER: mpich
+    REGISTRY: gitlab.lanl.gov:5050/flecsi/flecsi
+    IMAGE: rockylinux
+    VERSION: flecsi
+    VARIANTS_LEGION: caliper_detail=low +graphviz +hdf5 +kokkos +flog +unit ^legion build_type=Debug network=gasnet conduit=mpi +hdf5 +kokkos
+    VARIANTS_MPI: caliper_detail=low +graphviz +hdf5 +kokkos +flog +unit
+
+mpich-clang:
+  extends: .env_template
+  dependencies: []
+  only:
+    - merge_requests
+  variables:
+    ENVIRONMENT: '2'
+    MPI_PROVIDER: mpich
+    REGISTRY: gitlab.lanl.gov:5050/flecsi/flecsi
+    IMAGE: fedora-34
+    VERSION: flecsi
+    VARIANTS_LEGION: +flog +unit +hdf5 +kokkos %clang ^legion network=gasnet conduit=mpi +hdf5 +kokkos %gcc ^boost %gcc ^cmake %gcc ^metis %gcc ^parmetis %gcc ^hdf5 %gcc ^lanl-cmake-modules %gcc ^kokkos %gcc
+    VARIANTS_MPI: +flog +unit +hdf5 +kokkos %clang ^boost %gcc ^cmake %gcc ^metis %gcc ^parmetis %gcc ^hdf5 %gcc ^lanl-cmake-modules %gcc ^kokkos %gcc
+
+mpich-clang-debug:
+  extends: .env_template
+  dependencies: []
+  only:
+    - merge_requests
+  variables:
+    ENVIRONMENT: '2'
+    MPI_PROVIDER: mpich
+    REGISTRY: gitlab.lanl.gov:5050/flecsi/flecsi
+    IMAGE: fedora-34
+    VERSION: flecsi
+    VARIANTS_LEGION: +flog +unit +hdf5 +kokkos %clang ^legion build_type=Debug network=gasnet conduit=mpi +hdf5 +kokkos %gcc ^boost %gcc ^cmake %gcc ^metis %gcc ^parmetis %gcc ^hdf5 %gcc ^lanl-cmake-modules %gcc
+    VARIANTS_MPI: +flog +unit +hdf5 +kokkos %clang ^boost %gcc ^cmake %gcc ^metis %gcc ^parmetis %gcc ^hdf5 %gcc ^lanl-cmake-modules %gcc
+
+openmpi:
+  extends: .env_template
+  dependencies: []
+  only:
+    - merge_requests
+  variables:
+    ENVIRONMENT: '2'
+    MPI_PROVIDER: openmpi
+    REGISTRY: gitlab.lanl.gov:5050/flecsi/flecsi
+    IMAGE: rockylinux
+    VERSION: flecsi
+    VARIANTS_LEGION: +flog +unit +hdf5 +kokkos ^legion network=gasnet conduit=mpi +hdf5 +kokkos
+    VARIANTS_MPI: +flog +unit +hdf5 +kokkos
+
+
+openmpi-debug:
+  extends: .env_template
+  dependencies: []
+  only:
+    - merge_requests
+  variables:
+    ENVIRONMENT: '2'
+    MPI_PROVIDER: openmpi
+    REGISTRY: gitlab.lanl.gov:5050/flecsi/flecsi
+    IMAGE: rockylinux
+    VERSION: flecsi
+    VARIANTS_LEGION: +flog +unit +hdf5 ^legion build_type=Debug network=gasnet conduit=mpi +hdf5 +kokkos
+    VARIANTS_MPI: +hdf5 +flog +unit
+
+openmpi-clang:
+  extends: .env_template
+  dependencies: []
+  only:
+    - merge_requests
+  variables:
+    ENVIRONMENT: '2'
+    MPI_PROVIDER: openmpi
+    REGISTRY: gitlab.lanl.gov:5050/flecsi/flecsi
+    IMAGE: fedora-34
+    VERSION: flecsi
+    VARIANTS_LEGION: +flog +unit +hdf5 +kokkos %clang ^legion network=gasnet conduit=mpi +hdf5 +kokkos %gcc ^boost %gcc ^cmake %gcc ^metis %gcc ^parmetis %gcc ^hdf5 %gcc ^lanl-cmake-modules %gcc ^kokkos %gcc
+    VARIANTS_MPI: +flog +unit +hdf5 +kokkos %clang ^boost %gcc ^cmake %gcc ^metis %gcc ^parmetis %gcc ^hdf5 %gcc ^lanl-cmake-modules %gcc ^kokkos %gcc
+
+openmpi-clang-debug:
+  extends: .env_template
+  dependencies: []
+  only:
+    - merge_requests
+  variables:
+    ENVIRONMENT: '2'
+    MPI_PROVIDER: openmpi
+    REGISTRY: gitlab.lanl.gov:5050/flecsi/flecsi
+    IMAGE: fedora-34
+    VERSION: flecsi
+    VARIANTS_LEGION: +flog +unit +hdf5 %clang ^legion build_type=Debug network=gasnet conduit=mpi +hdf5 +kokkos %gcc ^boost %gcc ^cmake %gcc ^metis %gcc ^parmetis %gcc ^hdf5 %gcc ^lanl-cmake-modules %gcc ^kokkos %gcc
+    VARIANTS_MPI: +flog +unit +hdf5 %clang ^boost %gcc ^cmake %gcc ^metis %gcc ^parmetis %gcc ^hdf5 %gcc ^lanl-cmake-modules %gcc ^kokkos %gcc

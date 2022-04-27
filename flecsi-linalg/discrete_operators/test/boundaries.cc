@@ -86,6 +86,25 @@ struct check {
 template<class F, class T, class A, class D>
 check(F &&, T &&, A &&, D &&) -> check<F, T, A, D>;
 
+static check xlo{[](std::size_t j, std::size_t i) { return -1.0; },
+                 "x low, dirichlet",
+                 std::integral_constant<msh::axis, msh::x_axis>{},
+                 std::integral_constant<msh::domain, msh::boundary_low>{}};
+
+static check xhi{[](std::size_t j, std::size_t i) { return 1.0; },
+                 "x high, dirichlet",
+                 std::integral_constant<msh::axis, msh::x_axis>{},
+                 std::integral_constant<msh::domain, msh::boundary_high>{}};
+
+static check ylo{[](std::size_t j, std::size_t i) { return 1.0; },
+                 "y low, neumann",
+                 std::integral_constant<msh::axis, msh::y_axis>{},
+                 std::integral_constant<msh::domain, msh::boundary_low>{}};
+static check yhi{[](std::size_t j, std::size_t i) { return 1.0; },
+                 "y hi, neumann",
+                 std::integral_constant<msh::axis, msh::y_axis>{},
+                 std::integral_constant<msh::domain, msh::boundary_high>{}};
+
 int boundary_test() {
 
 	init_mesh();
@@ -119,28 +138,6 @@ int boundary_test() {
 		bndry_ylo.apply(x, x);
 		bndry_yhi.apply(x, x);
 
-		static check xlo{
-			[](std::size_t j, std::size_t i) { return -1.0; },
-			"x low, dirichlet",
-			std::integral_constant<msh::axis, msh::x_axis>{},
-			std::integral_constant<msh::domain, msh::boundary_low>{}};
-
-		static check xhi{
-			[](std::size_t j, std::size_t i) { return 1.0; },
-			"x high, dirichlet",
-			std::integral_constant<msh::axis, msh::x_axis>{},
-			std::integral_constant<msh::domain, msh::boundary_high>{}};
-
-		static check ylo{
-			[](std::size_t j, std::size_t i) { return 1.0; },
-			"y low, neumann",
-			std::integral_constant<msh::axis, msh::y_axis>{},
-			std::integral_constant<msh::domain, msh::boundary_low>{}};
-		static check yhi{
-			[](std::size_t j, std::size_t i) { return 1.0; },
-			"y hi, neumann",
-			std::integral_constant<msh::axis, msh::y_axis>{},
-			std::integral_constant<msh::domain, msh::boundary_high>{}};
 		EXPECT_EQ((test<xlo>(m, xd(m))), 0);
 		EXPECT_EQ((test<xhi>(m, xd(m))), 0);
 		EXPECT_EQ((test<ylo>(m, xd(m))), 0);

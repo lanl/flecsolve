@@ -44,6 +44,11 @@ static constexpr std::complex<double> cconv(double gid) {
 		return {.5 * gid, .4 * gid};
 }
 
+template<class T>
+static constexpr std::complex<double> conv(T c) {
+	return c;
+}
+
 void init_fields(testmesh::accessor<ro, ro> m,
                  realf::accessor<wo, na> xa,
                  realf::accessor<wo, na> ya,
@@ -86,8 +91,72 @@ struct check {
 template<class F, class T>
 check(F &&, T &&) -> check<F, T>;
 
+using namespace std::complex_literals;
+static check add{[](double gid) {
+					 return std::make_pair(rconv<0>(gid) + rconv<2>(gid),
+	                                       cconv<0>(gid) + cconv<2>(gid));
+				 },
+                 "add"};
+static check subtract{[](double gid) {
+						  return std::make_pair(rconv<0>(gid) - rconv<2>(gid),
+	                                            cconv<0>(gid) - cconv<2>(gid));
+					  },
+                      "subtract"};
+static check mult{[](double gid) {
+					  return std::make_pair(rconv<0>(gid) * rconv<2>(gid),
+	                                        cconv<0>(gid) * cconv<2>(gid));
+				  },
+                  "multiply"};
+static check scalar_add{[](double gid) {
+							return std::make_pair(rconv<0>(gid) + 1,
+	                                              cconv<0>(gid) +
+	                                                  conv((1. + 1i)));
+						},
+                        "add scalar"};
+static check divide{[](double gid) {
+						return std::make_pair(
+							rconv<1>(gid) / (rconv<0>(gid) + 1),
+							cconv<1>(gid) / (cconv<0>(gid) + conv((1. + 1i))));
+					},
+                    "divide"};
+static check scale{[](double gid) {
+					   return std::make_pair(rconv<0>(gid) * 2,
+	                                         cconv<0>(gid) * 2.4);
+				   },
+                   "scale"};
+static check recip{[](double gid) {
+					   return std::make_pair(
+						   1.0 / (rconv<1>(gid) + 1),
+						   1.0 / (cconv<1>(gid) + conv((1. + 1i))));
+				   },
+                   "reciprocal"};
+static check linsum{[](double gid) {
+						return std::make_pair(
+							rconv<1>(gid) * 8 + rconv<2>(gid) * 9,
+							cconv<1>(gid) * 8. + cconv<2>(gid) * 9.);
+					},
+                    "linear sum"};
+static check axpy{[](double gid) {
+					  return std::make_pair(rconv<0>(gid) * 7 + rconv<1>(gid),
+	                                        cconv<0>(gid) * conv((7. + 3i)) +
+	                                            cconv<1>(gid));
+				  },
+                  "axpy"};
+static check axpby{[](double gid) {
+					   return std::make_pair(
+						   rconv<2>(gid) * 4 + rconv<1>(gid) * 11,
+						   cconv<2>(gid) * conv((4.3 + 7i)) +
+							   cconv<1>(gid) * conv((11.8 + 3i)));
+				   },
+                   "axpby"};
+static check abs{[](double gid) {
+					 return std::make_pair(
+						 std::abs(rconv<1>(gid) - 4),
+						 std::abs(cconv<1>(gid) - conv((4. + 4i))));
+				 },
+                 "abs"};
+
 int vectest() {
-	using namespace std::complex_literals;
 	init_mesh();
 	execute<init_fields>(
 		msh, xd(msh), yd(msh), zd(msh), xd_c(msh), yd_c(msh), zd_c(msh));
@@ -100,53 +169,22 @@ int vectest() {
 
 		tmp.add(x, z);
 		tmp_c.add(x_c, z_c);
-		static check add{[](double gid) {
-							 return std::make_pair(
-								 rconv<0>(gid) + rconv<2>(gid),
-								 cconv<0>(gid) + cconv<2>(gid));
-						 },
-		                 "add"};
 		EXPECT_EQ((test<add>(msh, tmpd(msh), tmpd_c(msh))), 0);
 
 		tmp.subtract(x, z);
 		tmp_c.subtract(x_c, z_c);
-		static check subtract{[](double gid) {
-								  return std::make_pair(
-									  rconv<0>(gid) - rconv<2>(gid),
-									  cconv<0>(gid) - cconv<2>(gid));
-							  },
-		                      "subtract"};
 		EXPECT_EQ((test<subtract>(msh, tmpd(msh), tmpd_c(msh))), 0);
 
 		tmp.multiply(x, z);
 		tmp_c.multiply(x_c, z_c);
-		static check mult{[](double gid) {
-							  return std::make_pair(
-								  rconv<0>(gid) * rconv<2>(gid),
-								  cconv<0>(gid) * cconv<2>(gid));
-						  },
-		                  "multiply"};
 		EXPECT_EQ((test<mult>(msh, tmpd(msh), tmpd_c(msh))), 0);
 
 		x.add_scalar(x, 1);
 		x_c.add_scalar(x_c, (1. + 1i));
-		static check scalar_add{[](double gid) {
-									return std::make_pair(rconv<0>(gid) + 1,
-			                                              cconv<0>(gid) +
-			                                                  (1. + 1i));
-								},
-		                        "add scalar"};
 		EXPECT_EQ((test<scalar_add>(msh, xd(msh), xd_c(msh))), 0);
 
 		tmp.divide(y, x);
 		tmp_c.divide(y_c, x_c);
-		static check divide{[](double gid) {
-								return std::make_pair(
-									rconv<1>(gid) / (rconv<0>(gid) + 1),
-									cconv<1>(gid) /
-										(cconv<0>(gid) + (1. + 1i)));
-							},
-		                    "divide"};
 		EXPECT_EQ((test<divide>(msh, tmpd(msh), tmpd_c(msh))), 0);
 
 		x.add_scalar(x, -1);
@@ -154,11 +192,6 @@ int vectest() {
 
 		tmp.scale(2, x);
 		tmp_c.scale(2.4, x_c);
-		static check scale{[](double gid) {
-							   return std::make_pair(rconv<0>(gid) * 2,
-			                                         cconv<0>(gid) * 2.4);
-						   },
-		                   "scale"};
 		EXPECT_EQ((test<scale>(msh, tmpd(msh), tmpd_c(msh))), 0);
 
 		y.add_scalar(y, 1);
@@ -166,12 +199,6 @@ int vectest() {
 
 		tmp.reciprocal(y);
 		tmp_c.reciprocal(y_c);
-		static check recip{[](double gid) {
-							   return std::make_pair(
-								   1.0 / (rconv<1>(gid) + 1),
-								   1.0 / (cconv<1>(gid) + (1. + 1i)));
-						   },
-		                   "reciprocal"};
 		EXPECT_EQ((test<recip>(msh, tmpd(msh), tmpd_c(msh))), 0);
 
 		y.add_scalar(y, -1);
@@ -179,47 +206,22 @@ int vectest() {
 
 		tmp.linear_sum(8, y, 9, z);
 		tmp_c.linear_sum(8, y_c, 9, z_c);
-		static check linsum{[](double gid) {
-								return std::make_pair(
-									rconv<1>(gid) * 8 + rconv<2>(gid) * 9,
-									cconv<1>(gid) * 8. + cconv<2>(gid) * 9.);
-							},
-		                    "linear sum"};
 		EXPECT_EQ((test<linsum>(msh, tmpd(msh), tmpd_c(msh))), 0);
 
 		tmp.axpy(7, x, y);
 		tmp_c.axpy(7. + 3i, x_c, y_c);
-		static check axpy{[](double gid) {
-							  return std::make_pair(
-								  rconv<0>(gid) * 7 + rconv<1>(gid),
-								  cconv<0>(gid) * (7. + 3i) + cconv<1>(gid));
-						  },
-		                  "axpy"};
 		EXPECT_EQ((test<axpy>(msh, tmpd(msh), tmpd_c(msh))), 0);
 
 		tmp.copy(y);
 		tmp_c.copy(y_c);
 		tmp.axpby(4, 11, z);
 		tmp_c.axpby(4.3 + 7i, 11.8 + 3i, z_c);
-		static check axpby{[](double gid) {
-							   return std::make_pair(
-								   rconv<2>(gid) * 4 + rconv<1>(gid) * 11,
-								   cconv<2>(gid) * (4.3 + 7i) +
-									   cconv<1>(gid) * (11.8 + 3i));
-						   },
-		                   "axpby"};
 		EXPECT_EQ((test<axpby>(msh, tmpd(msh), tmpd_c(msh))), 0);
 
 		tmp.add_scalar(y, -4);
 		tmp_c.add_scalar(y_c, (-4. - 4i));
 		tmp.abs(tmp);
 		tmp_c.abs(tmp_c);
-		static check abs{[](double gid) {
-							 return std::make_pair(
-								 std::abs(rconv<1>(gid) - 4),
-								 std::abs(cconv<1>(gid) - (4. + 4i)));
-						 },
-		                 "abs"};
 		EXPECT_EQ((test<abs>(msh, tmpd(msh), tmpd_c(msh))), 0);
 
 		tmp.add_scalar(y, -7);

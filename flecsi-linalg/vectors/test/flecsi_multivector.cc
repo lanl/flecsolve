@@ -91,6 +91,49 @@ bool run(MV & mv, S & msh) {
 		mv.data);
 }
 
+static check add{[](std::size_t gid, int index) {
+					 return (index + 1) * gid + (index + 3) * gid;
+				 },
+                 "add"};
+static check sub{[](double gid, double index) {
+					 return (index + 2) * gid - (index + 3) * gid;
+				 },
+                 "subtract"};
+static check mult{[](std::size_t gid, int index) {
+					  return (index + 1) * gid * (index + 3) * gid;
+				  },
+                  "multiply"};
+static check scalar_add{
+	[](std::size_t gid, int index) { return (index + 1) * gid + 1; },
+	"add scalar"};
+static check divide{[](double gid, double index) {
+						return ((index + 2) * gid) / ((index + 1) * gid + 1);
+					},
+                    "divide"};
+static check scale{
+	[](double gid, double index) { return (index + 1) * gid * 3.5; },
+	"scale"};
+static check recip{
+	[](double gid, double index) { return 1.0 / ((index + 2) * gid + 2); },
+	"reciprocal"};
+static check linsum{[](double gid, double index) {
+						return ((index + 2) * gid) * 8 +
+	                           ((index + 3) * gid) * 9;
+					},
+                    "linear sum"};
+static check axpy{[](double gid, double index) {
+					  return (index + 1) * gid * 7 + ((index + 2) * gid);
+				  },
+                  "axpy"};
+static check axpby{[](double gid, double index) {
+					   return ((index + 3) * gid) * 4 +
+	                          ((index + 2) * gid) * 11;
+				   },
+                   "axpby"};
+static check abs{
+	[](double gid, double index) { return std::abs((index + 2) * gid - 4.3); },
+	"abs"};
+
 int vectest() {
 	init_mesh();
 	init_fields(xd, 0, make_is());
@@ -103,88 +146,42 @@ int vectest() {
 		auto tmp = create_multivector(tmpd, make_is());
 
 		tmp.add(x, z);
-		static check add{[](std::size_t gid, int index) {
-							 return (index + 1) * gid + (index + 3) * gid;
-						 },
-		                 "add"};
 		EXPECT_TRUE(run<add>(tmp, msh));
 
 		tmp.subtract(y, z);
-		static check sub{[](double gid, double index) {
-							 return (index + 2) * gid - (index + 3) * gid;
-						 },
-		                 "subtract"};
 		EXPECT_TRUE(run<sub>(tmp, msh));
 
 		tmp.multiply(x, z);
-		static check mult{[](std::size_t gid, int index) {
-							  return (index + 1) * gid * (index + 3) * gid;
-						  },
-		                  "multiply"};
 		EXPECT_TRUE(run<mult>(tmp, msh));
 
 		x.add_scalar(x, 1);
-		static check scalar_add{
-			[](std::size_t gid, int index) { return (index + 1) * gid + 1; },
-			"add scalar"};
 		EXPECT_TRUE(run<scalar_add>(x, msh));
 
 		tmp.divide(y, x);
-		static check divide{[](double gid, double index) {
-								return ((index + 2) * gid) /
-			                           ((index + 1) * gid + 1);
-							},
-		                    "divide"};
 		EXPECT_TRUE(run<divide>(tmp, msh));
 
 		x.add_scalar(x, -1);
 
 		tmp.scale(3.5, x);
-		static check scale{
-			[](double gid, double index) { return (index + 1) * gid * 3.5; },
-			"scale"};
 		EXPECT_TRUE(run<scale>(tmp, msh));
 
 		y.add_scalar(y, 2);
 		tmp.reciprocal(y);
-		static check recip{[](double gid, double index) {
-							   return 1.0 / ((index + 2) * gid + 2);
-						   },
-		                   "reciprocal"};
 		EXPECT_TRUE(run<recip>(tmp, msh));
 		y.add_scalar(y, -2);
 
 		tmp.linear_sum(8, y, 9, z);
-		static check linsum{[](double gid, double index) {
-								return ((index + 2) * gid) * 8 +
-			                           ((index + 3) * gid) * 9;
-							},
-		                    "linear sum"};
 		EXPECT_TRUE(run<linsum>(tmp, msh));
 
 		tmp.axpy(7, x, y);
-		static check axpy{[](double gid, double index) {
-							  return (index + 1) * gid * 7 +
-			                         ((index + 2) * gid);
-						  },
-		                  "axpy"};
 		EXPECT_TRUE(run<axpy>(tmp, msh));
 
 		tmp.copy(y);
 		tmp.axpby(4, 11, z);
-		static check axpby{[](double gid, double index) {
-							   return ((index + 3) * gid) * 4 +
-			                          ((index + 2) * gid) * 11;
-						   },
-		                   "axpby"};
 		EXPECT_TRUE(run<axpby>(tmp, msh));
 
 		tmp.add_scalar(y, -4.3);
 		tmp.abs(tmp);
-		static check abs{[](double gid, double index) {
-							 return std::abs((index + 2) * gid - 4.3);
-						 },
-		                 "abs"};
 		EXPECT_TRUE(run<abs>(tmp, msh));
 
 		tmp.add_scalar(y, -7);
