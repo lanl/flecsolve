@@ -14,7 +14,7 @@ namespace flecsi::linalg::gmres {
 
 enum class precond_side { left, right };
 
-static constexpr std::size_t krylov_dim_bound = 100;
+static constexpr int krylov_dim_bound = 100;
 static constexpr std::size_t nwork = (krylov_dim_bound + 1) + 3;
 
 struct settings : solver_settings {
@@ -78,16 +78,16 @@ struct solver : krylov_interface<Workspace, solver> {
 	}
 
 	void reset() {
-		std::size_t max_dim = std::min(params.max_krylov_dim, params.maxiter);
+		int max_dim = std::min(params.max_krylov_dim, params.maxiter);
 		if (params.restart > 0)
-			max_dim =
-				std::min(max_dim, static_cast<std::size_t>(params.restart));
+			max_dim = std::min(max_dim, params.restart);
 
 		hessenberg_data =
 			std::make_unique<real[]>((max_dim + 1) * (max_dim + 1));
 		hmat = std::make_unique<hessenberg_mat>(
 			hessenberg_data.get(),
-			std::array<std::size_t, 2>{max_dim + 1, max_dim + 1});
+			std::array<std::size_t, 2>{static_cast<std::size_t>(max_dim) + 1,
+		                               static_cast<std::size_t>(max_dim) + 1});
 		auto & hessenberg = *hmat;
 		for (int j = 0; j < max_dim + 1; j++) {
 			for (int i = 0; i < max_dim + 1; i++) {
@@ -118,8 +118,6 @@ struct solver : krylov_interface<Workspace, solver> {
 		auto & v = work[wrk++];
 		flog_assert(wrk == (nwork - krylov_dim_bound - 1),
 		            "GMRES: incorrect number of work vectors");
-
-		using scalar = typename DomainVec::scalar;
 
 		auto b_norm = b.l2norm().get();
 

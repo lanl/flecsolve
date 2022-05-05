@@ -71,7 +71,7 @@ struct neumann : operator_settings<neumann<Var, Topo, Axis, Boundary, Scalar>> {
 	neumann(param_type p) : base_type(p) {}
 
 	template<class U, class V>
-	constexpr auto apply(const U & u, V & v) const {
+	constexpr auto apply(const U & u, V &) const {
 
 		const auto & subu = u.template subset(variable<Var>);
 		_apply(subu.data.topo, subu.data.ref());

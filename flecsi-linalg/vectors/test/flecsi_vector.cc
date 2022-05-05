@@ -227,7 +227,6 @@ int vectest() {
 		tmp.add_scalar(y, -7);
 		EXPECT_EQ(tmp.min().get(), -7);
 
-		auto v = z.max().get();
 		EXPECT_EQ(z.max().get(), 93);
 
 		tmp.add_scalar(z, -43);

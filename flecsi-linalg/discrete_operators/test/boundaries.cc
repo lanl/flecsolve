@@ -86,21 +86,21 @@ struct check {
 template<class F, class T, class A, class D>
 check(F &&, T &&, A &&, D &&) -> check<F, T, A, D>;
 
-static check xlo{[](std::size_t j, std::size_t i) { return -1.0; },
+static check xlo{[](std::size_t, std::size_t) { return -1.0; },
                  "x low, dirichlet",
                  std::integral_constant<msh::axis, msh::x_axis>{},
                  std::integral_constant<msh::domain, msh::boundary_low>{}};
 
-static check xhi{[](std::size_t j, std::size_t i) { return 1.0; },
+static check xhi{[](std::size_t, std::size_t) { return 1.0; },
                  "x high, dirichlet",
                  std::integral_constant<msh::axis, msh::x_axis>{},
                  std::integral_constant<msh::domain, msh::boundary_high>{}};
 
-static check ylo{[](std::size_t j, std::size_t i) { return 1.0; },
+static check ylo{[](std::size_t, std::size_t) { return 1.0; },
                  "y low, neumann",
                  std::integral_constant<msh::axis, msh::y_axis>{},
                  std::integral_constant<msh::domain, msh::boundary_low>{}};
-static check yhi{[](std::size_t j, std::size_t i) { return 1.0; },
+static check yhi{[](std::size_t, std::size_t) { return 1.0; },
                  "y hi, neumann",
                  std::integral_constant<msh::axis, msh::y_axis>{},
                  std::integral_constant<msh::domain, msh::boundary_high>{}};

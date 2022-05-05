@@ -96,7 +96,7 @@ void slope_field(msh::accessor<ro, ro> vm,
 }
 
 template<class Vec>
-constexpr decltype(auto) make_boundary_operator_neumann(const Vec & v) {
+constexpr decltype(auto) make_boundary_operator_neumann(const Vec &) {
 	using namespace linalg::discrete_operators;
 
 	auto bndxl = make_operator<
@@ -115,7 +115,7 @@ constexpr decltype(auto) make_boundary_operator_neumann(const Vec & v) {
 }
 
 template<class Vec>
-constexpr decltype(auto) make_boundary_operator_dirichlet(const Vec & v) {
+constexpr decltype(auto) make_boundary_operator_dirichlet(const Vec &) {
 	using namespace linalg::discrete_operators;
 
 	auto bndxl = make_operator<
@@ -132,7 +132,7 @@ constexpr decltype(auto) make_boundary_operator_dirichlet(const Vec & v) {
 }
 
 template<class Vec>
-constexpr decltype(auto) make_volume_operator(const Vec & v) {
+constexpr decltype(auto) make_volume_operator(const Vec &) {
 	using namespace linalg::discrete_operators;
 
 	volume_diffusion_op<Vec::var.value, msh> voldiff(

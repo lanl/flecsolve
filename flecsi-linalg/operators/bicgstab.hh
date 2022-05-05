@@ -43,8 +43,6 @@ struct solver : krylov_interface<Workspace, solver> {
 	                 F && user_diagnostic) {
 		solve_info info;
 
-		using scalar = typename DomainVec::scalar;
-
 		auto & [res, r_tilde, p, v, p_hat, s, s_hat, t] = work;
 
 		real b_norm = b.l2norm().get();
