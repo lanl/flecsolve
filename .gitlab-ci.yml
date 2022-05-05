@@ -69,7 +69,7 @@ mpich-legion-gnu:
     BUILD_TYPE: Debug
     BACKEND: legion
     CXX_COMPILER: g++
-    CXX_FLAGS: ''
+    CXX_FLAGS: -Wall -W -Werror
     C_COMPILER: gcc
     C_FLAGS: ${CXX_FLAGS}
     CMAKE_OPTIONS: ''
@@ -88,7 +88,7 @@ mpich-legion-gnu:release:
     BUILD_TYPE: Release
     BACKEND: legion
     CXX_COMPILER: g++
-    CXX_FLAGS: ''
+    CXX_FLAGS: -Wall -W -Werror
     C_COMPILER: gcc
     C_FLAGS: ${CXX_FLAGS}
     CMAKE_OPTIONS: ''
@@ -112,7 +112,7 @@ mpich-mpi-gnu:
     BUILD_TYPE: Debug
     BACKEND: mpi
     CXX_COMPILER: g++
-    CXX_FLAGS: ''
+    CXX_FLAGS: -Wall -W -Werror
     C_COMPILER: gcc
     C_FLAGS: ${CXX_FLAGS}
     CMAKE_OPTIONS: ''
@@ -131,7 +131,7 @@ mpich-mpi-gnu:release:
     BUILD_TYPE: Release
     BACKEND: mpi
     CXX_COMPILER: g++
-    CXX_FLAGS: ''
+    CXX_FLAGS: -Wall -W -Werror
     C_COMPILER: gcc
     C_FLAGS: ${CXX_FLAGS}
     CMAKE_OPTIONS: ''
@@ -155,7 +155,7 @@ openmpi-legion-gnu:
     BUILD_TYPE: Debug
     BACKEND: legion
     CXX_COMPILER: g++
-    CXX_FLAGS: ''
+    CXX_FLAGS: -Wall -W -Werror
     C_COMPILER: gcc
     C_FLAGS: ${CXX_FLAGS}
     CMAKE_OPTIONS: ''
@@ -174,7 +174,7 @@ openmpi-legion-gnu:release:
     BUILD_TYPE: Release
     BACKEND: legion
     CXX_COMPILER: g++
-    CXX_FLAGS: ''
+    CXX_FLAGS: -Wall -W -Werror
     C_COMPILER: gcc
     C_FLAGS: ${CXX_FLAGS}
     CMAKE_OPTIONS: ''
@@ -198,7 +198,7 @@ openmpi-mpi-gnu:
     BUILD_TYPE: Debug
     BACKEND: mpi
     CXX_COMPILER: g++
-    CXX_FLAGS: ''
+    CXX_FLAGS: -Wall -W -Werror
     C_COMPILER: gcc
     C_FLAGS: ${CXX_FLAGS}
     CMAKE_OPTIONS: ''
@@ -217,7 +217,7 @@ openmpi-mpi-gnu:release:
     BUILD_TYPE: Release
     BACKEND: mpi
     CXX_COMPILER: g++
-    CXX_FLAGS: ''
+    CXX_FLAGS: -Wall -W -Werror
     C_COMPILER: gcc
     C_FLAGS: ${CXX_FLAGS}
     CMAKE_OPTIONS: ''
@@ -241,7 +241,7 @@ mpich-legion-clang:
     BUILD_TYPE: Debug
     BACKEND: legion
     CXX_COMPILER: clang++
-    CXX_FLAGS: -fcolor-diagnostics
+    CXX_FLAGS: -fcolor-diagnostics -Wall -W -Werror
     C_COMPILER: clang
     C_FLAGS: ${CXX_FLAGS}
     CMAKE_OPTIONS: ''
@@ -265,7 +265,7 @@ mpich-mpi-clang:
     BUILD_TYPE: Debug
     BACKEND: mpi
     CXX_COMPILER: clang++
-    CXX_FLAGS: -fcolor-diagnostics
+    CXX_FLAGS: -fcolor-diagnostics -Wall -W -Werror
     C_COMPILER: clang
     C_FLAGS: ${CXX_FLAGS}
     CMAKE_OPTIONS: ''
@@ -289,7 +289,7 @@ openmpi-mpi-clang:
     BUILD_TYPE: Debug
     BACKEND: mpi
     CXX_COMPILER: clang++
-    CXX_FLAGS: -fcolor-diagnostics
+    CXX_FLAGS: -fcolor-diagnostics -Wall -W -Werror
     C_COMPILER: clang
     C_FLAGS: ${CXX_FLAGS}
     CMAKE_OPTIONS: ''
