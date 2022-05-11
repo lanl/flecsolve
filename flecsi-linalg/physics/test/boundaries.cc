@@ -7,15 +7,15 @@
 #include "flecsi-linalg/vectors/mesh.hh"
 #include "flecsi-linalg/vectors/multi.hh"
 
-#include "flecsi-linalg/discrete_operators/boundary/dirichlet.hh"
-#include "flecsi-linalg/discrete_operators/boundary/neumann.hh"
+#include "flecsi-linalg/physics/boundary/dirichlet.hh"
+#include "flecsi-linalg/physics/boundary/neumann.hh"
 
-#include "flecsi-linalg/discrete_operators/specializations/operator_mesh.hh"
+#include "flecsi-linalg/physics/specializations/operator_mesh.hh"
 
 using namespace flecsi;
 
 namespace flecsi::linalg {
-using msh = discrete_operators::operator_mesh;
+using msh = physics::operator_mesh;
 
 constexpr std::size_t NX = 16;
 constexpr std::size_t NY = 16;
@@ -112,22 +112,22 @@ int boundary_test() {
 	UNIT () {
 		vec::mesh x(linalg::variable<bndvar::v1>, m, xd(m));
 
-		auto bndry_xlo = discrete_operators::make_operator<
-			discrete_operators::
+		auto bndry_xlo = physics::make_operator<
+			physics::
 				dirichlet<bndvar::v1, msh, msh::x_axis, msh::boundary_low>>(
 			-1.0);
 
-		auto bndry_xhi = discrete_operators::make_operator<
-			discrete_operators::
+		auto bndry_xhi = physics::make_operator<
+			physics::
 				dirichlet<bndvar::v1, msh, msh::x_axis, msh::boundary_high>>(
 			1.0);
 
-		auto bndry_ylo = discrete_operators::make_operator<
-			discrete_operators::
+		auto bndry_ylo = physics::make_operator<
+			physics::
 				neumann<bndvar::v1, msh, msh::y_axis, msh::boundary_low>>(
 			bd(m));
-		auto bndry_yhi = discrete_operators::make_operator<
-			discrete_operators::
+		auto bndry_yhi = physics::make_operator<
+			physics::
 				neumann<bndvar::v1, msh, msh::y_axis, msh::boundary_high>>(
 			bd(m));
 

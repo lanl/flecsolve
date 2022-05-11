@@ -1,6 +1,6 @@
 #pragma once
 
-#include "flecsi-linalg/discrete_operators/specializations/operator_mesh.hh"
+#include "flecsi-linalg/physics/specializations/operator_mesh.hh"
 #include <flecsi/data.hh>
 
 #include "parameters.hh"
@@ -9,7 +9,7 @@ using namespace flecsi;
 
 namespace diffusion {
 
-using msh = linalg::discrete_operators::operator_mesh;
+using msh = linalg::physics::operator_mesh;
 
 msh::slot m;
 msh::cslot coloring;

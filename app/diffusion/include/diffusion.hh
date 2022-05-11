@@ -8,12 +8,12 @@
 #include "flecsi-linalg/vectors/mesh.hh"
 #include "flecsi-linalg/vectors/multi.hh"
 
-#include "flecsi-linalg/discrete_operators/boundary/dirichlet.hh"
-#include "flecsi-linalg/discrete_operators/boundary/neumann.hh"
-#include "flecsi-linalg/discrete_operators/expressions/operator_expression.hh"
-#include "flecsi-linalg/discrete_operators/volume_diffusion/volume_diffusion.hh"
-#include "flecsi-linalg/operators/cg.hh"
-#include "flecsi-linalg/operators/solver_settings.hh"
+#include "flecsi-linalg/physics/boundary/dirichlet.hh"
+#include "flecsi-linalg/physics/boundary/neumann.hh"
+#include "flecsi-linalg/physics/expressions/operator_expression.hh"
+#include "flecsi-linalg/physics/volume_diffusion/volume_diffusion.hh"
+#include "flecsi-linalg/solvers/cg.hh"
+#include "flecsi-linalg/solvers/solver_settings.hh"
 
 #include "parameters.hh"
 #include "state.hh"
@@ -97,7 +97,7 @@ void slope_field(msh::accessor<ro, ro> vm,
 
 template<class Vec>
 constexpr decltype(auto) make_boundary_operator_neumann(const Vec &) {
-	using namespace linalg::discrete_operators;
+	using namespace linalg::physics;
 
 	auto bndxl = make_operator<
 		neumann<Vec::var.value, msh, msh::x_axis, msh::boundary_low>>(diffb(m));
@@ -116,7 +116,7 @@ constexpr decltype(auto) make_boundary_operator_neumann(const Vec &) {
 
 template<class Vec>
 constexpr decltype(auto) make_boundary_operator_dirichlet(const Vec &) {
-	using namespace linalg::discrete_operators;
+	using namespace linalg::physics;
 
 	auto bndxl = make_operator<
 		dirichlet<Vec::var.value, msh, msh::x_axis, msh::boundary_low>>(0.0);
@@ -133,7 +133,7 @@ constexpr decltype(auto) make_boundary_operator_dirichlet(const Vec &) {
 
 template<class Vec>
 constexpr decltype(auto) make_volume_operator(const Vec &) {
-	using namespace linalg::discrete_operators;
+	using namespace linalg::physics;
 
 	volume_diffusion_op<Vec::var.value, msh> voldiff(
 		m, {diff_beta, diff_alpha, diffa(m), diffb(m)});
@@ -176,7 +176,7 @@ int driver() {
 	auto & [vec1, vec2] = X;
 
 	// build the operator on the variables
-	auto A = linalg::discrete_operators::op_expr(
+	auto A = linalg::physics::op_expr(
 		linalg::multivariable<diffusion_var::v1, diffusion_var::v2>,
 		make_boundary_operator_neumann(vec1),
 		make_volume_operator(vec1),

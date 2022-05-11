@@ -12,7 +12,7 @@
 
 namespace flecsi {
 namespace linalg {
-namespace discrete_operators {
+namespace physics {
 namespace common {
 
 template<class K, auto Space, std::size_t Len, std::size_t tag>
@@ -45,6 +45,6 @@ protected:
 };
 
 } // namespace common
-} // namespace discrete_operators
+} // namespace physics
 } // namespace linalg
 } // namespace flecsi

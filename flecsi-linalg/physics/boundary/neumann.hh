@@ -5,12 +5,12 @@
 #include <utility>
 #include <vector>
 
-#include "flecsi-linalg/discrete_operators/common/operator_base.hh"
-#include "flecsi-linalg/discrete_operators/tasks/operator_task.hh"
+#include "flecsi-linalg/physics/common/operator_base.hh"
+#include "flecsi-linalg/physics/tasks/operator_task.hh"
 
 namespace flecsi {
 namespace linalg {
-namespace discrete_operators {
+namespace physics {
 
 template<auto Var,
          class Topo,
@@ -84,6 +84,6 @@ struct neumann : operator_settings<neumann<Var, Topo, Axis, Boundary, Scalar>> {
 	}
 };
 
-} // namespace discrete_operators
+} // namespace physics
 } // namespace linalg
 } // namespace flecsi

@@ -7,7 +7,7 @@
 
 namespace flecsi {
 namespace linalg {
-namespace discrete_operators {
+namespace physics {
 namespace utils {
 
 namespace mp {
@@ -142,6 +142,6 @@ constexpr auto offset_seq() {
 }
 
 } // namespace utils
-} // namespace discrete_operators
+} // namespace physics
 } // namespace linalg
 } // namespace flecsi

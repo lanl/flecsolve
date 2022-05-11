@@ -5,7 +5,7 @@
 #include "flecsi/util/unit/types.hh"
 
 #include "flecsi-linalg/vectors/mesh.hh"
-#include "flecsi-linalg/operators/cg.hh"
+#include "flecsi-linalg/solvers/cg.hh"
 
 #include "csr_utils.hh"
 

@@ -7,14 +7,14 @@
 #include <tuple>
 #include <utility>
 
-#include "flecsi-linalg/discrete_operators/common/operator_base.hh"
-#include "flecsi-linalg/discrete_operators/common/operator_utils.hh"
-#include "flecsi-linalg/discrete_operators/common/state_store.hh"
-#include "flecsi-linalg/discrete_operators/tasks/operator_task.hh"
+#include "flecsi-linalg/physics/common/operator_base.hh"
+#include "flecsi-linalg/physics/common/operator_utils.hh"
+#include "flecsi-linalg/physics/common/state_store.hh"
+#include "flecsi-linalg/physics/tasks/operator_task.hh"
 
 namespace flecsi {
 namespace linalg {
-namespace discrete_operators {
+namespace physics {
 
 /**
  * @brief operator of finite-volume diffusion
@@ -137,6 +137,6 @@ struct volume_diffusion_op
 	}
 };
 
-} // namespace discrete_operators
+} // namespace physics
 } // namespace linalg
 } // namespace flecsi

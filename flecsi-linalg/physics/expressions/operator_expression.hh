@@ -5,7 +5,7 @@
 
 namespace flecsi {
 namespace linalg {
-namespace discrete_operators {
+namespace physics {
 
 #include <cassert>
 #include <functional>
@@ -52,6 +52,6 @@ inline constexpr auto op_expr(multivariable_t<vars...>, Ps... ps) {
 	return OpExpr<multivariable_t<vars...>, std::tuple<Ps...>>(ps...);
 }
 
-} // namespace discrete_operators
+} // namespace physics
 } // namespace linalg
 } // namespace flecsi

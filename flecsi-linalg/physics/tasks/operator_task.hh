@@ -6,12 +6,12 @@
 #include <unordered_map>
 #include <utility>
 
-#include "flecsi-linalg/discrete_operators/common/operator_utils.hh"
+#include "flecsi-linalg/physics/common/operator_utils.hh"
 #include "flecsi/data.hh"
 
 namespace flecsi {
 namespace linalg {
-namespace discrete_operators {
+namespace physics {
 namespace tasks {
 
 template<class Topo, class Field>
@@ -226,6 +226,6 @@ struct topology_tasks {
 };
 
 } // namespace tasks
-} // namespace discrete_operators
+} // namespace physics
 } // namespace linalg
 } // namespace flecsi

@@ -10,7 +10,7 @@
 
 namespace flecsi {
 namespace linalg {
-namespace discrete_operators {
+namespace physics {
 
 template<class Derived>
 struct operator_traits;
@@ -122,6 +122,6 @@ struct is_tuple : std::false_type {};
 template<typename... T>
 struct is_tuple<std::tuple<T...>> : std::true_type {};
 
-} // namespace discrete_operators
+} // namespace physics
 } // namespace linalg
 } // namespace flecsi

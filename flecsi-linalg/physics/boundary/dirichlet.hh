@@ -5,13 +5,13 @@
 #include <utility>
 #include <vector>
 
-#include "flecsi-linalg/discrete_operators/common/operator_base.hh"
-#include "flecsi-linalg/discrete_operators/tasks/operator_task.hh"
+#include "flecsi-linalg/physics/common/operator_base.hh"
+#include "flecsi-linalg/physics/tasks/operator_task.hh"
 #include "flecsi-linalg/vectors/variable.hh"
 
 namespace flecsi {
 namespace linalg {
-namespace discrete_operators {
+namespace physics {
 
 template<auto Var,
          class Topo,
@@ -85,6 +85,6 @@ struct dirichlet
 // Boundary, class Scalar> dirchilet(Axis, Boundary, Scalar)->dirchilet<Topo,
 // Axis, Boundary, Scalar>
 
-} // namespace discrete_operators
+} // namespace physics
 } // namespace linalg
 } // namespace flecsi

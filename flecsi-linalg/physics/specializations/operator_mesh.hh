@@ -8,11 +8,11 @@
 #include <tuple>
 #include <utility>
 
-#include "flecsi-linalg/discrete_operators/common/operator_utils.hh"
+#include "flecsi-linalg/physics/common/operator_utils.hh"
 
 namespace flecsi {
 namespace linalg {
-namespace discrete_operators {
+namespace physics {
 
 template<typename T, flecsi::data::layout L = flecsi::data::layout::dense>
 using field = flecsi::field<T, L>;
@@ -287,6 +287,6 @@ struct operator_mesh : topo::specialization<topo::narray, operator_mesh> {
 	} // initialize
 };
 
-} // namespace discrete_operators
+} // namespace physics
 } // namespace linalg
 } // namespace flecsi
