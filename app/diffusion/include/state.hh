@@ -1,6 +1,6 @@
 #pragma once
 
-#include "flecsi-linalg/physics/specializations/operator_mesh.hh"
+#include "flecsolve/physics/specializations/operator_mesh.hh"
 #include <flecsi/data.hh>
 
 #include "parameters.hh"

@@ -5,15 +5,15 @@
 #include <flecsi/flog.hh>
 #include <iostream>
 
-#include "flecsi-linalg/vectors/mesh.hh"
-#include "flecsi-linalg/vectors/multi.hh"
+#include "flecsolve/vectors/mesh.hh"
+#include "flecsolve/vectors/multi.hh"
 
-#include "flecsi-linalg/physics/boundary/dirichlet.hh"
-#include "flecsi-linalg/physics/boundary/neumann.hh"
-#include "flecsi-linalg/physics/expressions/operator_expression.hh"
-#include "flecsi-linalg/physics/volume_diffusion/volume_diffusion.hh"
-#include "flecsi-linalg/solvers/cg.hh"
-#include "flecsi-linalg/solvers/solver_settings.hh"
+#include "flecsolve/physics/boundary/dirichlet.hh"
+#include "flecsolve/physics/boundary/neumann.hh"
+#include "flecsolve/physics/expressions/operator_expression.hh"
+#include "flecsolve/physics/volume_diffusion/volume_diffusion.hh"
+#include "flecsolve/solvers/cg.hh"
+#include "flecsolve/solvers/solver_settings.hh"
 
 #include "parameters.hh"
 #include "state.hh"

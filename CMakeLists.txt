@@ -41,7 +41,7 @@ if(NOT FORMAT_ONLY)
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 	$<INSTALL_INTERFACE:include>)
 
-  add_subdirectory(flecsi-linalg)
+  add_subdirectory(flecsolve)
   add_subdirectory(app)
 
   install(TARGETS linalg EXPORT flecsi-linalgTargets
@@ -56,7 +56,7 @@ if(NOT FORMAT_ONLY)
 	NAMESPACE FleCSI::
 	FILE flecsi-linalgTargets.cmake)
 
-  install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/flecsi-linalg
+  install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/flecsolve
 	DESTINATION include
 	FILES_MATCHING PATTERN "*.hh")
 
