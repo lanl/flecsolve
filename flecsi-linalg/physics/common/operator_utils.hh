@@ -5,8 +5,7 @@
 #include "flecsi/data.hh"
 #include "flecsi/util/constant.hh"
 
-namespace flecsi {
-namespace linalg {
+namespace flecsolve {
 namespace physics {
 namespace utils {
 
@@ -141,7 +140,6 @@ constexpr auto offset_seq() {
 	return std::integer_sequence<int, OFFSETS...>{};
 }
 
-} // namespace utils
-} // namespace physics
-} // namespace linalg
-} // namespace flecsi
+}
+}
+}

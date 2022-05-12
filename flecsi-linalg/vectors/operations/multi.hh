@@ -7,7 +7,7 @@
 #include "flecsi-linalg/util/future.hh"
 #include "flecsi-linalg/util/traits.hh"
 
-namespace flecsi::linalg::vec::ops {
+namespace flecsolve::vec::ops {
 
 template<class Scalar, class Len, class VecData, std::size_t NumVecs>
 struct multi {

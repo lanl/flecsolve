@@ -10,8 +10,7 @@
 #include <utility>
 #include <vector>
 
-namespace flecsi {
-namespace linalg {
+namespace flecsolve {
 namespace physics {
 namespace common {
 
@@ -21,8 +20,10 @@ struct topo_state_store {
 	using scalar_t = typename K::scalar_t;
 	using topo_slot_t = typename K::topo_slot_t;
 
-	using fd = typename field<scalar_t>::template definition<topo_t, Space>;
-	using fd_ref = typename field<scalar_t>::template Reference<topo_t, Space>;
+	using fd =
+		typename flecsi::field<scalar_t>::template definition<topo_t, Space>;
+	using fd_ref =
+		typename flecsi::field<scalar_t>::template Reference<topo_t, Space>;
 
 	static inline std::array<fd, Len> fields;
 
@@ -44,7 +45,6 @@ protected:
 	}
 };
 
-} // namespace common
-} // namespace physics
-} // namespace linalg
-} // namespace flecsi
+}
+}
+}

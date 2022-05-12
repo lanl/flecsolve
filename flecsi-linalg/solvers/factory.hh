@@ -5,7 +5,7 @@
 
 #include "flecsi-linalg/util/traits.hh"
 
-namespace flecsi::linalg::op {
+namespace flecsolve::op {
 
 template<class T>
 struct factory;

@@ -3,7 +3,7 @@
 
 #include <flecsi/data.hh>
 
-namespace flecsi::linalg::vec::data {
+namespace flecsolve::vec::data {
 
 template<typename T, flecsi::data::layout L = flecsi::data::layout::dense>
 using field = flecsi::field<T, L>;
@@ -17,21 +17,22 @@ struct mesh {
 		typename field<T>::template definition<Topo, Space>;
 	using field_reference = typename field<T>::template Reference<Topo, Space>;
 
-	static inline constexpr PrivilegeCount num_priv =
+	static inline constexpr flecsi::PrivilegeCount num_priv =
 		topo_t::template privilege_count<Space>;
 
-	template<partition_privilege_t priv>
-	static inline constexpr Privileges dofs_priv =
-		privilege_cat<privilege_repeat<priv, num_priv - (num_priv > 1)>,
-	                  privilege_repeat<na, (num_priv > 1)>>;
+	template<flecsi::partition_privilege_t priv>
+	static inline constexpr flecsi::Privileges dofs_priv =
+		flecsi::privilege_cat<
+			flecsi::privilege_repeat<priv, num_priv - (num_priv > 1)>,
+			flecsi::privilege_repeat<flecsi::na, (num_priv > 1)>>;
 
-	using topo_acc = typename topo_t::template accessor<ro>;
-	template<partition_privilege_t priv>
+	using topo_acc = typename topo_t::template accessor<flecsi::ro>;
+	template<flecsi::partition_privilege_t priv>
 	using acc = typename field<T>::template accessor1<dofs_priv<priv>>;
 
-	template<partition_privilege_t priv>
-	using acc_all =
-		typename field<T>::template accessor1<privilege_repeat<priv, num_priv>>;
+	template<flecsi::partition_privilege_t priv>
+	using acc_all = typename field<T>::template accessor1<
+		flecsi::privilege_repeat<priv, num_priv>>;
 
 	struct util {
 		template<class U>

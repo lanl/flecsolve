@@ -3,7 +3,7 @@
 #include <tuple>
 #include <functional>
 
-namespace flecsi::linalg {
+namespace flecsolve {
 
 template<class... Futures>
 struct future_vector {

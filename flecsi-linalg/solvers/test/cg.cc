@@ -9,7 +9,7 @@
 
 #include "csr_utils.hh"
 
-namespace flecsi::linalg {
+namespace flecsolve {
 
 static constexpr std::size_t ncases = 2;
 std::array<testmesh::slot, ncases> mshs;
@@ -106,6 +106,6 @@ int cgtest() {
 	return 0;
 }
 
-unit::driver<cgtest> driver;
+flecsi::unit::driver<cgtest> driver;
 
 }

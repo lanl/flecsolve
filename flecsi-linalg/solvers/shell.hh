@@ -4,7 +4,7 @@
 
 #include <flecsi-linalg/vectors/variable.hh>
 
-namespace flecsi::linalg::op {
+namespace flecsolve::op {
 
 template<class F,
          auto ivar = anon_var::anonymous,

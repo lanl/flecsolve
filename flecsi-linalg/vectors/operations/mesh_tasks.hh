@@ -4,11 +4,16 @@
 #include <random>
 
 #include <flecsi/execution.hh>
+#include <flecsi/data.hh>
 
 #include "flecsi-linalg/util/traits.hh"
 #include "flecsi-linalg/vectors/data/mesh.hh"
 
-namespace flecsi::linalg::vec::ops {
+namespace flecsolve::vec::ops {
+
+using flecsi::ro;
+using flecsi::rw;
+using flecsi::wo;
 
 template<class VecData, class Scalar, class Len>
 struct mesh_tasks {
@@ -19,10 +24,10 @@ struct mesh_tasks {
 	static constexpr bool is_complex = num_traits<scalar>::is_complex;
 	using topo_acc = typename VecData::topo_acc;
 
-	template<partition_privilege_t priv>
+	template<flecsi::partition_privilege_t priv>
 	using acc = typename VecData::template acc<priv>;
 
-	template<partition_privilege_t priv>
+	template<flecsi::partition_privilege_t priv>
 	using acc_all = typename VecData::template acc_all<priv>;
 
 	using util = typename VecData::util;
@@ -294,7 +299,7 @@ struct mesh_tasks {
 
 	static void dump(std::string_view pre, topo_acc m, acc<ro> x) {
 		std::string fname{pre};
-		fname += "-" + std::to_string(process());
+		fname += "-" + std::to_string(flecsi::process());
 		std::ofstream ofile(fname);
 		for (auto dof : util::dofs(m)) {
 			ofile << x(dof) << '\n';

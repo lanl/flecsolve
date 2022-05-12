@@ -8,9 +8,7 @@
 #include <type_traits>
 #include <utility>
 
-namespace flecsi {
-namespace linalg {
-namespace physics {
+namespace flecsolve::physics {
 
 template<class Derived>
 struct operator_traits;
@@ -122,6 +120,4 @@ struct is_tuple : std::false_type {};
 template<typename... T>
 struct is_tuple<std::tuple<T...>> : std::true_type {};
 
-} // namespace physics
-} // namespace linalg
-} // namespace flecsi
+}

@@ -2,7 +2,7 @@
 
 #include "flecsi-linalg/vectors/data/petsc.hh"
 
-namespace flecsi::linalg::vec::ops {
+namespace flecsolve::vec::ops {
 
 struct petsc_tasks {
 	using real = PetscScalar;

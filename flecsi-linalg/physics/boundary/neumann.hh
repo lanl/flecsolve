@@ -8,8 +8,7 @@
 #include "flecsi-linalg/physics/common/operator_base.hh"
 #include "flecsi-linalg/physics/tasks/operator_task.hh"
 
-namespace flecsi {
-namespace linalg {
+namespace flecsolve {
 namespace physics {
 
 template<auto Var,
@@ -30,13 +29,15 @@ struct operator_traits<neumann<Var, Topo, Axis, Boundary, Scalar>> {
 	using topo_slot_t = flecsi::data::topology_slot<Topo>;
 	using topo_axes_t = typename topo_t::axes;
 	constexpr static auto dim = Topo::dimension;
-	using tasks_f = tasks::topology_tasks<topo_t, field<scalar_t>>;
+	using tasks_f = tasks::topology_tasks<topo_t, flecsi::field<scalar_t>>;
 
 	using cell_ref =
-		typename field<scalar_t>::template Reference<topo_t, topo_t::cells>;
+		typename flecsi::field<scalar_t>::template Reference<topo_t,
+	                                                         topo_t::cells>;
 
 	using face_ref =
-		typename field<scalar_t>::template Reference<topo_t, topo_t::faces>;
+		typename flecsi::field<scalar_t>::template Reference<topo_t,
+	                                                         topo_t::faces>;
 
 	constexpr static auto op_axis = Axis;
 	constexpr static auto op_boundary = Boundary;
@@ -84,6 +85,5 @@ struct neumann : operator_settings<neumann<Var, Topo, Axis, Boundary, Scalar>> {
 	}
 };
 
+}
 } // namespace physics
-} // namespace linalg
-} // namespace flecsi

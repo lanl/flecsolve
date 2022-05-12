@@ -14,7 +14,7 @@
 
 using namespace flecsi;
 
-namespace flecsi::linalg {
+namespace flecsolve {
 using msh = physics::operator_mesh;
 
 constexpr std::size_t NX = 16;
@@ -110,7 +110,7 @@ int boundary_test() {
 	init_mesh();
 	execute<fill_field<msh::faces>>(m, bd(m), 1.0);
 	UNIT () {
-		vec::mesh x(linalg::variable<bndvar::v1>, m, xd(m));
+		vec::mesh x(variable<bndvar::v1>, m, xd(m));
 
 		auto bndry_xlo = physics::make_operator<
 			physics::
@@ -123,12 +123,10 @@ int boundary_test() {
 			1.0);
 
 		auto bndry_ylo = physics::make_operator<
-			physics::
-				neumann<bndvar::v1, msh, msh::y_axis, msh::boundary_low>>(
+			physics::neumann<bndvar::v1, msh, msh::y_axis, msh::boundary_low>>(
 			bd(m));
 		auto bndry_yhi = physics::make_operator<
-			physics::
-				neumann<bndvar::v1, msh, msh::y_axis, msh::boundary_high>>(
+			physics::neumann<bndvar::v1, msh, msh::y_axis, msh::boundary_high>>(
 			bd(m));
 
 		x.set_scalar(1.0);
@@ -147,4 +145,4 @@ int boundary_test() {
 
 unit::driver<boundary_test> driver;
 
-} // namespace flecsi::linalg
+} // namespace flecsolve

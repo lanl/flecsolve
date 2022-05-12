@@ -6,7 +6,7 @@
 #include "operations/mesh.hh"
 #include "data/mesh.hh"
 
-namespace flecsi::linalg::vec {
+namespace flecsolve::vec {
 
 template<auto V, class Topo, typename Topo::index_space Space, class Scalar>
 struct mesh : vector<data::mesh<Topo, Space, Scalar>,

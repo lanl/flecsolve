@@ -10,14 +10,14 @@
 
 #include "flecsi-linalg/physics/common/operator_utils.hh"
 
-namespace flecsi {
-namespace linalg {
+namespace flecsolve {
 namespace physics {
 
 template<typename T, flecsi::data::layout L = flecsi::data::layout::dense>
 using field = flecsi::field<T, L>;
 
-struct operator_mesh : topo::specialization<topo::narray, operator_mesh> {
+struct operator_mesh
+	: flecsi::topo::specialization<flecsi::topo::narray, operator_mesh> {
 	enum index_space { cells, faces };
 	using index_spaces = has<cells, faces>;
 
@@ -287,6 +287,5 @@ struct operator_mesh : topo::specialization<topo::narray, operator_mesh> {
 	} // initialize
 };
 
-} // namespace physics
-} // namespace linalg
-} // namespace flecsi
+}
+}

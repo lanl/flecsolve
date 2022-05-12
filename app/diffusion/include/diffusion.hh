@@ -97,7 +97,7 @@ void slope_field(msh::accessor<ro, ro> vm,
 
 template<class Vec>
 constexpr decltype(auto) make_boundary_operator_neumann(const Vec &) {
-	using namespace linalg::physics;
+	using namespace flecsolve::physics;
 
 	auto bndxl = make_operator<
 		neumann<Vec::var.value, msh, msh::x_axis, msh::boundary_low>>(diffb(m));
@@ -111,12 +111,12 @@ constexpr decltype(auto) make_boundary_operator_neumann(const Vec &) {
 		diffb(m));
 
 	return op_expr(
-		linalg::multivariable<Vec::var.value>, bndxl, bndxh, bndyl, bndyh);
+		flecsolve::multivariable<Vec::var.value>, bndxl, bndxh, bndyl, bndyh);
 }
 
 template<class Vec>
 constexpr decltype(auto) make_boundary_operator_dirichlet(const Vec &) {
-	using namespace linalg::physics;
+	using namespace flecsolve::physics;
 
 	auto bndxl = make_operator<
 		dirichlet<Vec::var.value, msh, msh::x_axis, msh::boundary_low>>(0.0);
@@ -128,17 +128,17 @@ constexpr decltype(auto) make_boundary_operator_dirichlet(const Vec &) {
 		dirichlet<Vec::var.value, msh, msh::y_axis, msh::boundary_high>>(0.0);
 
 	return op_expr(
-		linalg::multivariable<Vec::var.value>, bndxl, bndxh, bndyl, bndyh);
+		flecsolve::multivariable<Vec::var.value>, bndxl, bndxh, bndyl, bndyh);
 }
 
 template<class Vec>
 constexpr decltype(auto) make_volume_operator(const Vec &) {
-	using namespace linalg::physics;
+	using namespace flecsolve::physics;
 
 	volume_diffusion_op<Vec::var.value, msh> voldiff(
 		m, {diff_beta, diff_alpha, diffa(m), diffb(m)});
 
-	return op_expr(linalg::multivariable<Vec::var.value>, voldiff);
+	return op_expr(flecsolve::multivariable<Vec::var.value>, voldiff);
 }
 
 int driver() {
@@ -165,19 +165,22 @@ int driver() {
 	//===================================================
 
 	// define the solution and RHS MVs and assign them to a variable/field
-	linalg::vec::multi X(
-		linalg::vec::mesh(linalg::variable<diffusion_var::v1>, m, v1d(m)),
-		linalg::vec::mesh(linalg::variable<diffusion_var::v2>, m, v2d(m)));
+	flecsolve::vec::multi X(
+		flecsolve::vec::mesh(flecsolve::variable<diffusion_var::v1>, m, v1d(m)),
+		flecsolve::vec::mesh(
+			flecsolve::variable<diffusion_var::v2>, m, v2d(m)));
 
-	linalg::vec::multi RHS(
-		linalg::vec::mesh(linalg::variable<diffusion_var::v1>, m, rhs1d(m)),
-		linalg::vec::mesh(linalg::variable<diffusion_var::v2>, m, rhs2d(m)));
+	flecsolve::vec::multi RHS(
+		flecsolve::vec::mesh(
+			flecsolve::variable<diffusion_var::v1>, m, rhs1d(m)),
+		flecsolve::vec::mesh(
+			flecsolve::variable<diffusion_var::v2>, m, rhs2d(m)));
 
 	auto & [vec1, vec2] = X;
 
 	// build the operator on the variables
-	auto A = linalg::physics::op_expr(
-		linalg::multivariable<diffusion_var::v1, diffusion_var::v2>,
+	auto A = flecsolve::physics::op_expr(
+		flecsolve::multivariable<diffusion_var::v1, diffusion_var::v2>,
 		make_boundary_operator_neumann(vec1),
 		make_volume_operator(vec1),
 		make_boundary_operator_dirichlet(vec2),
@@ -188,12 +191,12 @@ int driver() {
 
 	// get the solver parameters and workspace, & bind the operator to the
 	// solver
-	linalg::krylov_params params(linalg::cg::settings{100, 1e-9, 1e-9},
-	                             linalg::cg::topo_work<>::get(RHS),
-	                             std::move(A));
+	flecsolve::krylov_params params(flecsolve::cg::settings{100, 1e-9, 1e-9},
+	                                flecsolve::cg::topo_work<>::get(RHS),
+	                                std::move(A));
 
 	// create the solver
-	auto slv = linalg::op::create(std::move(params));
+	auto slv = flecsolve::op::create(std::move(params));
 
 	// run the solver
 	auto info = slv.apply(RHS, X);

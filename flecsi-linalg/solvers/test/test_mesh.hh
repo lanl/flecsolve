@@ -1,8 +1,8 @@
 #include <flecsi/topo/narray/interface.hh>
 
-namespace flecsi::linalg {
+namespace flecsolve {
 
-struct testmesh : topo::specialization<topo::narray, testmesh> {
+struct testmesh : flecsi::topo::specialization<flecsi::topo::narray, testmesh> {
 	enum index_space { cells };
 	using index_spaces = has<cells>;
 	enum domain { logical, all, global };

@@ -7,7 +7,7 @@
 
 #include "variable.hh"
 
-namespace flecsi::linalg {
+namespace flecsolve {
 
 template<class Data, class Ops, auto Variable = anon_var::anonymous>
 class vector
@@ -297,4 +297,4 @@ bool operator!=(const vector<Data, Ops, Variable> & v1,
 	return v1.data != v2.data;
 }
 
-} // namespace flecsi::linalg
+} // namespace flecsolve

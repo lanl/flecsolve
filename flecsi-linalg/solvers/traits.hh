@@ -3,7 +3,7 @@
 
 #include "flecsi-linalg/vectors/variable.hh"
 
-namespace flecsi::linalg::op {
+namespace flecsolve::op {
 
 template<class T, class = void>
 struct has_input_variable_t : std::false_type {};

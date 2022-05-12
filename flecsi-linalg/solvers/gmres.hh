@@ -10,7 +10,7 @@
 #include "shell.hh"
 #include "krylov_interface.hh"
 
-namespace flecsi::linalg::gmres {
+namespace flecsolve::gmres {
 
 enum class precond_side { left, right };
 
@@ -55,8 +55,8 @@ struct solver : krylov_interface<Workspace, solver> {
 			work = std::forward<Workspace>(o.work);
 			hessenberg_data = std::exchange(o.hessenberg_data, nullptr);
 			hmat = std::exchange(o.hmat, nullptr);
-			basis = util::span(work.data() + (nwork - krylov_dim_bound - 1),
-			                   o.basis.size());
+			basis = flecsi::util::span(
+				work.data() + (nwork - krylov_dim_bound - 1), o.basis.size());
 			sinvec = std::move(o.sinvec);
 			cosvec = std::move(o.cosvec);
 			dwvec = std::move(o.dwvec);
@@ -99,8 +99,8 @@ struct solver : krylov_interface<Workspace, solver> {
 		dwvec.resize(max_dim + 1, 0.0);
 		dyvec.resize(max_dim + 1, 0.0);
 
-		basis = util::span(work.data() + (nwork - krylov_dim_bound - 1),
-		                   max_dim + 1);
+		basis = flecsi::util::span(work.data() + (nwork - krylov_dim_bound - 1),
+		                           max_dim + 1);
 	}
 
 	template<class Op, class DomainVec, class RangeVec, class Pre, class F>
@@ -360,9 +360,9 @@ protected:
 
 protected:
 	std::unique_ptr<real[]> hessenberg_data;
-	using hessenberg_mat = util::mdcolex<real, 2>;
+	using hessenberg_mat = flecsi::util::mdcolex<real, 2>;
 	std::unique_ptr<hessenberg_mat> hmat;
-	util::span<typename iface::workvec_t> basis;
+	flecsi::util::span<typename iface::workvec_t> basis;
 	std::vector<real> sinvec, cosvec;
 	std::vector<real> dwvec, dyvec;
 	settings params;
@@ -372,7 +372,7 @@ solver(const settings &, V &&) -> solver<V>;
 
 }
 
-namespace flecsi::linalg {
+namespace flecsolve {
 
 template<class W, class... Ops>
 struct traits<krylov_params<gmres::settings, W, Ops...>> {

@@ -3,7 +3,7 @@
 
 #include <complex>
 
-namespace flecsi::linalg {
+namespace flecsolve {
 
 template<class T>
 struct traits {};

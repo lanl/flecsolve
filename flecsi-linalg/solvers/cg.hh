@@ -7,7 +7,7 @@
 #include "shell.hh"
 #include "solver_settings.hh"
 
-namespace flecsi::linalg::cg {
+namespace flecsolve::cg {
 
 static constexpr std::size_t nwork = 4;
 
@@ -129,13 +129,13 @@ protected:
 template<class V>
 solver(const settings &, V &&) -> solver<V>;
 
-} // namespace flecsi::linalg::cg
+} // namespace flecsolve::cg
 
-namespace flecsi::linalg {
+namespace flecsolve {
 template<class W, class... Ops>
 struct traits<krylov_params<cg::settings, W, Ops...>> {
 	using op = krylov_interface<W, cg::solver>;
 };
 
-} // namespace flecsi::linalg
+} // namespace flecsolve
 #endif

@@ -7,7 +7,7 @@
 #include "shell.hh"
 #include "krylov_interface.hh"
 
-namespace flecsi::linalg::bicgstab {
+namespace flecsolve::bicgstab {
 
 static constexpr std::size_t nwork = 8;
 
@@ -189,7 +189,7 @@ solver(const settings &, V &&) -> solver<V>;
 
 }
 
-namespace flecsi::linalg {
+namespace flecsolve {
 
 template<class W, class... Ops>
 struct traits<krylov_params<bicgstab::settings, W, Ops...>> {

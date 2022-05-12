@@ -9,10 +9,14 @@
 #include "flecsi-linalg/physics/common/operator_utils.hh"
 #include "flecsi/data.hh"
 
-namespace flecsi {
-namespace linalg {
+namespace flecsolve {
 namespace physics {
 namespace tasks {
+
+using flecsi::na;
+using flecsi::ro;
+using flecsi::rw;
+using flecsi::wo;
 
 template<class Topo, class Field>
 struct topology_tasks {
@@ -25,20 +29,21 @@ struct topology_tasks {
 	using scalar_t = typename Field::value_type;
 	static constexpr std::size_t dim = axes::size;
 
-	static inline constexpr PrivilegeCount num_priv =
+	static inline constexpr flecsi::PrivilegeCount num_priv =
 		topo_t::template privilege_count<0>;
 
-	template<partition_privilege_t priv>
-	static inline constexpr Privileges dofs_priv =
-		privilege_cat<privilege_repeat<priv, num_priv - (num_priv > 1)>,
-	                  privilege_repeat<na, (num_priv > 1)>>;
+	template<flecsi::partition_privilege_t priv>
+	static inline constexpr flecsi::Privileges dofs_priv =
+		flecsi::privilege_cat<
+			flecsi::privilege_repeat<priv, num_priv - (num_priv > 1)>,
+			flecsi::privilege_repeat<na, (num_priv > 1)>>;
 
-	template<partition_privilege_t priv>
+	template<flecsi::partition_privilege_t priv>
 	using acc = typename Field::template accessor1<dofs_priv<priv>>;
 
-	template<partition_privilege_t priv>
-	using acc_all =
-		typename Field::template accessor1<privilege_repeat<priv, num_priv>>;
+	template<flecsi::partition_privilege_t priv>
+	using acc_all = typename Field::template accessor1<
+		flecsi::privilege_repeat<priv, num_priv>>;
 
 	template<std::size_t I>
 	static constexpr auto cast_idx() {
@@ -225,7 +230,6 @@ struct topology_tasks {
 	}
 };
 
+}
+}
 } // namespace tasks
-} // namespace physics
-} // namespace linalg
-} // namespace flecsi

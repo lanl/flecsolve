@@ -12,8 +12,7 @@
 #include "flecsi-linalg/physics/common/state_store.hh"
 #include "flecsi-linalg/physics/tasks/operator_task.hh"
 
-namespace flecsi {
-namespace linalg {
+namespace flecsolve {
 namespace physics {
 
 /**
@@ -38,17 +37,21 @@ struct operator_traits<volume_diffusion_op<Var, Topo, Scalar>> {
 	using topo_slot_t = flecsi::data::topology_slot<Topo>;
 	using topo_axes_t = typename topo_t::axes;
 	constexpr static auto dim = Topo::dimension;
-	using tasks_f = tasks::topology_tasks<topo_t, field<scalar_t>>;
+	using tasks_f = tasks::topology_tasks<topo_t, flecsi::field<scalar_t>>;
 
 	using cell_def =
-		typename field<scalar_t>::template definition<topo_t, topo_t::cells>;
+		typename flecsi::field<scalar_t>::template definition<topo_t,
+	                                                          topo_t::cells>;
 	using cell_ref =
-		typename field<scalar_t>::template Reference<topo_t, topo_t::cells>;
+		typename flecsi::field<scalar_t>::template Reference<topo_t,
+	                                                         topo_t::cells>;
 
 	using face_def =
-		typename field<scalar_t>::template definition<topo_t, topo_t::faces>;
+		typename flecsi::field<scalar_t>::template definition<topo_t,
+	                                                          topo_t::faces>;
 	using face_ref =
-		typename field<scalar_t>::template Reference<topo_t, topo_t::faces>;
+		typename flecsi::field<scalar_t>::template Reference<topo_t,
+	                                                         topo_t::faces>;
 };
 
 template<auto Var, class Topo, class Scalar>
@@ -111,32 +114,32 @@ struct volume_diffusion_op
 
 	void _apply(topo_slot_t & m, cell_ref u, cell_ref v) const {
 		// first, zero-out the fields to take results
-		execute<tasks_f::zero_op>(m, v);
-		execute<tasks_f::zero_op>(m, du);
+		flecsi::execute<tasks_f::zero_op>(m, v);
+		flecsi::execute<tasks_f::zero_op>(m, du);
 
 		// determine the fluxes along the axis
 		sweep(m, u, topo_axes_t());
 
 		// collect all prior calculations and apply to range vector
-		execute<tasks_f::diffuse_op>(m,
-		                             this->parameters.beta,
-		                             this->parameters.alpha,
-		                             *(this->parameters.a),
-		                             u,
-		                             du,
-		                             v);
+		flecsi::execute<tasks_f::diffuse_op>(m,
+		                                     this->parameters.beta,
+		                                     this->parameters.alpha,
+		                                     *(this->parameters.a),
+		                                     u,
+		                                     du,
+		                                     v);
 	}
 
 	template<auto... Axis>
 	constexpr void
-	sweep(topo_slot_t & m, cell_ref u, util::constants<Axis...>) const {
-		(execute<tasks_f::template flux_op<Axis>>(
+	sweep(topo_slot_t & m, cell_ref u, flecsi::util::constants<Axis...>) const {
+		(flecsi::execute<tasks_f::template flux_op<Axis>>(
 			 m, u, *(this->parameters.b), fluxes[Axis]),
 		 ...);
-		(execute<tasks_f::template flux_sum<Axis>>(m, fluxes[Axis], du), ...);
+		(flecsi::execute<tasks_f::template flux_sum<Axis>>(m, fluxes[Axis], du),
+		 ...);
 	}
 };
 
-} // namespace physics
-} // namespace linalg
-} // namespace flecsi
+}
+}

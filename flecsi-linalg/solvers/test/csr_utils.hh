@@ -7,9 +7,13 @@
 
 #include "test_mesh.hh"
 
-namespace flecsi::linalg {
+namespace flecsolve {
 
-using realf = field<double>;
+using realf = flecsi::field<double>;
+
+using flecsi::na;
+using flecsi::ro;
+using flecsi::wo;
 
 inline void
 init_mesh(std::size_t nrows, testmesh::slot & msh, testmesh::cslot & coloring) {
@@ -182,7 +186,8 @@ struct csr_op {
 
 	template<class domain_vec, class range_vec>
 	void apply(const domain_vec & x, range_vec & y) const {
-		execute<spmv<CSR>, mpi>(mat, x.data.topo, x.data.ref(), y.data.ref());
+		flecsi::execute<spmv<CSR>, flecsi::mpi>(
+			mat, x.data.topo, x.data.ref(), y.data.ref());
 	}
 
 	template<class domain_vec, class range_vec>

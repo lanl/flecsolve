@@ -4,7 +4,7 @@
 #include "operations/petsc.hh"
 #include "data/petsc.hh"
 
-namespace flecsi::linalg::vec {
+namespace flecsolve::vec {
 
 using petsc = vector<data::petsc, ops::petsc>;
 

@@ -7,7 +7,7 @@
 #include "shell.hh"
 #include "factory.hh"
 
-namespace flecsi::linalg {
+namespace flecsolve {
 
 template<class S, class A, class P, class D>
 struct krylov_op {

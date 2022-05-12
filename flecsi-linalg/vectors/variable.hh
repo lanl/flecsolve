@@ -6,7 +6,7 @@
 #include <type_traits>
 #include <limits>
 
-namespace flecsi::linalg {
+namespace flecsolve {
 
 enum class anon_var : std::size_t {
 	anonymous = std::numeric_limits<std::size_t>::max()

@@ -9,7 +9,7 @@ using namespace flecsi;
 
 namespace diffusion {
 
-using msh = linalg::physics::operator_mesh;
+using msh = flecsolve::physics::operator_mesh;
 
 msh::slot m;
 msh::cslot coloring;

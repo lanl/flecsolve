@@ -6,7 +6,7 @@
 #include "vector.hh"
 #include "operations/multi.hh"
 
-namespace flecsi::linalg::vec {
+namespace flecsolve::vec {
 
 // https://stackoverflow.com/a/47369227
 template<typename T>
@@ -153,12 +153,12 @@ bool operator!=(const multi<VarType, V0...> & v0,
 namespace std {
 
 template<class VarType, class... Vecs>
-struct tuple_size<flecsi::linalg::vec::multi<VarType, Vecs...>> {
+struct tuple_size<flecsolve::vec::multi<VarType, Vecs...>> {
 	static constexpr size_t value = sizeof...(Vecs);
 };
 
 template<std::size_t I, class VarType, class... Vecs>
-struct tuple_element<I, flecsi::linalg::vec::multi<VarType, Vecs...>> {
+struct tuple_element<I, flecsolve::vec::multi<VarType, Vecs...>> {
 	using type = typename tuple_element<I, tuple<Vecs...>>::type;
 };
 

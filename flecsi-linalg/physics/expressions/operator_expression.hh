@@ -3,8 +3,7 @@
 #include <tuple>
 #include <utility>
 
-namespace flecsi {
-namespace linalg {
+namespace flecsolve {
 namespace physics {
 
 #include <cassert>
@@ -52,6 +51,5 @@ inline constexpr auto op_expr(multivariable_t<vars...>, Ps... ps) {
 	return OpExpr<multivariable_t<vars...>, std::tuple<Ps...>>(ps...);
 }
 
-} // namespace physics
-} // namespace linalg
-} // namespace flecsi
+}
+}

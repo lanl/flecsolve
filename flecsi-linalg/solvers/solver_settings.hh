@@ -6,7 +6,7 @@
 #include <array>
 #include <type_traits>
 
-namespace flecsi::linalg {
+namespace flecsolve {
 
 struct solver_settings {
 	int maxiter;
@@ -101,5 +101,5 @@ protected:
 	}
 };
 
-} // namespace flecsi::linalg
+} // namespace flecsolve
 #endif

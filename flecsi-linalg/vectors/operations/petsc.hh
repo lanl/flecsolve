@@ -5,7 +5,7 @@
 #include "flecsi-linalg/vectors/data/petsc.hh"
 #include "petsc_tasks.hh"
 
-namespace flecsi::linalg::vec::ops {
+namespace flecsolve::vec::ops {
 
 struct petsc {
 	using vec_data = data::petsc;

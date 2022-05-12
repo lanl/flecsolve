@@ -11,7 +11,7 @@
 
 using namespace flecsi;
 
-namespace flecsi::linalg {
+namespace flecsolve {
 
 testmesh::slot msh;
 testmesh::cslot coloring;
@@ -244,6 +244,6 @@ int vectest() {
 	};
 }
 
-unit::driver<vectest> driver;
+flecsi::unit::driver<vectest> driver;
 
 }

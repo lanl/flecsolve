@@ -11,7 +11,7 @@
 
 #include "csr_utils.hh"
 
-namespace flecsi::linalg {
+namespace flecsolve {
 
 testmesh::slot msh;
 testmesh::cslot coloring;
@@ -86,6 +86,6 @@ int multicg() {
 	return 0;
 }
 
-unit::driver<multicg> driver;
+flecsi::unit::driver<multicg> driver;
 
 }
