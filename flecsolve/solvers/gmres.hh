@@ -218,6 +218,7 @@ struct solver : krylov_interface<Workspace, solver> {
 			}
 
 			v_norm = std::fabs(dwvec[k + 1]);
+			++k;
 
 			if (user_diagnostic(x, v_norm)) {
 				info.status = solve_info::stop_reason::converged_user;
@@ -231,7 +232,6 @@ struct solver : krylov_interface<Workspace, solver> {
 				break;
 			}
 
-			++k;
 			if (k == params.max_krylov_dim && iter != params.maxiter - 1) {
 				back_solve(k - 1);
 				correct(k - 1, P, z, v, x);
