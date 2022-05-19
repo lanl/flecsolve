@@ -5,6 +5,7 @@
 
 #include <flecsi/flog.hh>
 #include <flecsi/util/array_ref.hh>
+#include <flecsi/execution.hh>
 
 #include "solver_settings.hh"
 #include "shell.hh"
@@ -166,6 +167,8 @@ struct solver : krylov_interface<Workspace, solver> {
 		auto v_norm = beta;
 
 		int k = 0;
+		trace.skip();
+		auto g = std::make_unique<flecsi::exec::trace::guard>(trace);
 		for (int iter = 0; iter < params.maxiter; iter++) {
 			if (params.pre_side == precond_side::right) {
 				P.apply(basis[k], z);
@@ -249,8 +252,11 @@ struct solver : krylov_interface<Workspace, solver> {
 
 				++info.restarts;
 				k = 0;
+				g.reset();
+				g.reset(new flecsi::exec::trace::guard(trace));
 			}
 		}
+		g.reset();
 
 		if (k > 0) {
 			back_solve(k - 1);
@@ -379,6 +385,7 @@ protected:
 	std::vector<real> sinvec, cosvec;
 	std::vector<real> dwvec, dyvec;
 	settings params;
+	flecsi::exec::trace trace;
 };
 template<class V>
 solver(const settings &, V &&) -> solver<V>;
