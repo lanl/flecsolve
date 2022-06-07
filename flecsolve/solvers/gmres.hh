@@ -55,31 +55,6 @@ struct solver : krylov_interface<Workspace, solver> {
 	using real = typename iface::real;
 	using iface::work;
 
-	solver(solver<Workspace> && o) noexcept
-		: iface{std::forward<Workspace>(o.work)},
-		  hessenberg_data(std::exchange(o.hessenberg_data, nullptr)),
-		  hmat(std::exchange(o.hmat, nullptr)),
-		  basis(work.data() + (nwork - krylov_dim_bound - 1), o.basis.size()),
-		  sinvec(std::move(o.sinvec)), cosvec(std::move(o.cosvec)),
-		  dwvec(std::move(o.dwvec)), dyvec(std::move(o.dyvec)),
-		  params(std::move(o.params)) {}
-
-	solver<Workspace> & operator=(solver<Workspace> && o) noexcept {
-		if (this != &o) {
-			work = std::forward<Workspace>(o.work);
-			hessenberg_data = std::exchange(o.hessenberg_data, nullptr);
-			hmat = std::exchange(o.hmat, nullptr);
-			basis = flecsi::util::span(
-				work.data() + (nwork - krylov_dim_bound - 1), o.basis.size());
-			sinvec = std::move(o.sinvec);
-			cosvec = std::move(o.cosvec);
-			dwvec = std::move(o.dwvec);
-			dyvec = std::move(o.dyvec);
-			params = std::move(o.params);
-		}
-		return *this;
-	}
-
 	template<class V>
 	solver(const settings & params, V && workspace)
 		: iface{std::forward<V>(workspace)}, params(params) {
@@ -112,9 +87,6 @@ struct solver : krylov_interface<Workspace, solver> {
 		sinvec.resize(max_dim + 1, 0.0);
 		dwvec.resize(max_dim + 1, 0.0);
 		dyvec.resize(max_dim + 1, 0.0);
-
-		basis = flecsi::util::span(work.data() + (nwork - krylov_dim_bound - 1),
-		                           max_dim + 1);
 	}
 
 	template<class Op, class DomainVec, class RangeVec, class Pre, class F>
@@ -125,6 +97,7 @@ struct solver : krylov_interface<Workspace, solver> {
 	                 F && user_diagnostic) {
 		solve_info info;
 		auto & hessenberg = *hmat;
+		auto basis = get_basis();
 
 		std::size_t wrk = 0;
 		auto & res = work[wrk++];
@@ -276,6 +249,7 @@ struct solver : krylov_interface<Workspace, solver> {
 protected:
 	template<class Op, class W, class T>
 	void correct(int nr, Op & P, W & z, W & v, T & x) {
+		auto basis = get_basis();
 		if (params.pre_side == precond_side::right) {
 			z.set_scalar(0.0);
 
@@ -296,6 +270,7 @@ protected:
 	template<class T>
 	void orthogonalize(T & v, int k) {
 		auto & hessenberg = *hmat;
+		auto basis = get_basis();
 		// modified Gram-Schmidt
 		for (int j = 0; j < k; j++) {
 			const double h_jk = v.dot(basis[j]).get();
@@ -377,11 +352,14 @@ protected:
 		}
 	}
 
+	flecsi::util::span<typename iface::workvec_t> get_basis() {
+		return {work.data() + (nwork - krylov_dim_bound - 1), cosvec.size()};
+	}
+
 protected:
 	std::unique_ptr<real[]> hessenberg_data;
 	using hessenberg_mat = flecsi::util::mdcolex<real, 2>;
 	std::unique_ptr<hessenberg_mat> hmat;
-	flecsi::util::span<typename iface::workvec_t> basis;
 	std::vector<real> sinvec, cosvec;
 	std::vector<real> dwvec, dyvec;
 	settings params;

@@ -9,9 +9,7 @@
 namespace flecsolve {
 
 namespace op {
-enum class label {
-	jacobian
-};
+enum class label { jacobian };
 }
 
 struct solver_settings {

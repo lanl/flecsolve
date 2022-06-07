@@ -198,7 +198,7 @@ struct csr_op {
 	}
 
 	template<auto tag, class T>
-	auto get_parameters(const T&) const {
+	auto get_parameters(const T &) const {
 		return nullptr;
 	}
 
