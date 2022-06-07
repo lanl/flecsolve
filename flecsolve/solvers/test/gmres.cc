@@ -86,7 +86,7 @@ int gmres_test() {
 			x.set_random(1);
 
 			diagnostic diag(A, x, b, cfact);
-			krylov_params params(gmres::settings{100, 1e-4, 0},
+			krylov_params params(gmres::settings{100, 1e-4},
 			                     gmres::topo_work<>::get(b),
 			                     A,
 			                     op::I,
@@ -109,7 +109,7 @@ int gmres_test() {
 			x.set_random(1);
 
 			krylov_params params(
-				gmres::settings{100, 1e-4, 50}, gmres::topo_work<>::get(b), A);
+				gmres::settings{100, 50, 1e-4}, gmres::topo_work<>::get(b), A);
 
 			auto slv = op::create(params);
 			auto info_restart = slv.apply(b, x);
@@ -118,11 +118,11 @@ int gmres_test() {
 
 			params.solver_settings.maxiter = 50;
 			slv.solver.reset(params.solver_settings);
-
 			slv.apply(b, x);
 
 			params.solver_settings.maxiter = 100;
-			params.solver_settings.restart = 0;
+			params.solver_settings.max_krylov_dim = 100;
+			params.solver_settings.restart = false;
 			auto slv1 = op::create(params);
 
 			auto info = slv1.apply(b, x);

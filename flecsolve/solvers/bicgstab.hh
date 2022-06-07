@@ -2,6 +2,7 @@
 #define FLECSI_LINALG_OP_BICGSTAB_H
 
 #include <flecsi/flog.hh>
+#include <flecsi/execution.hh>
 
 #include "solver_settings.hh"
 #include "shell.hh"
@@ -54,13 +55,14 @@ struct solver : krylov_interface<Workspace, solver> {
 
 		const real terminate_tol = params.rtol * b_norm;
 
-		info.sol_norm_initial = x.l2norm().get();
 		info.rhs_norm = b_norm;
 
 		if (params.use_zero_guess) {
+			info.sol_norm_initial = 0;
 			res.copy(b);
 		}
 		else {
+			info.sol_norm_initial = x.l2norm().get();
 			A.residual(b, x, res);
 		}
 
@@ -89,7 +91,9 @@ struct solver : krylov_interface<Workspace, solver> {
 
 		p.zero();
 		v.zero();
+		trace.skip();
 		for (int iter = 0; iter < params.maxiter; iter++) {
+			auto g = trace.make_guard();
 			rho[1] = r_tilde.dot(res).get();
 
 			real angle = std::sqrt(std::fabs(rho[1]));
@@ -183,6 +187,7 @@ struct solver : krylov_interface<Workspace, solver> {
 
 protected:
 	settings params;
+	flecsi::exec::trace trace;
 };
 template<class V>
 solver(const settings &, V &&) -> solver<V>;
