@@ -15,9 +15,7 @@ static constexpr std::size_t nwork = 8;
 struct settings : solver_settings {
 	using base_t = solver_settings;
 	settings(int maxiter, float rtol, bool use_zero_guess)
-		: base_t{maxiter, rtol, 0.0}, use_zero_guess(use_zero_guess) {}
-
-	bool use_zero_guess;
+		: base_t{maxiter, rtol, 0.0, use_zero_guess} {}
 };
 
 template<std::size_t Version = 0>
@@ -60,6 +58,7 @@ struct solver : krylov_interface<Workspace, solver> {
 		if (params.use_zero_guess) {
 			info.sol_norm_initial = 0;
 			res.copy(b);
+			x.set_scalar(0.);
 		}
 		else {
 			info.sol_norm_initial = x.l2norm().get();
@@ -91,9 +90,7 @@ struct solver : krylov_interface<Workspace, solver> {
 
 		p.zero();
 		v.zero();
-		trace.skip();
 		for (int iter = 0; iter < params.maxiter; iter++) {
-			auto g = trace.make_guard();
 			rho[1] = r_tilde.dot(res).get();
 
 			real angle = std::sqrt(std::fabs(rho[1]));
@@ -187,7 +184,6 @@ struct solver : krylov_interface<Workspace, solver> {
 
 protected:
 	settings params;
-	flecsi::exec::trace trace;
 };
 template<class V>
 solver(const settings &, V &&) -> solver<V>;

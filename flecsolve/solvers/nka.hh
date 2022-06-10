@@ -7,7 +7,6 @@
 #include "krylov_interface.hh"
 #include "solver_settings.hh"
 
-
 namespace flecsolve::nka {
 
 enum workvecs : std::size_t { sol, res, correction, nwork };
@@ -15,15 +14,15 @@ enum workvecs : std::size_t { sol, res, correction, nwork };
 struct settings : solver_settings {
 	using base = solver_settings;
 
-	settings(int maxiter, float rtol, int max_dim, float angle_tol) :
-		base{maxiter, rtol, 0.0},
-		max_dim{max_dim}, angle_tol{angle_tol},
-		freeze_pc{true}, use_qr{false},
-		use_damping{false}, adaptive_damping{false}, damping_factor(1.0) {}
+	settings(int maxiter, float rtol, float atol, int max_dim, float angle_tol)
+		: base{maxiter, rtol, atol, false}, max_dim{max_dim},
+		  angle_tol{angle_tol}, freeze_pc{true}, use_qr{false},
+		  use_damping{false}, adaptive_damping{false}, damping_factor(1.0) {}
 
 	void validate() {
 		if (adaptive_damping) {
-			flog_assert(use_damping, "NKA: damping must be enabled for adaptive_damping");
+			flog_assert(use_damping,
+			            "NKA: damping must be enabled for adaptive_damping");
 		}
 		flog_assert(max_dim > 0, "NKA: maximum dimension must be > 0.");
 		flog_assert(angle_tol > 0., "NKA: angle tolerance must be > 0.0.");
@@ -40,7 +39,7 @@ struct settings : solver_settings {
 };
 
 template<std::size_t dim_bound = 10, std::size_t version = 0>
-using topo_work = topo_work_base<nwork + 2 * dim_bound, version>;
+using topo_work = topo_work_base<nwork + 2 * (dim_bound + 1), version>;
 
 template<class Workspace>
 struct solver : krylov_interface<Workspace, solver> {
@@ -49,12 +48,10 @@ struct solver : krylov_interface<Workspace, solver> {
 	using real = typename iface::real;
 	using iface::work;
 
-
 	template<class V>
-	solver(const settings & params, V && workspace) :
-		iface{std::forward<V>(workspace)}, params(params),
-		substore(params.max_dim + 1, nwork)
-	{
+	solver(const settings & params, V && workspace)
+		: iface{std::forward<V>(workspace)}, params(params),
+		  substore(params.max_dim + 1, nwork) {
 		reset();
 	}
 
@@ -65,7 +62,7 @@ struct solver : krylov_interface<Workspace, solver> {
 
 	void reset() {
 		this->params.validate();
-		flog_assert(work.size() < (params.max_dim + 1)*2 + nwork,
+		flog_assert(work.size() >= (params.max_dim + 1) * 2 + nwork,
 		            "NKA: not enough work vectors for specified max_dim");
 		current_correction = 0;
 		have_pending = false;
@@ -76,10 +73,10 @@ struct solver : krylov_interface<Workspace, solver> {
 	}
 
 	template<class Op,
-		class DomainVec,
-		class RangeVec,
-		class Precond,
-		class Diag>
+	         class DomainVec,
+	         class RangeVec,
+	         class Precond,
+	         class Diag>
 	solve_info apply(const Op & F,
 	                 const RangeVec & f,
 	                 DomainVec & u,
@@ -140,7 +137,7 @@ struct solver : krylov_interface<Workspace, solver> {
 			}
 			if (user_diagnostic(sol, res_norm)) {
 				info.status = solve_info::stop_reason::converged_user;
-				info.iters = iter+1;
+				info.iters = iter + 1;
 				break;
 			}
 		}
@@ -201,8 +198,10 @@ struct solver : krylov_interface<Workspace, solver> {
 
 			if (hkk > params.angle_tol * params.angle_tol) {
 				hk[*k] = std::sqrt(hkk);
-			} else {
-				// The current w nearly lies in the span of the pervious vectors so drop it.
+			}
+			else {
+				// The current w nearly lies in the span of the pervious vectors
+				// so drop it.
 				subindex.drop(*k);
 				// back up and move on to the next vector
 				--k;
@@ -213,7 +212,7 @@ struct solver : krylov_interface<Workspace, solver> {
 
 	template<class RangeVec>
 	std::vector<real> forward_backward_solve(const RangeVec & f) {
-		std::vector<real> cv(params.max_dim +1, 0.);
+		std::vector<real> cv(params.max_dim + 1, 0.);
 		auto & h = substore.h;
 		auto w = substore.w.span(work);
 
@@ -255,14 +254,15 @@ struct solver : krylov_interface<Workspace, solver> {
 			w.axpy(-1., f, w);
 
 			auto s = w.l2norm().get();
-			/* If the function difference is 0, we can't update the subspace with
-			   this data; so we toss it out and continue.  In this case it is likely
-			   that the outer iterative solution procedure has gone badly awry
-			   (unless the function value is itself 0), and we merely want to do
-			   something reasonable here and hope that situation is detected on the
-			   outside. */
+			/* If the function difference is 0, we can't update the subspace
+			   with this data; so we toss it out and continue.  In this case it
+			   is likely that the outer iterative solution procedure has gone
+			   badly awry (unless the function value is itself 0), and we merely
+			   want to do something reasonable here and hope that situation is
+			   detected on the outside. */
 			if (s == 0.0) {
-				flog_warn("NKA: current vector not valid!!, relax() being called.");
+				flog_warn(
+					"NKA: current vector not valid!!, relax() being called.");
 				relax();
 			}
 
@@ -282,14 +282,18 @@ struct solver : krylov_interface<Workspace, solver> {
 				    original matrix kept in the upper triangle (implicit unit
 				    diagonal) lower triangle holds factorization */
 				factorize_normal_mat();
-			} else { flog_error("NKA: QR factorization not implemented"); }
+			}
+			else {
+				flog_error("NKA: QR factorization not implemented");
+			}
 			// indicate we have a subspace
 			have_subspace = true;
 			have_pending = false;
 		}
 
 		// accelerated correction
-		// locate storage location for the new vector by finding first free location in list
+		// locate storage location for the new vector by finding first free
+		// location in list
 		int new_loc = subindex.pop_free();
 
 		/* store f in currently free location of w, so that we can
@@ -297,12 +301,14 @@ struct solver : krylov_interface<Workspace, solver> {
 		w_arr[new_loc].copy(f);
 
 		if (have_subspace) {
-			// create a row vector to store the solution components for the correction vector
+			// create a row vector to store the solution components for the
+			// correction vector
 			std::vector<real> cv(params.max_dim + 1, 0.);
 
 			if (!params.use_qr) {
 				cv = forward_backward_solve(f);
-			} else {
+			}
+			else {
 				flog_error("NKA: QR factorization not implemented.");
 			}
 
@@ -310,14 +316,16 @@ struct solver : krylov_interface<Workspace, solver> {
 			   been computed and stored in cv, we now compute the accelerated
 			   correction. */
 			for (int k : subindex) {
-				f.axpy( cv[k], v_arr[k], f);
+				f.axpy(cv[k], v_arr[k], f);
 				f.axpy(-cv[k], w_arr[k], f);
 			}
 
 			if (params.use_damping) {
 				real eta = params.damping_factor;
 				if (params.adaptive_damping) {
-					eta = 1.0 - std::pow(0.9, std::min(current_correction, params.max_dim));
+					eta = 1.0 - std::pow(0.9,
+					                     std::min(current_correction,
+					                              params.max_dim));
 				}
 
 				// scale the residual vector
@@ -325,12 +333,14 @@ struct solver : krylov_interface<Workspace, solver> {
 			}
 		}
 
-		// save the correction, accelerated or otherwise for the next call in the v matrix
+		// save the correction, accelerated or otherwise for the next call in
+		// the v matrix
 		v_arr[new_loc].copy(f);
 
 		subindex.push(new_loc);
 
-		// The original f and accelerated correction are cached for the next call.
+		// The original f and accelerated correction are cached for the next
+		// call.
 		have_pending = true;
 	}
 
@@ -345,10 +355,10 @@ protected:
 			next.resize(n);
 			prev.resize(n);
 
-			for (int k = 0; k < n-1; ++k) {
-				next[k] = k+1;
+			for (int k = 0; k < n - 1; ++k) {
+				next[k] = k + 1;
 			}
-			next[n-1] = EOL;
+			next[n - 1] = EOL;
 		}
 
 		int pop_free() {
@@ -426,7 +436,8 @@ protected:
 
 			constexpr iterator operator+(std::size_t n) const {
 				iterator ret = *this;
-				for (std::size_t i = 0; i < n; ++i) ++ret;
+				for (std::size_t i = 0; i < n; ++i)
+					++ret;
 				return ret;
 			}
 
@@ -436,37 +447,23 @@ protected:
 			}
 		};
 
-		iterator begin() const noexcept {
-			return {first, next, prev};
-		}
+		iterator begin() const noexcept { return {first, next, prev}; }
 
-		iterator end() const noexcept {
-			return {EOL, next, prev};
-		}
+		iterator end() const noexcept { return {EOL, next, prev}; }
 
 		struct subr {
 			int b, e;
 			const std::vector<int> & prev;
 			const std::vector<int> & next;
-			iterator begin() const noexcept {
-				return {b, next, prev};
-			}
-			iterator end() const noexcept {
-				return {e, next, prev};
-			}
+			iterator begin() const noexcept { return {b, next, prev}; }
+			iterator end() const noexcept { return {e, next, prev}; }
 		};
 
-		subr range(int end) {
-			return {first, end, prev, next};
-		}
+		subr range(int end) { return {first, end, prev, next}; }
 
-		subr range(int beg, int end) {
-			return {beg, end, prev, next};
-		}
+		subr range(int beg, int end) { return {beg, end, prev, next}; }
 
-		subr reverse(int end=EOL) {
-			return {last, end, next, prev};
-		}
+		subr reverse(int end = EOL) { return {last, end, next, prev}; }
 
 		int first, last, free;
 		std::vector<int> prev;
@@ -476,13 +473,14 @@ protected:
 		using view = flecsi::util::mdspan<real, 2>;
 		using size_type = typename view::size_type;
 
-		mat(size_type m, size_type n) :
-			data(std::make_unique<real[]>(m*n)),
-			mspan(data.get(), {m, n}) {}
+		mat(size_type m, size_type n)
+			: data(std::make_unique<real[]>(m * n)), mspan(data.get(), {m, n}) {
+		}
 
 		constexpr decltype(auto) operator[](size_type i) noexcept {
 			return mspan[i];
 		}
+
 	protected:
 		std::unique_ptr<real[]> data;
 		view mspan;
@@ -497,13 +495,14 @@ protected:
 			}
 
 			size_type size() { return len; }
+
 		protected:
 			size_type offset;
 			size_type len;
 		};
 
-		subspace_store(int n, std::size_t off) :
-			h(n,n), w(off, n), v(off + n, n) {}
+		subspace_store(int n, std::size_t off)
+			: h(n, n), w(off, n), v(off + n, n) {}
 
 		mat h;
 		vec_arr w, v;
@@ -515,7 +514,7 @@ protected:
 	int current_correction;
 };
 template<class V>
-solver(const settings&, V&&) ->solver<V>;
+solver(const settings &, V &&) -> solver<V>;
 }
 
 namespace flecsolve {

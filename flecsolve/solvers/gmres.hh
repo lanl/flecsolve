@@ -21,12 +21,12 @@ static constexpr std::size_t nwork = (krylov_dim_bound + 1) + 3;
 struct settings : solver_settings {
 	using base_t = solver_settings;
 	settings(int maxiter, float rtol)
-		: base_t{maxiter, rtol, 0.0},
+		: base_t{maxiter, rtol, 0.0, false},
 		  max_krylov_dim(maxiter), pre_side{precond_side::right},
 		  restart(false) {}
 
 	settings(int maxiter, int max_kdim, float rtol)
-		: base_t{maxiter, rtol, 0.0},
+		: base_t{maxiter, rtol, 0.0, false},
 		  max_krylov_dim(max_kdim), pre_side{precond_side::right},
 		  restart(true) {}
 
@@ -116,12 +116,22 @@ struct solver : krylov_interface<Workspace, solver> {
 
 		const real terminate_tol = params.rtol * b_norm;
 
+		if (params.use_zero_guess)
+			x.set_scalar(0.);
+
 		if (params.pre_side == precond_side::left) {
-			A.residual(b, x, basis[0]);
+			if (params.use_zero_guess)
+				basis[0].copy(b);
+			else
+				A.residual(b, x, basis[0]);
 			P.apply(basis[0], res);
 		}
-		else
-			A.residual(b, x, res);
+		else {
+			if (params.use_zero_guess)
+				res.copy(b);
+			else
+				A.residual(b, x, res);
+		}
 
 		const real beta = res.l2norm().get();
 		info.res_norm_initial = beta;

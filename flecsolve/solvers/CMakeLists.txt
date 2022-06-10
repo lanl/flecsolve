@@ -49,3 +49,12 @@ add_unit(bicgstab
   LIBRARIES
   FleCSI::linalg
   THREADS 1)
+
+add_unit(nka
+  SOURCES
+  test/nka.cc
+  INPUTS
+  ${chem97ztz_SOURCE_DIR}/Chem97ZtZ.mtx
+  LIBRARIES
+  FleCSI::linalg
+  THREADS 1)

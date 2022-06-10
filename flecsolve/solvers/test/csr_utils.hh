@@ -202,6 +202,12 @@ struct csr_op {
 		return nullptr;
 	}
 
+	auto & get_operator() { return *this; }
+	const auto & get_operator() const { return *this; }
+
+	template<class T>
+	void reset(const T &) const {}
+
 	CSR mat;
 
 	static constexpr auto input_var = variable<anon_var::anonymous>;

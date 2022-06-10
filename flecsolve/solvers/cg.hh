@@ -51,11 +51,18 @@ struct solver : krylov_interface<Workspace, solver> {
 
 		const real terminate_tol = params.rtol * b_norm;
 
-		info.sol_norm_initial = x.l2norm().get();
 		info.rhs_norm = b_norm;
 
 		// compute initial residual
-		A.residual(b, x, r);
+		if (params.use_zero_guess) {
+			info.sol_norm_initial = 0;
+			x.set_scalar(0.);
+			r.copy(b);
+		}
+		else {
+			info.sol_norm_initial = x.l2norm().get();
+			A.residual(b, x, r);
+		}
 
 		real current_res = r.l2norm().get();
 

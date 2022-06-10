@@ -191,9 +191,10 @@ int driver() {
 
 	// get the solver parameters and workspace, & bind the operator to the
 	// solver
-	flecsolve::krylov_params params(flecsolve::cg::settings{100, 1e-9, 1e-9},
-	                                flecsolve::cg::topo_work<>::get(RHS),
-	                                std::move(A));
+	flecsolve::krylov_params params(
+		flecsolve::cg::settings{100, 1e-9, 1e-9, false},
+		flecsolve::cg::topo_work<>::get(RHS),
+		std::move(A));
 
 	// create the solver
 	auto slv = flecsolve::op::create(std::move(params));
