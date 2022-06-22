@@ -6,6 +6,7 @@
 
 #include "flecsolve/vectors/mesh.hh"
 #include "flecsolve/solvers/gmres.hh"
+#include "flecsolve/util/config.hh"
 
 #include "csr_utils.hh"
 
@@ -80,26 +81,29 @@ int gmres_test() {
 		csr_op Dinv{std::move(idiag)};
 
 		vec::mesh x(msh, xd(msh)), b(msh, bd(msh));
+		b.set_random(0);
+		x.set_random(1);
 
+		diagnostic diag(A, x, b, cfact);
+		op::krylov_parameters params_norestart(
+			gmres::settings("gmres-norestart"),
+			gmres::topo_work<>::get(b),
+			std::ref(A),
+			op::I,
+			std::ref(diag));
+		op::krylov_parameters params_restart(gmres::settings("gmres-restart"),
+		                                     gmres::topo_work<>::get(b),
+		                                     std::ref(A));
+		read_config("gmres.cfg", params_norestart, params_restart);
 		{
-			b.set_random(0);
-			x.set_random(1);
-
-			diagnostic diag(A, x, b, cfact);
-			krylov_params params(gmres::settings{100, 1e-4},
-			                     gmres::topo_work<>::get(b),
-			                     A,
-			                     op::I,
-			                     diag);
-			auto slv = op::create(std::move(params));
-
+			op::krylov slv(std::move(params_norestart));
 			auto info = slv.apply(b, x);
 
 			EXPECT_EQ(info.iters, 73);
 			EXPECT_FALSE(diag.fail_monotonic);
 			EXPECT_FALSE(diag.fail_convergence);
 
-			auto slv_pre = slv.rebind(A, Dinv);
+			auto slv_pre = op::rebind(slv, std::ref(A), std::ref(Dinv));
 			x.set_random(1);
 			auto info_pre = slv_pre.apply(b, x);
 			EXPECT_EQ(info_pre.iters, 18);
@@ -108,22 +112,19 @@ int gmres_test() {
 			b.set_random(0);
 			x.set_random(1);
 
-			krylov_params params(
-				gmres::settings{100, 50, 1e-4}, gmres::topo_work<>::get(b), A);
-
-			auto slv = op::create(params);
+			op::krylov slv(params_restart);
 			auto info_restart = slv.apply(b, x);
 
 			x.set_random(1);
 
-			params.solver_settings.maxiter = 50;
-			slv.solver.reset(params.solver_settings);
+			params_restart.solver_settings.maxiter = 50;
+			slv.reset(params_restart.solver_settings);
 			slv.apply(b, x);
 
-			params.solver_settings.maxiter = 100;
-			params.solver_settings.max_krylov_dim = 100;
-			params.solver_settings.restart = false;
-			auto slv1 = op::create(params);
+			params_restart.solver_settings.maxiter = 100;
+			params_restart.solver_settings.max_krylov_dim = 100;
+			params_restart.solver_settings.restart = false;
+			op::krylov slv1(params_restart);
 
 			auto info = slv1.apply(b, x);
 			EXPECT_EQ(50 + info.iters, info_restart.iters);

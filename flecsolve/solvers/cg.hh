@@ -143,10 +143,10 @@ solver(const settings &, V &&) -> solver<V>;
 } // namespace flecsolve::cg
 
 namespace flecsolve {
-template<class W, class... Ops>
-struct traits<krylov_params<cg::settings, W, Ops...>> {
-	using op = krylov_interface<W, cg::solver>;
+template<>
+struct traits<cg::settings> {
+	template<class W>
+	using solver_type = cg::solver<W>;
 };
-
 } // namespace flecsolve
 #endif

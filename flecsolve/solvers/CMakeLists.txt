@@ -18,6 +18,7 @@ add_unit(cg
   INPUTS
   ${494_bus_SOURCE_DIR}/494_bus.mtx
   ${chem97ztz_SOURCE_DIR}/Chem97ZtZ.mtx
+  test/cg.cfg
   LIBRARIES
   FleCSI::linalg
   THREADS 1)
@@ -27,6 +28,7 @@ add_unit(cgmulti
   test/cgmulti.cc
   INPUTS
   ${chem97ztz_SOURCE_DIR}/Chem97ZtZ.mtx
+  test/cgmulti.cfg
   LIBRARIES
   FleCSI::linalg
   THREADS 1)
@@ -36,6 +38,7 @@ add_unit(gmres
   test/gmres.cc
   INPUTS
   ${chem97ztz_SOURCE_DIR}/Chem97ZtZ.mtx
+  test/gmres.cfg
   LIBRARIES
   FleCSI::linalg
   THREADS 1)
@@ -46,6 +49,7 @@ add_unit(bicgstab
   INPUTS
   ${chem97ztz_SOURCE_DIR}/Chem97ZtZ.mtx
   ${psmigr_3_SOURCE_DIR}/psmigr_3.mtx
+  test/bicgstab.cfg
   LIBRARIES
   FleCSI::linalg
   THREADS 1)
@@ -55,6 +59,7 @@ add_unit(nka
   test/nka.cc
   INPUTS
   ${chem97ztz_SOURCE_DIR}/Chem97ZtZ.mtx
+  test/nka.cfg
   LIBRARIES
   FleCSI::linalg
   THREADS 1)

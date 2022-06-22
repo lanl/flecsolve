@@ -1,22 +1,44 @@
 #ifndef FLECSI_LINALG_OP_SOLVER_SETTINGS_H
 #define FLECSI_LINALG_OP_SOLVER_SETTINGS_H
 
-#include "flecsolve/vectors/multi.hh"
-#include "shell.hh"
 #include <array>
 #include <type_traits>
+
+#include <boost/program_options/options_description.hpp>
+
+#include "flecsolve/vectors/multi.hh"
+#include "shell.hh"
 
 namespace flecsolve {
 
 namespace op {
 enum class label { jacobian };
 }
+namespace po = boost::program_options;
 
 struct solver_settings {
+	solver_settings(const char * pre) : prefix(pre) {}
+
+	auto options() {
+		po::options_description desc;
+		// clang-format off
+		desc.add_options()
+			(label("maxiter").c_str(), po::value<int>(&maxiter)->required(), "maximum number of iterations")
+			(label("rtol").c_str(), po::value<float>(&rtol)->default_value(0), "relative tolerance")
+			(label("atol").c_str(), po::value<float>(&atol)->default_value(0), "absolute tolerance")
+			(label("use-zero-guess").c_str(), po::value<bool>(&use_zero_guess)->required(), "use zero inital guess");
+		// clang-format on
+		return desc;
+	}
+
 	int maxiter;
 	float rtol;
 	float atol;
 	bool use_zero_guess;
+
+protected:
+	std::string prefix;
+	std::string label(const char * suf) { return {prefix + "." + suf}; }
 };
 
 struct solve_stats {};

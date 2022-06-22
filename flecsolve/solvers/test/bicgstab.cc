@@ -6,6 +6,7 @@
 
 #include "flecsolve/vectors/mesh.hh"
 #include "flecsolve/solvers/bicgstab.hh"
+#include "flecsolve/util/config.hh"
 
 #include "csr_utils.hh"
 
@@ -24,6 +25,9 @@ int driver() {
 	static_assert(cases.size() <= ncases);
 
 	UNIT () {
+		bicgstab::settings settings("solver");
+		read_config("bicgstab.cfg", settings);
+
 		std::size_t i = 0;
 		for (const auto & cs : cases) {
 			auto mat = read_mm(std::get<0>(cs));
@@ -38,10 +42,8 @@ int driver() {
 			b.set_random(0);
 			x.set_random(1);
 
-			krylov_params params(bicgstab::settings{200, 1e-9, false},
-			                     bicgstab::topo_work<>::get(b),
-			                     A);
-			auto slv = op::create(std::move(params));
+			op::krylov slv(op::krylov_parameters(
+				settings, bicgstab::topo_work<>::get(b), std::move(A)));
 
 			auto info = slv.apply(b, x);
 

@@ -12,11 +12,7 @@ namespace flecsolve::bicgstab {
 
 static constexpr std::size_t nwork = 8;
 
-struct settings : solver_settings {
-	using base_t = solver_settings;
-	settings(int maxiter, float rtol, bool use_zero_guess)
-		: base_t{maxiter, rtol, 0.0, use_zero_guess} {}
-};
+using settings = solver_settings;
 
 template<std::size_t Version = 0>
 using topo_work = topo_work_base<nwork, Version>;
@@ -191,10 +187,10 @@ solver(const settings &, V &&) -> solver<V>;
 }
 
 namespace flecsolve {
-
-template<class W, class... Ops>
-struct traits<krylov_params<bicgstab::settings, W, Ops...>> {
-	using op = krylov_interface<W, bicgstab::solver>;
+template<>
+struct traits<bicgstab::settings> {
+	template<class W>
+	using solver_type = bicgstab::solver<W>;
 };
 
 }
