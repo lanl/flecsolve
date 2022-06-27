@@ -3,6 +3,7 @@
 
 #include "flecsolve/solvers/solver_settings.hh"
 #include "flecsolve/time-integrators/parameters.hh"
+#include "flecsolve/time-integrators/base.hh"
 
 namespace flecsolve::time_integrator::rk23 {
 
@@ -31,24 +32,24 @@ template<class O, class W>
 parameters(const char *, O &&, W &&)
 	-> parameters<std::decay_t<O>, std::decay_t<W>>;
 
-enum workvecs : std::size_t { k1, k2, k3, k4, z, nvecs };
+enum workvecs : std::size_t { k1, k2, k3, k4, z, next, nvecs };
 
 template<std::size_t Version = 0>
 using topo_work = topo_work_base<workvecs::nvecs, Version>;
 
 template<class P>
-struct integrator {
+struct integrator : base<P> {
+	using base<P>::params;
+	using base<P>::current_dt;
+	using base<P>::current_time;
 
-	integrator(P p)
-		: params(std::move(p)), current_time(params.initial_time),
-		  current_dt(params.initial_dt), old_dt(params.initial_dt),
-		  total_step_rejects(0) {}
+	integrator(P p) : base<P>(std::move(p)), total_step_rejects(0) {}
 
-	template<class Curr, class Next>
-	void advance(double dt, Curr & curr, Next & next) {
+	template<class Curr, class Out>
+	void advance(double dt, Curr & curr, Out & out) {
 		current_dt = dt;
 		auto & F = params.get_operator();
-		auto & [k1, k2, k3, k4, z] = params.work;
+		auto & [k1, k2, k3, k4, z, next] = params.work;
 
 		// k1 = f(tn, un)
 		F.apply(curr, k1);
@@ -57,7 +58,7 @@ struct integrator {
 		// k2 = f(t+dt/2, u*)
 		F.apply(next, k2);
 		// u* = un + 0.75 *k2 * dt
-		next.axpy(0.5 * dt, k2, curr);
+		next.axpy(0.75 * dt, k2, curr);
 		// k3 = f(t + 0.75dt, u*)
 		F.apply(next, k3);
 
@@ -70,7 +71,8 @@ struct integrator {
 		z.linear_sum(-5., k1, 6., k2);
 		z.axpy(8., k3, z);
 		z.axpy(-9., k4, z);
-		z.scale(dt / 72., z);
+		z.scale(dt / 72.);
+		out.copy(next);
 	}
 
 	bool check_solution() {
@@ -105,10 +107,6 @@ struct integrator {
 	}
 
 protected:
-	P params;
-	double current_time;
-	double current_dt;
-	double old_dt;
 	int total_step_rejects;
 };
 template<class P>

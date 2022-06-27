@@ -4,30 +4,40 @@
 #include "flecsolve/solvers/solver_settings.hh"
 #include "flecsolve/time-integrators/parameters.hh"
 #include "flecsolve/time-integrators/rk23.hh"
+#include "flecsolve/time-integrators/base.hh"
 
 namespace flecsolve::time_integrator::rk45 {
 
 template<class Op, class Work>
-using parameters = time_integrator::rk23::parameters<Op, Work>;
+struct parameters : rk23::parameters<Op, Work> {
+	template<class O, class W>
+	parameters(const char * pre, O && op, W && work)
+		: rk23::parameters<Op, Work>(pre,
+	                                 std::forward<O>(op),
+	                                 std::forward<W>(work)) {}
+};
+template<class O, class W>
+parameters(const char *, O &&, W &&)
+	-> parameters<std::decay_t<O>, std::decay_t<W>>;
 
-enum workvecs : std::size_t { k1, k2, k3, k4, k5, k6, z, nvecs };
+enum workvecs : std::size_t { k1, k2, k3, k4, k5, k6, z, next, nvecs };
 
 template<std::size_t Version = 0>
 using topo_work = topo_work_base<workvecs::nvecs, Version>;
 
 template<class P>
-struct integrator {
+struct integrator : base<P> {
+	using base<P>::params;
+	using base<P>::current_dt;
+	using base<P>::current_time;
 
-	integrator(P p)
-		: params(std::move(p)), current_time(params.initial_time),
-		  current_dt(params.inital_dt), old_dt(params.initial_dt),
-		  total_step_rejects(0) {}
+	integrator(P p) : base<P>(std::move(p)), total_step_rejects(0) {}
 
-	template<class Curr, class Next>
-	void advance(double dt, Curr & curr, Next & next) {
+	template<class Curr, class Out>
+	void advance(double dt, Curr & curr, Out & out) {
 		current_dt = dt;
 		auto & F = params.get_operator();
-		auto & [k1, k2, k3, k4, k5, k6, z] = params.work;
+		auto & [k1, k2, k3, k4, k5, k6, next, z] = params.work;
 
 		F.apply(curr, k1);
 		next.axpy(0.25 * dt, k1, curr);
@@ -51,8 +61,8 @@ struct integrator {
 
 		F.apply(next, k5);
 
-		next.axpy(-8. * dt / 27., k1, *curr);
-		next.axpy(2. * dt, k2, *next);
+		next.axpy(-8. * dt / 27., k1, curr);
+		next.axpy(2. * dt, k2, next);
 		next.axpy(-3544. * dt / 2565., k3, next);
 		next.axpy(1859. * dt / 4104., k4, next);
 		next.axpy(-11. * dt / 40., k5, next);
@@ -71,6 +81,7 @@ struct integrator {
 		next.axpy(2. * dt / 55., k6, next);
 
 		z.subtract(next, z);
+		out.copy(next);
 	}
 
 	bool check_solution() {
@@ -109,10 +120,6 @@ struct integrator {
 	}
 
 protected:
-	P params;
-	double current_time;
-	double current_dt;
-	double old_dt;
 	int total_step_rejects;
 };
 template<class P>
