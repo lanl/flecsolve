@@ -4,38 +4,69 @@
 
 #include "flecsolve/vectors/mesh.hh"
 #include "flecsolve/time-integrators/rk23.hh"
+#include "flecsolve/time-integrators/rk45.hh"
 #include "flecsolve/util/config.hh"
 
-#include "test_mesh.hh"
+#include "flecsolve/solvers/test/csr_utils.hh"
 
 namespace flecsolve {
 
 testmesh::slot msh;
 testmesh::cslot coloring;
 
-const flecsi::field<double>::definition<testmesh, testmesh::cells> xd, bd;
+const flecsi::field<double>::definition<testmesh, testmesh::cells> xd;
 
-static void
-init_mesh(std::size_t nrows, testmesh::slot & msh, testmesh::cslot & coloring) {
-	std::vector<std::size_t> extents{nrows};
-	auto colors = testmesh::distribute(flecsi::processes(), extents);
-	coloring.allocate(colors, extents);
-	msh.allocate(coloring.get());
-}
+struct rate {
+	template<class D, class R>
+	void apply(const D & x, R & y) {
+		y.scale(lambda, x);
+	}
+
+	double lambda;
+};
 
 int extest() {
 	using namespace flecsolve::time_integrator;
 
-	init_mesh(32, msh, coloring);
+	UNIT () {
+		double ic = 3.;
 
-	vec::mesh x(msh, xd(msh)), b(msh, bd(msh));
+		init_mesh(1, msh, coloring);
 
-	rk23::parameters params("time-int", op::I, rk23::topo_work<>());
-	read_config("config.cfg", params);
+		rate F{-1};
 
-	rk23::integrator ti(params);
+		vec::mesh x(msh, xd(msh));
 
-	return 0;
+		rk23::parameters params23(
+			"time-int", std::ref(F), rk23::topo_work<>::get(x));
+		rk45::parameters params45(
+			"time-int", std::ref(F), rk45::topo_work<>::get(x));
+		read_config("explicit.cfg", params23);
+		read_config("explicit.cfg", params45);
+		rk23::integrator ti23(std::move(params23));
+		rk45::integrator ti45(std::move(params45));
+
+		auto run = [&](auto & ti) {
+			x.set_scalar(ic);
+			while (ti.get_current_time() < ti.get_final_time()) {
+				ti.advance(ti.get_current_dt(), x, x);
+				ti.update();
+			}
+			auto sol = ic * std::exp(F.lambda * ti.get_final_time());
+			auto approx = x.max().get();
+			return std::pair(ti.get_final_time(), std::abs(sol - approx));
+		};
+		{
+			auto ans = run(ti23);
+			EXPECT_EQ(ans.first, 1.0);
+			EXPECT_LT(ans.second, 1e-5);
+		}
+		{
+			auto ans = run(ti45);
+			EXPECT_EQ(ans.first, 1.0);
+			EXPECT_LT(ans.second, 1e-9);
+		}
+	};
 }
 
 flecsi::unit::driver<extest> driver;

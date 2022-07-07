@@ -14,7 +14,17 @@ struct parameters {
 	template<class Op, class Work>
 	parameters(const char * pre, Op && op, Work && work)
 		: op(std::forward<Op>(op)), work(std::forward<Work>(work)),
-		  prefix(pre) {
+		  prefix(pre) {}
+
+	auto & get_operator() {
+		if constexpr (is_reference_wrapper_v<O>)
+			return op.get();
+		else
+			return op;
+	}
+
+	auto options() {
+		po::options_description desc;
 		// clang-format off
 		desc.add_options()
 			(label("initial-time").c_str(), po::value<double>(&initial_time)->required(), "initial time for time integrator")
@@ -24,19 +34,9 @@ struct parameters {
 			(label("min-dt").c_str(), po::value<double>(&min_dt)->default_value(std::numeric_limits<double>::min()), "minimum time step")
 			(label("initial-dt").c_str(), po::value<double>(&initial_dt)->default_value(0), "initial time step");
 		// clang-format on
+		return desc;
 	}
 
-	auto & get_operator() {
-		if constexpr (is_reference_wrapper_v<O>)
-			return op.get();
-		else
-			return op;
-	}
-
-	auto & options() { return desc; }
-	const auto & options() const { return desc; }
-
-	po::options_description desc;
 	double initial_time;
 	double final_time;
 	int max_steps;
