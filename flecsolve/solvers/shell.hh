@@ -25,6 +25,12 @@ struct shell {
 		r.subtract(b, r);
 	}
 
+	template<class T>
+	void reset(const T &) const {}
+
+	auto & get_operator() { return *this; }
+	const auto & get_operator() const { return *this; }
+
 	static constexpr auto input_var = variable<ivar>;
 	static constexpr auto output_var = variable<ovar>;
 

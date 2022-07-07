@@ -68,13 +68,13 @@ int multicg() {
 		test_op A2(variable<vars::var2>, A);
 
 		auto slv1 = op::create(
-			krylov_params(cg::settings{2000, 1e-9, 1e-9},
+			krylov_params(cg::settings{2000, 1e-9, 1e-9, false},
 		                  cg::topo_work<>::get(bm.subset(variable<vars::var1>)),
 		                  A1));
 		auto info1 = slv1.apply(bm, xm);
 
 		auto slv2 = op::create(
-			krylov_params(cg::settings{2000, 1e-9, 1e-9},
+			krylov_params(cg::settings{2000, 1e-9, 1e-9, false},
 		                  cg::topo_work<>::get(bm.subset(variable<vars::var2>)),
 		                  A2));
 		auto info2 = slv2.apply(bm, xm);

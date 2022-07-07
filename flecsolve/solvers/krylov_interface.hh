@@ -26,6 +26,9 @@ struct krylov_op {
 		return solver.apply(op, bs, xs, precond, diag);
 	}
 
+	A & get_operator() { return op; }
+	const A & get_oeprator() const { return op; }
+
 	template<class T>
 	void reset(const T & settings) {
 		solver.reset(settings);
@@ -51,6 +54,9 @@ struct krylov_op {
 		static_assert(op::has_output_variable_v<O>);
 		return x.subset(O::output_var);
 	}
+
+	static constexpr auto input_var = variable<anon_var::anonymous>;
+	static constexpr auto output_var = variable<anon_var::anonymous>;
 };
 template<class S, class A, class P, class D>
 krylov_op(S &&, A &&, P &&, D &&) -> krylov_op<S, A, P, D>;

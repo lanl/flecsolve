@@ -2,6 +2,7 @@
 #define FLECSI_LINALG_OP_BICGSTAB_H
 
 #include <flecsi/flog.hh>
+#include <flecsi/execution.hh>
 
 #include "solver_settings.hh"
 #include "shell.hh"
@@ -14,9 +15,7 @@ static constexpr std::size_t nwork = 8;
 struct settings : solver_settings {
 	using base_t = solver_settings;
 	settings(int maxiter, float rtol, bool use_zero_guess)
-		: base_t{maxiter, rtol, 0.0}, use_zero_guess(use_zero_guess) {}
-
-	bool use_zero_guess;
+		: base_t{maxiter, rtol, 0.0, use_zero_guess} {}
 };
 
 template<std::size_t Version = 0>
@@ -54,13 +53,15 @@ struct solver : krylov_interface<Workspace, solver> {
 
 		const real terminate_tol = params.rtol * b_norm;
 
-		info.sol_norm_initial = x.l2norm().get();
 		info.rhs_norm = b_norm;
 
 		if (params.use_zero_guess) {
+			info.sol_norm_initial = 0;
 			res.copy(b);
+			x.set_scalar(0.);
 		}
 		else {
+			info.sol_norm_initial = x.l2norm().get();
 			A.residual(b, x, res);
 		}
 

@@ -8,10 +8,15 @@
 
 namespace flecsolve {
 
+namespace op {
+enum class label { jacobian };
+}
+
 struct solver_settings {
 	int maxiter;
 	float rtol;
 	float atol;
+	bool use_zero_guess;
 };
 
 struct solve_stats {};

@@ -5,6 +5,7 @@
 
 #include <flecsi/flog.hh>
 #include <flecsi/util/array_ref.hh>
+#include <flecsi/execution.hh>
 
 #include "solver_settings.hh"
 #include "shell.hh"
@@ -19,16 +20,29 @@ static constexpr std::size_t nwork = (krylov_dim_bound + 1) + 3;
 
 struct settings : solver_settings {
 	using base_t = solver_settings;
-	settings(int maxiter, float rtol, int restart)
-		: base_t{maxiter, rtol, 0.0},
-		  max_krylov_dim(100), pre_side{precond_side::right}, restart(restart) {
+	settings(int maxiter, float rtol)
+		: base_t{maxiter, rtol, 0.0, false},
+		  max_krylov_dim(maxiter), pre_side{precond_side::right},
+		  restart(false) {}
+
+	settings(int maxiter, int max_kdim, float rtol)
+		: base_t{maxiter, rtol, 0.0, false},
+		  max_krylov_dim(max_kdim), pre_side{precond_side::right},
+		  restart(true) {}
+
+	void validate() {
 		flog_assert(max_krylov_dim <= krylov_dim_bound,
 		            "GMRES: max_krylov_dim is larger than bound");
+		if (!restart) {
+			flog_assert(maxiter <= max_krylov_dim,
+			            "GMRES: maxiters must be less than or equal to "
+			            "max_krylov_dim when not using restart");
+		}
 	}
 
 	int max_krylov_dim;
 	precond_side pre_side;
-	int restart;
+	bool restart;
 };
 
 template<std::size_t Version = 0>
@@ -40,31 +54,6 @@ struct solver : krylov_interface<Workspace, solver> {
 	using iface = krylov_interface<Workspace, solver>;
 	using real = typename iface::real;
 	using iface::work;
-
-	solver(solver<Workspace> && o) noexcept
-		: iface{std::forward<Workspace>(o.work)},
-		  hessenberg_data(std::exchange(o.hessenberg_data, nullptr)),
-		  hmat(std::exchange(o.hmat, nullptr)),
-		  basis(work.data() + (nwork - krylov_dim_bound - 1), o.basis.size()),
-		  sinvec(std::move(o.sinvec)), cosvec(std::move(o.cosvec)),
-		  dwvec(std::move(o.dwvec)), dyvec(std::move(o.dyvec)),
-		  params(std::move(o.params)) {}
-
-	solver<Workspace> & operator=(solver<Workspace> && o) noexcept {
-		if (this != &o) {
-			work = std::forward<Workspace>(o.work);
-			hessenberg_data = std::exchange(o.hessenberg_data, nullptr);
-			hmat = std::exchange(o.hmat, nullptr);
-			basis = flecsi::util::span(
-				work.data() + (nwork - krylov_dim_bound - 1), o.basis.size());
-			sinvec = std::move(o.sinvec);
-			cosvec = std::move(o.cosvec);
-			dwvec = std::move(o.dwvec);
-			dyvec = std::move(o.dyvec);
-			params = std::move(o.params);
-		}
-		return *this;
-	}
 
 	template<class V>
 	solver(const settings & params, V && workspace)
@@ -78,9 +67,9 @@ struct solver : krylov_interface<Workspace, solver> {
 	}
 
 	void reset() {
+		this->params.validate();
+
 		int max_dim = std::min(params.max_krylov_dim, params.maxiter);
-		if (params.restart > 0)
-			max_dim = std::min(max_dim, params.restart);
 
 		hessenberg_data =
 			std::make_unique<real[]>((max_dim + 1) * (max_dim + 1));
@@ -98,9 +87,6 @@ struct solver : krylov_interface<Workspace, solver> {
 		sinvec.resize(max_dim + 1, 0.0);
 		dwvec.resize(max_dim + 1, 0.0);
 		dyvec.resize(max_dim + 1, 0.0);
-
-		basis = flecsi::util::span(work.data() + (nwork - krylov_dim_bound - 1),
-		                           max_dim + 1);
 	}
 
 	template<class Op, class DomainVec, class RangeVec, class Pre, class F>
@@ -111,6 +97,7 @@ struct solver : krylov_interface<Workspace, solver> {
 	                 F && user_diagnostic) {
 		solve_info info;
 		auto & hessenberg = *hmat;
+		auto basis = get_basis();
 
 		std::size_t wrk = 0;
 		auto & res = work[wrk++];
@@ -129,12 +116,22 @@ struct solver : krylov_interface<Workspace, solver> {
 
 		const real terminate_tol = params.rtol * b_norm;
 
+		if (params.use_zero_guess)
+			x.set_scalar(0.);
+
 		if (params.pre_side == precond_side::left) {
-			A.residual(b, x, basis[0]);
+			if (params.use_zero_guess)
+				basis[0].copy(b);
+			else
+				A.residual(b, x, basis[0]);
 			P.apply(basis[0], res);
 		}
-		else
-			A.residual(b, x, res);
+		else {
+			if (params.use_zero_guess)
+				res.copy(b);
+			else
+				A.residual(b, x, res);
+		}
 
 		const real beta = res.l2norm().get();
 		info.res_norm_initial = beta;
@@ -153,6 +150,8 @@ struct solver : krylov_interface<Workspace, solver> {
 		auto v_norm = beta;
 
 		int k = 0;
+		trace.skip();
+		auto g = std::make_unique<flecsi::exec::trace::guard>(trace);
 		for (int iter = 0; iter < params.maxiter; iter++) {
 			if (params.pre_side == precond_side::right) {
 				P.apply(basis[k], z);
@@ -205,6 +204,7 @@ struct solver : krylov_interface<Workspace, solver> {
 			}
 
 			v_norm = std::fabs(dwvec[k + 1]);
+			++k;
 
 			if (user_diagnostic(x, v_norm)) {
 				info.status = solve_info::stop_reason::converged_user;
@@ -218,8 +218,7 @@ struct solver : krylov_interface<Workspace, solver> {
 				break;
 			}
 
-			++k;
-			if (k == params.restart and iter != params.maxiter - 1) {
+			if (k == params.max_krylov_dim && iter != params.maxiter - 1) {
 				back_solve(k - 1);
 				correct(k - 1, P, z, v, x);
 
@@ -236,8 +235,11 @@ struct solver : krylov_interface<Workspace, solver> {
 
 				++info.restarts;
 				k = 0;
+				g.reset();
+				g.reset(new flecsi::exec::trace::guard(trace));
 			}
 		}
+		g.reset();
 
 		if (k > 0) {
 			back_solve(k - 1);
@@ -257,6 +259,7 @@ struct solver : krylov_interface<Workspace, solver> {
 protected:
 	template<class Op, class W, class T>
 	void correct(int nr, Op & P, W & z, W & v, T & x) {
+		auto basis = get_basis();
 		if (params.pre_side == precond_side::right) {
 			z.set_scalar(0.0);
 
@@ -277,6 +280,7 @@ protected:
 	template<class T>
 	void orthogonalize(T & v, int k) {
 		auto & hessenberg = *hmat;
+		auto basis = get_basis();
 		// modified Gram-Schmidt
 		for (int j = 0; j < k; j++) {
 			const double h_jk = v.dot(basis[j]).get();
@@ -358,14 +362,18 @@ protected:
 		}
 	}
 
+	flecsi::util::span<typename iface::workvec_t> get_basis() {
+		return {work.data() + (nwork - krylov_dim_bound - 1), cosvec.size()};
+	}
+
 protected:
 	std::unique_ptr<real[]> hessenberg_data;
 	using hessenberg_mat = flecsi::util::mdcolex<real, 2>;
 	std::unique_ptr<hessenberg_mat> hmat;
-	flecsi::util::span<typename iface::workvec_t> basis;
 	std::vector<real> sinvec, cosvec;
 	std::vector<real> dwvec, dyvec;
 	settings params;
+	flecsi::exec::trace trace;
 };
 template<class V>
 solver(const settings &, V &&) -> solver<V>;

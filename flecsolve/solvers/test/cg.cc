@@ -85,7 +85,7 @@ int cgtest() {
 			x.set_random(7);
 
 			diagnostic diag(A, x, cs.cond);
-			krylov_params params(cg::settings{2000, 1e-9, 1e-9},
+			krylov_params params(cg::settings{2000, 1e-9, 1e-9, false},
 			                     cg::topo_work<>::get(b),
 			                     std::move(A),
 			                     op::I,

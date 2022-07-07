@@ -197,6 +197,17 @@ struct csr_op {
 		r.subtract(b, r);
 	}
 
+	template<auto tag, class T>
+	auto get_parameters(const T &) const {
+		return nullptr;
+	}
+
+	auto & get_operator() { return *this; }
+	const auto & get_operator() const { return *this; }
+
+	template<class T>
+	void reset(const T &) const {}
+
 	CSR mat;
 
 	static constexpr auto input_var = variable<anon_var::anonymous>;
