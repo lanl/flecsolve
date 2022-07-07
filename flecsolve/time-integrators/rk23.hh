@@ -40,8 +40,9 @@ enum workvecs : std::size_t { k1, k2, k3, k4, z, next, nvecs };
 template<std::size_t Version = 0>
 using topo_work = topo_work_base<workvecs::nvecs, Version>;
 
-template<class P>
-struct integrator : base<P> {
+template<class O, class W>
+struct integrator : base<parameters<O, W>> {
+	using P = parameters<O, W>;
 	using base<P>::params;
 	using base<P>::current_dt;
 	using base<P>::current_time;
@@ -112,8 +113,8 @@ struct integrator : base<P> {
 protected:
 	int total_step_rejects;
 };
-template<class P>
-integrator(P) -> integrator<P>;
+template<class O, class W>
+integrator(parameters<O, W>) -> integrator<O, W>;
 
 }
 
