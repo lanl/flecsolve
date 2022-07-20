@@ -13,18 +13,19 @@
 namespace flecsolve {
 namespace physics {
 
-template<typename T, flecsi::data::layout L = flecsi::data::layout::dense>
-using field = flecsi::field<T, L>;
+template<typename T, flecsi::data::layout L>
+using field = vec::data::field<T,L>;
+//using field = flecsi::field<T, L>;
 
 struct operator_mesh
 	: flecsi::topo::specialization<flecsi::topo::narray, operator_mesh> {
 	enum index_space { cells, faces };
 	using index_spaces = has<cells, faces>;
 
-	enum domain { logical, all, global, boundary_low, boundary_high };
+	enum domain { logical, extended, all, global, boundary_low, boundary_high };
 
-	enum axis { x_axis, y_axis };
-	using axes = has<x_axis, y_axis>;
+	enum axis { x_axis, y_axis, z_axis };
+	using axes = has<x_axis, y_axis, z_axis>;
 
 	using coord = base::coord;
 	using colors = base::colors;
@@ -32,11 +33,10 @@ struct operator_mesh
 	using coloring_definition = base::coloring_definition;
 
 	struct meta_data {
-		double xdelta;
-		double ydelta;
+		flecsi::util::key_array<double, axes> delta;
 	};
 
-	static constexpr std::size_t dimension = 2;
+	static constexpr std::size_t dimension = 3;
 
 	template<auto>
 	static constexpr std::size_t privilege_count = 2;
@@ -54,6 +54,8 @@ struct operator_mesh
 		static constexpr decltype(auto) __dm() {
 			if constexpr (DM == logical)
 				return B::domain::logical;
+			else if (DM == extended)
+				return B::domain::extended;
 			else if (DM == all)
 				return B::domain::all;
 			else if (DM == global)
@@ -91,9 +93,9 @@ struct operator_mesh
 
 		template<axis A>
 		double dx() {
-			return (A == x_axis ? (*(this->policy_meta_)).xdelta
-			                    : (*(this->policy_meta_)).ydelta);
+			return (*(this->policy_meta_)).delta[A];
 		}
+
 		template<axis A>
 		double value(std::size_t i) {
 			return (dx<A>() * (static_cast<double>(
@@ -234,9 +236,10 @@ struct operator_mesh
 	}
 
 	static coloring color(colors axis_colors, coord axis_extents) {
-		coord hdepths{1, 1};
-		coord bdepths{1, 1};
-		std::vector<bool> periodic{false, false};
+		coord hdepths(dimension, 1);
+		coord bdepths(dimension, 1);
+		std::vector<bool> periodic(dimension, false);
+		std::vector<bool> aux_ex(dimension, true);
 		coloring_definition cd{
 			axis_colors, axis_extents, hdepths, bdepths, periodic};
 
@@ -244,7 +247,7 @@ struct operator_mesh
 			flecsi::topo::narray_utils::color(cd, MPI_COMM_WORLD);
 
 		auto [fcs, fpartitions] = flecsi::topo::narray_utils::color_auxiliary(
-			ne, nc, pcs, {1, 1}, MPI_COMM_WORLD, false, true);
+			ne, nc, pcs, aux_ex, MPI_COMM_WORLD, false, true);
 
 		coloring c;
 		c.comm = MPI_COMM_WORLD;
@@ -255,34 +258,54 @@ struct operator_mesh
 		c.partitions.emplace_back(std::move(fpartitions));
 		return c;
 	}
-	/*--------------------------------------------------------------------------*
-	    Initialization.
-	   *--------------------------------------------------------------------------*/
+	using gbox = flecsi::util::key_array<std::array<double, 2>, axes>;
 
-	using grect = std::array<std::array<double, 2>, 2>;
+	template<axis A>
+	static auto set_delta(operator_mesh::accessor<flecsi::rw> sm,
+	                      const gbox & g) {
+		if (sm.size<operator_mesh::cells, A, operator_mesh::global>() <= 1) {
+			return 1.0;
+		}
+		return std::abs(g[A][1] - g[A][0]) /
+		       (sm.size<operator_mesh::cells, A, operator_mesh::global>() - 1);
+	}
+
+	// template<auto Axis, std::size_t I>
+	// static constexpr auto jump_idx() {
+	// 	return static_cast<axis>((Axis + I) % dim);
+	// }
+
+	// template<axis A>
+	// static auto set_outerids(operator_mesh::accessor<flecsi::rw> sm)
+	// {
+	// 	std::vector<std::size_t> oids;
+	// 	const auto nsize = sm.size<
+	// 	for(auto k : sm.range<operator_mesh::cells, jump_idx<A, 1>,
+	// operator_mesh::logical>())
+	// 	{
+	// 		for(auto j : sm.range<operator_mesh::cells, jump_idx<A, 2>,
+	// operator_mesh::logical>())
+	// 		{
+	// 			oids.push_back()
+	// 		}
+	// 	}
+	// }
+
+	template<auto... Axis>
+	static flecsi::util::key_array<double, axes>
+	geom(operator_mesh::accessor<flecsi::rw> sm, const gbox & g, has<Axis...>) {
+		return {set_delta<Axis>(sm, g)...};
+	}
 
 	static void set_geometry(operator_mesh::accessor<flecsi::rw> sm,
-	                         grect const & g) {
+	                         gbox const & g) {
 		meta_data & md = sm.policy_meta_;
-		double xdelta =
-			std::abs(g[0][1] - g[0][0]) / (sm.size<operator_mesh::cells,
-		                                           operator_mesh::x_axis,
-		                                           operator_mesh::global>() -
-		                                   1);
-		double ydelta =
-			std::abs(g[1][1] - g[1][0]) / (sm.size<operator_mesh::cells,
-		                                           operator_mesh::y_axis,
-		                                           operator_mesh::global>() -
-		                                   1);
-		// std::cout << "dx: " << xdelta << ", " << ydelta << "\n";
-
-		md.xdelta = xdelta;
-		md.ydelta = ydelta;
+		md.delta = geom(sm, g, axes());
 	}
 
 	static void initialize(flecsi::data::topology_slot<operator_mesh> & s,
 	                       coloring const &,
-	                       grect const & geometry) {
+	                       gbox const & geometry) {
 		flecsi::execute<set_geometry, flecsi::mpi>(s, geometry);
 	} // initialize
 };

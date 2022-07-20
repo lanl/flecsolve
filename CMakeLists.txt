@@ -10,16 +10,17 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "9.0")
     message(FATAL_ERROR "Version 9.0 of gnu compilers required!")
   endif()
-  if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "10.0")
-    message(FATAL_ERROR "Cannot use this GCC version due to a regression:"
-      "<https://gcc.gnu.org/bugzilla/show_bug.cgi?id=83258>")
-  endif()
+#  if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "10.0")
+#    message(FATAL_ERROR "Cannot use this GCC version due to a regression:"
+#      "<https://gcc.gnu.org/bugzilla/show_bug.cgi?id=83258>")
+#  endif()
 endif()
 
 find_package(FleCSI REQUIRED)
 
 find_package(FleCSICMake REQUIRED)
 
+set(ENABLE_UNIT_TESTS ON)
 set(ENABLE_FLOG ${FleCSI_ENABLE_FLOG})
 set(FLECSI_RUNTIME_MODEL ${FleCSI_RUNTIME_MODEL})
 set(FLECSI_BACKEND ${FleCSI_BACKEND})

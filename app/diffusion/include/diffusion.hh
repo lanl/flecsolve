@@ -3,6 +3,8 @@
 #include <array>
 
 #include <flecsi/flog.hh>
+#include <flecsi/util/constant.hh>
+#include <iomanip>
 #include <iostream>
 
 #include "flecsolve/vectors/mesh.hh"
@@ -12,7 +14,10 @@
 #include "flecsolve/physics/boundary/neumann.hh"
 #include "flecsolve/physics/expressions/operator_expression.hh"
 #include "flecsolve/physics/volume_diffusion/volume_diffusion.hh"
+#include "flecsolve/physics/volume_diffusion/coefficient.hh"
+#include "flecsolve/solvers/krylov_interface.hh"
 #include "flecsolve/solvers/cg.hh"
+#include "flecsolve/solvers/nka.hh"
 #include "flecsolve/solvers/solver_settings.hh"
 
 #include "parameters.hh"
@@ -21,14 +26,15 @@
 using namespace flecsi;
 namespace diffusion {
 void init_mesh() {
-	std::vector<std::size_t> extents{{NX, NY}};
+	std::vector<std::size_t> extents{{NX, NY, 1}};
 	auto colors = msh::distribute(processes(), extents);
 	coloring.allocate(colors, extents);
 
-	msh::grect geometry;
-	geometry[0][0] = 0.0;
-	geometry[0][1] = 1.0;
-	geometry[1] = geometry[0];
+	msh::gbox geometry;
+	geometry[msh::x_axis][0] = 0.0;
+	geometry[msh::x_axis][1] = 1.0;
+	geometry[msh::y_axis] = geometry[msh::x_axis];
+	geometry[msh::z_axis] = geometry[msh::x_axis];
 
 	m.allocate(coloring.get(), geometry);
 }
@@ -44,10 +50,11 @@ void check_vals(msh::accessor<ro, ro> vm,
 	oss << "--------------------\n";
 	oss << title << "\n";
 	oss << "--------------------\n";
-	for (auto j : vm.range<msh::cells, msh::y_axis, msh::logical>()) {
-		oss << "j = " << j << std::setw(6) << " | ";
-		for (auto i : vm.range<msh::cells, msh::x_axis, msh::logical>()) {
-			oss << xv[j][i] << " ";
+	oss << std::fixed << std::setprecision(6) << std::setfill(' ');
+	for (auto j : vm.range<msh::cells, msh::y_axis, msh::all>()) {
+		oss << "j = " << j << std::setw(3) << " | ";
+		for (auto i : vm.range<msh::cells, msh::x_axis, msh::all>()) {
+			oss << std::setw(9) << xv[1][j][i] << " ";
 		}
 		oss << "\n";
 	}
@@ -64,9 +71,11 @@ void fill_field(msh::accessor<ro, ro> vm,
 
 {
 	auto xv = vm.mdspan<Space>(xa);
-	for (auto j : vm.range<Space, msh::y_axis, msh::all>()) {
-		for (auto i : vm.range<Space, msh::x_axis, msh::all>()) {
-			xv[j][i] = val;
+	for (auto k : vm.range<Space, msh::z_axis, msh::all>()) {
+		for (auto j : vm.range<Space, msh::y_axis, msh::all>()) {
+			for (auto i : vm.range<Space, msh::x_axis, msh::all>()) {
+				xv[k][j][i] = val;
+			}
 		}
 	}
 }
@@ -88,27 +97,31 @@ void slope_field(msh::accessor<ro, ro> vm,
                  field<scalar_t>::accessor<wo, na> xa) {
 	auto xv = vm.mdspan<msh::cells>(xa);
 
-	for (auto j : vm.range<msh::cells, msh::y_axis, msh::logical>()) {
-		for (auto i : vm.range<msh::cells, msh::x_axis, msh::logical>()) {
-			xv[j][i] = vm.value<msh::x_axis>(i);
+	for (auto k : vm.range<msh::cells, msh::z_axis, msh::extended>()) {
+		for (auto j : vm.range<msh::cells, msh::y_axis, msh::extended>()) {
+			for (auto i : vm.range<msh::cells, msh::x_axis, msh::extended>()) {
+				xv[k][j][i] = vm.value<msh::x_axis>(i + 1);
+			}
 		}
 	}
 }
 
-template<class Vec>
+template<auto N, class Vec>
 constexpr decltype(auto) make_boundary_operator_neumann(const Vec &) {
 	using namespace flecsolve::physics;
 
-	auto bndxl = make_operator<
-		neumann<Vec::var.value, msh, msh::x_axis, msh::boundary_low>>(diffb(m));
-	auto bndxh = make_operator<
-		neumann<Vec::var.value, msh, msh::x_axis, msh::boundary_high>>(
-		diffb(m));
-	auto bndyl = make_operator<
-		neumann<Vec::var.value, msh, msh::y_axis, msh::boundary_low>>(diffb(m));
-	auto bndyh = make_operator<
-		neumann<Vec::var.value, msh, msh::y_axis, msh::boundary_high>>(
-		diffb(m));
+	auto bndxl =
+		neumann<Vec::var.value, msh, msh::x_axis, msh::boundary_low>::create(
+			{});
+	auto bndxh =
+		neumann<Vec::var.value, msh, msh::x_axis, msh::boundary_high>::create(
+			{});
+	auto bndyl =
+		neumann<Vec::var.value, msh, msh::y_axis, msh::boundary_low>::create(
+			{});
+	auto bndyh =
+		neumann<Vec::var.value, msh, msh::y_axis, msh::boundary_high>::create(
+			{});
 
 	return op_expr(
 		flecsolve::multivariable<Vec::var.value>, bndxl, bndxh, bndyl, bndyh);
@@ -118,27 +131,52 @@ template<class Vec>
 constexpr decltype(auto) make_boundary_operator_dirichlet(const Vec &) {
 	using namespace flecsolve::physics;
 
-	auto bndxl = make_operator<
-		dirichlet<Vec::var.value, msh, msh::x_axis, msh::boundary_low>>(0.0);
-	auto bndxh = make_operator<
-		dirichlet<Vec::var.value, msh, msh::x_axis, msh::boundary_high>>(0.0);
-	auto bndyl = make_operator<
-		dirichlet<Vec::var.value, msh, msh::y_axis, msh::boundary_low>>(0.0);
-	auto bndyh = make_operator<
-		dirichlet<Vec::var.value, msh, msh::y_axis, msh::boundary_high>>(0.0);
+	auto bndxl =
+		dirichlet<Vec::var.value, Vec, msh::x_axis, msh::boundary_low>::create(
+			{1.0E-9});
+	auto bndxh =
+		dirichlet<Vec::var.value, Vec, msh::x_axis, msh::boundary_high>::create(
+			{1.0E-9});
+	auto bndyl =
+		dirichlet<Vec::var.value, Vec, msh::y_axis, msh::boundary_low>::create(
+			{1.0E-9});
+	auto bndyh =
+		dirichlet<Vec::var.value, Vec, msh::y_axis, msh::boundary_high>::create(
+			{1.0E-9});
 
 	return op_expr(
 		flecsolve::multivariable<Vec::var.value>, bndxl, bndxh, bndyl, bndyh);
 }
 
-template<class Vec>
-constexpr decltype(auto) make_volume_operator(const Vec &) {
+template<auto N, class Vec>
+constexpr decltype(auto) make_boundary_operator_pseudo(const Vec &) {
 	using namespace flecsolve::physics;
 
-	volume_diffusion_op<Vec::var.value, msh> voldiff(
-		m, {diff_beta, diff_alpha, diffa(m), diffb(m)});
+	auto bndl =
+		neumann<Vec::var.value, msh, msh::z_axis, msh::boundary_low>::create(
+			{});
+	auto bndh =
+		neumann<Vec::var.value, msh, msh::z_axis, msh::boundary_high>::create(
+			{});
+	return op_expr(flecsolve::multivariable<Vec::var.value>, bndl, bndh);
+}
 
-	return op_expr(flecsolve::multivariable<Vec::var.value>, voldiff);
+template<auto N, class Vec>
+decltype(auto) make_volume_operator(const Vec & v) {
+	using namespace flecsolve::physics;
+
+	// volume_diffusion_op<Vec::var.value, msh> voldiff(
+	// 	m, {diff_beta, diff_alpha, diffa(m), diffb(m)});
+	flecsi::util::key_array<flecsi::field<scalar_t>::Reference<msh, msh::faces>,
+	                        msh::axes>
+		bref{diffb[N][msh::x_axis](m),
+	         diffb[N][msh::y_axis](m),
+	         diffb[N][msh::z_axis](m)};
+
+	auto coeffop = coefficent<Vec::var.value, Vec>::create({bref});
+	auto voldiff = volume_diffusion_op<Vec::var.value, Vec>::create(
+		{diffa[N](m), bref, 1.0, 0.0}, m);
+	return op_expr(flecsolve::multivariable<Vec::var.value>, coeffop, voldiff);
 }
 
 int driver() {
@@ -147,57 +185,87 @@ int driver() {
 	init_mesh();
 
 	// fill auxiliary data fields
-	execute<fill_field<msh::cells>>(m, diffa(m), DEFAULT_VAL);
-	execute<fill_field<msh::faces>>(m, diffb(m), DEFAULT_VAL);
-
-	// set up initial conditions
-	execute<slope_field>(m, v1d(m));
-	execute<slope_field>(m, v2d(m));
-
-	// helper output of ICs
-	if (processes() == 1) {
-		execute<check_vals>(m, v1d(m), "[variable1] initial field");
-		execute<check_vals>(m, v2d(m), "[variable2] initial field");
+	for (std::size_t n = 0; n < NVAR; ++n) {
+		execute<fill_field<msh::cells>>(m, diffa[n](m), DEFAULT_VAL);
+		// execute<fill_field<msh::faces>>(
+		// 	m, diffb[n][msh::x_axis](m), DEFAULT_VAL);
+		// execute<fill_field<msh::faces>>(
+		// 	m, diffb[n][msh::y_axis](m), DEFAULT_VAL);
+		// execute<fill_field<msh::faces>>(
+		// 	m, diffb[n][msh::z_axis](m), DEFAULT_VAL);
 	}
 
+	// set up initial conditions
+	execute<slope_field>(m, vd[0](m));
+	execute<slope_field>(m, vd[1](m));
+
+	if (processes() < 100) {
+		execute<check_vals>(m, vd[0](m), "vd0");
+		//"[variable1] solution with zero-flux boundary (n ⋅ ∇ u=0 on ∂Ω) ");
+		execute<check_vals>(m, vd[1](m), "vd1");
+		//"[variable2] solution vanishes at boundary (u=0 on ∂Ω)");
+	}
+	else {
+		flog(info) << "to see asci representation of ivs & solutions, run on a "
+					  "single core.\n";
+	}
 	//===================================================
 	//===============multivector diffusion===============
 	//===================================================
 
 	// define the solution and RHS MVs and assign them to a variable/field
 	flecsolve::vec::multi X(
-		flecsolve::vec::mesh(flecsolve::variable<diffusion_var::v1>, m, v1d(m)),
 		flecsolve::vec::mesh(
-			flecsolve::variable<diffusion_var::v2>, m, v2d(m)));
+			flecsolve::variable<diffusion_var::v1>, m, vd[0](m)),
+		flecsolve::vec::mesh(
+			flecsolve::variable<diffusion_var::v2>, m, vd[1](m)));
 
 	flecsolve::vec::multi RHS(
 		flecsolve::vec::mesh(
-			flecsolve::variable<diffusion_var::v1>, m, rhs1d(m)),
+			flecsolve::variable<diffusion_var::v1>, m, rhsd[0](m)),
 		flecsolve::vec::mesh(
-			flecsolve::variable<diffusion_var::v2>, m, rhs2d(m)));
+			flecsolve::variable<diffusion_var::v2>, m, rhsd[1](m)));
 
 	auto & [vec1, vec2] = X;
 
+	auto bnd_op_1 =
+		flecsolve::physics::op_expr(flecsolve::multivariable<diffusion_var::v1>,
+	                                make_boundary_operator_neumann<0>(vec1),
+	                                make_boundary_operator_pseudo<0>(vec1));
+	auto bnd_op_2 =
+		flecsolve::physics::op_expr(flecsolve::multivariable<diffusion_var::v2>,
+	                                make_boundary_operator_neumann<1>(vec2),
+	                                make_boundary_operator_pseudo<1>(vec2));
 	// build the operator on the variables
 	auto A = flecsolve::physics::op_expr(
 		flecsolve::multivariable<diffusion_var::v1, diffusion_var::v2>,
-		make_boundary_operator_neumann(vec1),
-		make_volume_operator(vec1),
-		make_boundary_operator_dirichlet(vec2),
-		make_volume_operator(vec2));
+		// make_boundary_operator_neumann(vec1),
+		bnd_op_1,
+		make_volume_operator<0>(vec1),
+		// make_boundary_operator_dirichlet(vec2),
+		bnd_op_2,
+		make_volume_operator<1>(vec2));
 
 	// set the RHS to vanish
 	RHS.set_scalar(0.0);
 
 	// get the solver parameters and workspace, & bind the operator to the
 	// solver
-	flecsolve::krylov_params params(
-		flecsolve::cg::settings{100, 1e-9, 1e-9, false},
-		flecsolve::cg::topo_work<>::get(RHS),
-		std::move(A));
 
-	// create the solver
-	auto slv = flecsolve::op::create(std::move(params));
+	flecsolve::krylov_params cg_params(
+		flecsolve::cg::settings{11, 1e-9, 1e-9, false},
+		flecsolve::cg::topo_work<>::get(RHS),
+		A);
+
+	auto slv = flecsolve::op::create(cg_params);
+
+	// flecsolve::krylov_params params(
+	// 	flecsolve::nka::settings{100, 0., 1.0E-6, 5, 0.2},
+	// 	flecsolve::nka::topo_work<5>::get(RHS),
+	// 	A,
+	// 	Precond);
+	// // create the solver
+	// auto slv = flecsolve::op::create(params);
 
 	// run the solver
 	auto info = slv.apply(RHS, X);
@@ -207,13 +275,11 @@ int driver() {
 	flog(info) << "iters = " << info.iters << "\n";
 
 	// helper print of final solutions
-	if (processes() == 1) {
-		execute<check_vals>(
-			m,
-			v1d(m),
-			"[variable1] solution with zero-flux boundary (n ⋅ ∇ u=0 on ∂Ω) ");
-		execute<check_vals>(
-			m, v2d(m), "[variable2] solution vanishes at boundary (u=0 on ∂Ω)");
+	if (processes() < 100) {
+		execute<check_vals>(m, vd[0](m), "vd0");
+		//"[variable1] solution with zero-flux boundary (n ⋅ ∇ u=0 on ∂Ω) ");
+		execute<check_vals>(m, vd[1](m), "vd1");
+		//"[variable2] solution vanishes at boundary (u=0 on ∂Ω)");
 	}
 	else {
 		flog(info) << "to see asci representation of ivs & solutions, run on a "

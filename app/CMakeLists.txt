@@ -1,1 +1,2 @@
+add_subdirectory(chems)
 add_subdirectory(diffusion)

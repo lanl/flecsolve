@@ -15,6 +15,12 @@ struct operator_traits;
 template<class Derived>
 struct operator_parameters;
 
+namespace tasks
+{
+	template<class Derived>
+	struct operator_task;
+}
+
 template<class Derived, template<class> class BaseType>
 struct operator_base {
 	using exact_type = Derived;
@@ -43,6 +49,25 @@ struct operator_settings : operator_base<Derived, operator_settings> {
 	using base_type = operator_base<Derived, operator_settings>;
 	using exact_type = typename base_type::exact_type;
 	using param_type = operator_parameters<Derived>;
+	using task_type = tasks::operator_task<Derived>;
+
+	// template <class C_>
+	struct Flat : exact_type {
+		constexpr param_type & operator*() { return this->parameters; }
+	};
+	template<class I>
+	constexpr decltype(auto) at(I const & i) {
+		return parameters;
+	}
+
+	template<class I>
+	constexpr decltype(auto) at(I const & i) const {
+		return parameters;
+	}
+	constexpr decltype(auto) flat() { return static_cast<Flat &>(*this); }
+	constexpr decltype(auto) flat() const {
+		return static_cast<Flat const &>(*this);
+	}
 
 	template<class P>
 	operator_settings(P && p) : base_type() {
@@ -54,42 +79,92 @@ struct operator_settings : operator_base<Derived, operator_settings> {
 		return param_type{ps...};
 	}
 
+	template<auto CPH, class VPH>
+	constexpr decltype(auto) get_parameters(VPH &) const {
+		return parameters;
+	}
+
 	template<class P>
 	constexpr decltype(auto) reset(P && pars) {
 		parameters = pars;
 	}
 
-private:
+	template<class... Args>
+	static constexpr auto create(param_type && pars, Args &&... args) {
+		return exact_type(args..., std::forward<param_type>(pars));
+	}
+
+	// private:
+
 	param_type parameters;
 	friend exact_type;
 };
 
-template<template<class> class... Mixins>
-struct make_mixins {
-	template<class Derived>
-	struct templ : Mixins<Derived>... {
-		template<class... Args>
-		void exec(Args &&... args) {
-			(Mixins<Derived>::exec(std::forward<Args>(args)...), ...);
-		}
-	};
-};
+// template<class Derived>
+// struct operator_host
+// {
+// 	using base_type = operator_base<Derived, operator_settings>;
+// 	using exact_type = typename base_type::exact_type;
+// 	using param_type = operator_parameters<Derived>;
 
-template<class ML>
-struct execute_mixins;
+// 	template<class... Args>
+// 	static constexpr auto create(param_type && pars, Args &&... args) {
+// 		return exact_type(args..., std::forward<param_type>(pars));
+// 	}
+// };
 
-template<class Derived, template<class> class MixinSet>
-struct execute_mixins<MixinSet<Derived>>
-	: operator_base<Derived, execute_mixins>, MixinSet<Derived> {
-	using base_type = operator_base<Derived, execute_mixins>;
-	using exact_type = typename base_type::exact_type;
-	using mixset_type = MixinSet<Derived>;
+// template<class> struct emptymix;
 
-	template<class... Args>
-	void exec(Args &&... args) {
-		mixset_type::exec(std::forward<Args>(args)...);
-	}
-};
+// template<class Derived, template<class> class MixinSet=emptymix>
+// struct operator_host : operator_settings<Derived>, MixinSet<Derived>
+// {
+//   using base_type = operator_settings<Derived>;
+//   using exact_type = typename base_type::exact_type;
+//   using param_type = operator_parameters<Derived>;
+//   using mixset_type = MixinSet<Derived>;
+
+//   template<class P>
+//   operator_host(P && p) : base_type(std::forward<P>(p)), mixset_type(){}
+
+//   template<class...Args>
+//   static constexpr auto create(param_type && pars, Args&& ...args)
+//   {
+//       return exact_type(args..., std::forward<param_type>(pars));
+//   }
+
+//   template <class... Args>
+//   int run_mixes(Args&&... args) {
+//       mixset_type::exec(std::forward<Args>(args)...);
+//       return 0;
+//   }
+// };
+
+// template<template<class> class... Mixins>
+// struct make_mixins {
+// 	template<class Derived>
+// 	struct templ : Mixins<Derived>... {
+// 		template<class... Args>
+// 		void exec(Args &&... args) {
+// 			(Mixins<Derived>::exec(std::forward<Args>(args)...), ...);
+// 		}
+// 	};
+// };
+
+// template<class ML>
+// struct execute_mixins;
+
+// template<class Derived, template<class> class MixinSet>
+// struct execute_mixins<MixinSet<Derived>>
+// 	: operator_base<Derived, execute_mixins>, MixinSet<Derived> {
+// 	using base_type = operator_base<Derived, execute_mixins>;
+// 	using exact_type = typename base_type::exact_type;
+// 	using mixset_type = MixinSet<Derived>;
+
+// 	template<class... Args>
+// 	void exec(Args &&... args) {
+// 		mixset_type::exec(std::forward<Args>(args)...);
+// 	}
+// };
 
 // template <class TopHost, class Mixes, class Tuple, std::size_t... ii>
 // constexpr decltype(auto) make_ophost_impl(std::index_sequence<ii...>,

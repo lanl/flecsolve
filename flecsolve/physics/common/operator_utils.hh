@@ -1,5 +1,6 @@
 #pragma once
 
+#include <type_traits>
 #include <utility>
 
 #include "flecsi/data.hh"
@@ -17,6 +18,10 @@ namespace mp {
 template<auto... V>
 using has = flecsi::util::constants<V...>;
 
+// template<int V> using int_t = std::integral_constant<int, V>;
+// template<int ...I> using int_list = std::tuple<int_t<I>...>;
+using nil = has<>;
+
 template<auto A, class B>
 struct cons_ {};
 template<auto A0, auto... A>
@@ -26,14 +31,24 @@ struct cons_<A0, has<A...>> {
 template<auto A, class B>
 using cons = typename cons_<A, B>::type;
 
+template<int n, int o = 0, int s = 1>
+struct iota_ {
+	static_assert(n > 0);
+	using type = cons<o, typename iota_<n - 1, o + s, s>::type>;
+};
+template<int o, int s>
+struct iota_<0, o, s> {
+	using type = nil;
+};
+template<int n, int o = 0, int s = 1>
+using iota = typename iota_<n, o, s>::type;
+
 // Remove from the second list the elements of the first list. None may have
 // repeated elements, but they may be unsorted.
 template<class S, class T, class SS = S>
 struct complement_list_;
 template<class S, class T, class SS = S>
 using complement_list = typename complement_list_<S, T, SS>::type;
-
-using nil = has<>;
 
 // end of T.
 template<class S, class SS>
@@ -139,6 +154,28 @@ template<int... OFFSETS>
 constexpr auto offset_seq() {
 	return std::integer_sequence<int, OFFSETS...>{};
 }
+
+template<typename T, size_t N>
+constexpr auto make_array(T value) -> std::array<T, N> {
+	std::array<T, N> a{};
+	for (auto & x : a)
+		x = value;
+	return a;
+}
+
+template<class Vec, template<auto> class F>
+struct sweep_fn {
+
+	template<class... Args>
+	static constexpr decltype(auto) sweep(Args &&... args) {
+		foo(std::forward<Args>(args)..., topo_axes_t<Vec>());
+	}
+	template<class... Args, auto... Axis>
+	static constexpr decltype(auto) foo(Args &&... args,
+										flecsi::util::constants<Axis...>) {
+		return (F<Axis>(std::forward<Args>(args...)), ...);
+	}
+};
 
 }
 }

@@ -16,14 +16,14 @@ template<auto Var,
          typename Topo::axis Axis,
          typename Topo::domain Boundary,
          class Scalar = double>
-struct neumann;
+struct robin;
 
 template<auto Var,
          class Topo,
          typename Topo::axis Axis,
          typename Topo::domain Boundary,
          class Scalar>
-struct operator_traits<neumann<Var, Topo, Axis, Boundary, Scalar>> {
+struct operator_traits<robin<Var, Topo, Axis, Boundary, Scalar>> {
 	using scalar_t = Scalar;
 	using topo_t = Topo;
 	using topo_slot_t = flecsi::data::topology_slot<Topo>;
@@ -48,10 +48,15 @@ template<auto Var,
          typename Topo::axis Axis,
          typename Topo::domain Boundary,
          class Scalar>
-struct operator_parameters<neumann<Var, Topo, Axis, Boundary, Scalar>> {
-	using op_type = neumann<Var, Topo, Axis, Boundary, Scalar>;
+struct operator_parameters<robin<Var, Topo, Axis, Boundary, Scalar>> {
+	using op_type = robin<Var, Topo, Axis, Boundary, Scalar>;
+	using cell_ref = typename operator_traits<op_type>::cell_ref;
+	using face_ref = typename operator_traits<op_type>::face_ref;
 
-	Scalar val = 0.0;
+	Scalar alpha = 1.0;
+	Scalar beta = 0.0;
+
+	std::optional<face_ref> b;
 };
 
 template<auto Var,
@@ -59,9 +64,9 @@ template<auto Var,
          typename Topo::axis Axis,
          typename Topo::domain Boundary,
          class Scalar>
-struct neumann : operator_settings<neumann<Var, Topo, Axis, Boundary, Scalar>> {
+struct robin : operator_settings<robin<Var, Topo, Axis, Boundary, Scalar>> {
 	using base_type =
-		operator_settings<neumann<Var, Topo, Axis, Boundary, Scalar>>;
+		operator_settings<robin<Var, Topo, Axis, Boundary, Scalar>>;
 	using exact_type = typename base_type::exact_type;
 	using param_type = typename base_type::param_type;
 	using topo_slot_t = typename operator_traits<exact_type>::topo_slot_t;
@@ -77,10 +82,19 @@ struct neumann : operator_settings<neumann<Var, Topo, Axis, Boundary, Scalar>> {
 		_apply(subu.data.topo, subu.data.ref());
 	}
 
-	// TODO: allow default value (=1.0)
 	void _apply(topo_slot_t & m, cell_ref u) const {
-		flecsi::execute<tasks_f::template boundary_neumann<Axis, Boundary>>(
-			m, u, this->parameters.val);
+		if (this->parameters.b) {
+			flecsi::execute<tasks_f::template boundary_robin<Axis, Boundary>>(
+				m,
+				u,
+				*(this->parameters.b),
+				this->parameters.alpha,
+				this->parameters.beta);
+		}
+		else {
+			flecsi::execute<tasks_f::template boundary_robin_1<Axis, Boundary>>(
+				m, u, this->parameters.alpha, this->parameters.beta);
+		}
 	}
 };
 
