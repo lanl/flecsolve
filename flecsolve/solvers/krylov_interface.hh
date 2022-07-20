@@ -2,45 +2,108 @@
 #define FLECSI_LINALG_OP_KRYLOV_INTERFACE_H
 
 #include <tuple>
+#include <memory>
 
+#include "flecsolve/util/traits.hh"
 #include "traits.hh"
 #include "shell.hh"
-#include "factory.hh"
 
 namespace flecsolve {
+namespace op {
 
-template<class S, class A, class P, class D>
-struct krylov_op {
-	S solver;
-	A op;
-	P precond;
-	D diag;
+enum krylov_oplabel : std::size_t { A, P, diag, nops };
 
-	template<class DomainVec, class RangeVec>
-	auto apply(const RangeVec & b, DomainVec & x) {
+template<class solver_type, class... Ops>
+struct krylov_parameters_base {
+
+	template<class... O>
+	krylov_parameters_base(O &&... o) : ops(std::forward<O>(o)...) {}
+
+	auto & get_solver() { return *solver; }
+
+	template<krylov_oplabel lb>
+	auto & get_operator_ref() {
+		if constexpr (is_reference_wrapper_v<
+						  std::tuple_element_t<lb, decltype(ops)>>)
+			return std::get<lb>(ops).get();
+		else
+			return std::get<lb>(ops);
+	}
+
+	template<krylov_oplabel lb>
+	decltype(auto) get_operator() {
+		if constexpr (lb > 0 && lb >= sizeof...(Ops)) {
+			// get default
+			if constexpr (lb == krylov_oplabel::P)
+				return op::I;
+			else if constexpr (lb == krylov_oplabel::diag) {
+				return [](const auto &, double) { return false; };
+			}
+		}
+		else {
+			return get_operator_ref<lb>();
+		}
+	}
+
+	template<class T>
+	static bool default_diagnostic(const T &, double) {
+		return false;
+	}
+
+	std::shared_ptr<solver_type> solver;
+	std::tuple<std::decay_t<Ops>...> ops;
+};
+
+template<class SP, class SW, class... Ops>
+struct krylov_parameters
+	: krylov_parameters_base<
+		  typename traits<std::decay_t<SP>>::template solver_type<SW>,
+		  Ops...> {
+	using solver_type =
+		typename traits<std::decay_t<SP>>::template solver_type<SW>;
+	using base = krylov_parameters_base<solver_type, Ops...>;
+	using base::solver;
+
+	template<class P, class W, class... O>
+	krylov_parameters(P && sp, W && sw, O &&... ops)
+		: base(std::forward<O>(ops)...), solver_settings(std::forward<P>(sp)),
+		  solver_work(std::forward<W>(sw)) {}
+
+	auto & get_solver() {
+		if (not solver) {
+			solver =
+				std::make_shared<solver_type>(std::forward<SP>(solver_settings),
+			                                  std::forward<SW>(solver_work));
+		}
+		return *solver;
+	}
+
+	auto options() { return solver_settings.options(); }
+
+	std::decay_t<SP> solver_settings;
+	std::decay_t<SW> solver_work;
+};
+template<class SP, class SW, class... Ops>
+krylov_parameters(SP &&, SW &&, Ops &&...) -> krylov_parameters<SP, SW, Ops...>;
+
+template<class Params>
+struct krylov {
+	krylov(Params p) : params(std::move(p)) {}
+
+	template<class D, class R>
+	auto apply(const R & b, D & x) {
+		auto & op = params.template get_operator<krylov_oplabel::A>();
 		decltype(auto) bs = subset_input(b, op);
 		decltype(auto) xs = subset_output(x, op);
 
 		flog_assert(xs != bs, "Input and output vectors must be distinct");
 
+		auto & solver = params.get_solver();
+		decltype(auto) diag =
+			params.template get_operator<krylov_oplabel::diag>();
+		auto & precond = params.template get_operator<krylov_oplabel::P>();
+
 		return solver.apply(op, bs, xs, precond, diag);
-	}
-
-	A & get_operator() { return op; }
-	const A & get_oeprator() const { return op; }
-
-	template<class T>
-	void reset(const T & settings) {
-		solver.reset(settings);
-	}
-
-	template<class... Args>
-	auto rebind(Args &&... args) & {
-		return solver.bind(std::forward<Args>(args)...);
-	}
-	template<class... Args>
-	auto rebind(Args &&... args) && {
-		return std::forward<S>(solver).bind(std::forward<Args>(args)...);
 	}
 
 	template<class T, class O>
@@ -55,114 +118,45 @@ struct krylov_op {
 		return x.subset(O::output_var);
 	}
 
+	template<class T>
+	void reset(const T & settings) {
+		auto & solver = params.get_solver();
+		solver.reset(settings);
+	}
+
+	auto & get_operator() {
+		return params.template get_operator<krylov_oplabel::A>();
+	}
+
+	const auto & get_operator() const {
+		return params.template get_operator<krylov_oplabel::A>();
+	}
+
+	Params params;
+
 	static constexpr auto input_var = variable<anon_var::anonymous>;
 	static constexpr auto output_var = variable<anon_var::anonymous>;
 };
-template<class S, class A, class P, class D>
-krylov_op(S &&, A &&, P &&, D &&) -> krylov_op<S, A, P, D>;
+template<class P>
+krylov(P) -> krylov<P>;
+
+template<class Params, class... Ops>
+auto rebind(krylov<Params> & kr, Ops &&... ops) {
+	krylov_parameters_base<typename Params::solver_type, Ops...> new_params(
+		std::forward<Ops>(ops)...);
+	new_params.solver = kr.params.solver;
+	return krylov(std::move(new_params));
+}
+
+}
 
 template<class Workspace, template<class> class Solver>
 struct krylov_interface {
 	using workvec_t = typename std::remove_reference_t<Workspace>::value_type;
 	using real = typename workvec_t::real;
 
-	template<class A>
-	auto bind(A && op) & {
-		return krylov_op{static_cast<Solver<Workspace> &>(*this),
-		                 std::forward<A>(op),
-		                 op::I,
-		                 [](const auto &, double) { return false; }};
-	}
-
-	template<class A>
-	auto bind(A && op) && {
-		return krylov_op{std::move(*static_cast<Solver<Workspace> *>(this)),
-		                 std::forward<A>(op),
-		                 op::I,
-		                 [](const auto &, double) { return false; }};
-	}
-
-	template<class A, class P>
-	auto bind(A && op, P && p) & {
-		return krylov_op{static_cast<Solver<Workspace> &>(*this),
-		                 std::forward<A>(op),
-		                 std::forward<P>(p),
-		                 [](const auto &, double) { return false; }};
-	}
-
-	template<class A, class P>
-	auto bind(A && op, P && p) && {
-		return krylov_op{std::move(*static_cast<Solver<Workspace> *>(this)),
-		                 std::forward<A>(op),
-		                 std::forward<P>(p),
-		                 [](const auto &, double) { return false; }};
-	}
-
-	template<class A, class P, class D>
-	auto bind(A && op, P && p, D && d) & {
-		return krylov_op{static_cast<Solver<Workspace> &>(*this),
-		                 std::forward<A>(op),
-		                 std::forward<P>(p),
-		                 std::forward<D>(d)};
-	}
-
-	template<class A, class P, class D>
-	auto bind(A && op, P && p, D && d) && {
-		return krylov_op{std::move(*static_cast<Solver<Workspace> *>(this)),
-		                 std::forward<A>(op),
-		                 std::forward<P>(p),
-		                 std::forward<D>(d)};
-	}
-
 	Workspace work;
 };
-
-template<class S, class W, class... Ops>
-struct krylov_params {
-	using settings_type = S;
-
-	template<class V, class... O>
-	krylov_params(settings_type s, V && w, O &&... o)
-		: solver_settings(std::move(s)), work(std::forward<V>(w)),
-		  ops(std::forward<O>(o)...) {}
-
-	settings_type solver_settings;
-	W work;
-	std::tuple<Ops...> ops;
-};
-template<class S, class W, class... O>
-krylov_params(S, W &&, O &&...) -> krylov_params<S, W, O...>;
-
-template<template<class> class S, class W, class... Ops>
-auto make_krylov_op(const typename S<W>::settings_type & params,
-                    W && work,
-                    Ops &&... ops) {
-	S slv(params, std::forward<W>(work));
-	return std::move(slv).bind(std::forward<Ops>(ops)...);
-}
-
-namespace op {
-template<class W, template<class> class Slv>
-struct factory<krylov_interface<W, Slv>> {
-	template<class P>
-	static auto create(P && params) {
-		return std::apply(
-			[&](auto &&... v) {
-				if constexpr (std::is_rvalue_reference_v<P &&>) {
-					return make_krylov_op<Slv>(
-						params.solver_settings,
-						std::forward<decltype(params.work)>(params.work),
-						std::forward<decltype(v)>(v)...);
-				}
-				else {
-					return make_krylov_op<Slv>(
-						params.solver_settings, params.work, v...);
-				}
-			},
-			std::forward<decltype(params.ops)>(params.ops));
-	}
-};
-}
 
 }
 #endif

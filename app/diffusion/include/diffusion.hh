@@ -10,6 +10,7 @@
 #include "flecsolve/vectors/mesh.hh"
 #include "flecsolve/vectors/multi.hh"
 
+#include "flecsolve/util/config.hh"
 #include "flecsolve/physics/boundary/dirichlet.hh"
 #include "flecsolve/physics/boundary/neumann.hh"
 #include "flecsolve/physics/expressions/operator_expression.hh"
@@ -251,21 +252,14 @@ int driver() {
 
 	// get the solver parameters and workspace, & bind the operator to the
 	// solver
-
-	flecsolve::krylov_params cg_params(
-		flecsolve::cg::settings{11, 1e-9, 1e-9, false},
+	flecsolve::op::krylov_parameters params(
+		flecsolve::cg::settings("solver"),
 		flecsolve::cg::topo_work<>::get(RHS),
-		A);
+		std::move(A));
+	read_config("diffusion.cfg", params);
 
-	auto slv = flecsolve::op::create(cg_params);
-
-	// flecsolve::krylov_params params(
-	// 	flecsolve::nka::settings{100, 0., 1.0E-6, 5, 0.2},
-	// 	flecsolve::nka::topo_work<5>::get(RHS),
-	// 	A,
-	// 	Precond);
-	// // create the solver
-	// auto slv = flecsolve::op::create(params);
+	// create the solver
+	flecsolve::op::krylov slv(std::move(params));
 
 	// run the solver
 	auto info = slv.apply(RHS, X);

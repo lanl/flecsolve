@@ -12,12 +12,23 @@ namespace flecsolve::nka {
 enum workvecs : std::size_t { sol, res, correction, nwork };
 
 struct settings : solver_settings {
-	using base = solver_settings;
 
-	settings(int maxiter, float rtol, float atol, int max_dim, float angle_tol)
-		: base{maxiter, rtol, atol, false}, max_dim{max_dim},
-		  angle_tol{angle_tol}, freeze_pc{true}, use_qr{false},
-		  use_damping{false}, adaptive_damping{false}, damping_factor(1.0) {}
+	settings(const char * pre) : solver_settings(pre) {}
+
+	auto options() {
+		auto desc = solver_settings::options();
+		// clang-format off
+		desc.add_options()
+			(label("max-dim").c_str(), po::value<int>(&max_dim)->required(), "maximum dimension")
+			(label("angle-tol").c_str(), po::value<double>(&angle_tol)->default_value(0.9), "angle tolerance")
+			(label("freeze-pc").c_str(), po::value<bool>(&freeze_pc)->default_value(true), "freeze preconditioner")
+			(label("use-qr").c_str(), po::value<bool>(&use_qr)->default_value(false), "use QR for factorization")
+			(label("use-damping").c_str(), po::value<bool>(&use_damping)->default_value(false), "use damping")
+			(label("adaptive-damping").c_str(), po::value<bool>(&adaptive_damping)->default_value(false), "use adaptive damping")
+			(label("damping-factor").c_str(), po::value<double>(&damping_factor)->default_value(1.), "daping factor");
+		// clang-format on
+		return desc;
+	}
 
 	void validate() {
 		if (adaptive_damping) {
@@ -519,9 +530,10 @@ solver(const settings &, V &&) -> solver<V>;
 
 namespace flecsolve {
 
-template<class W, class... Ops>
-struct traits<krylov_params<nka::settings, W, Ops...>> {
-	using op = krylov_interface<W, nka::solver>;
+template<>
+struct traits<nka::settings> {
+	template<class W>
+	using solver_type = nka::solver<W>;
 };
 
 }

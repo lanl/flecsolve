@@ -6,6 +6,7 @@
 
 #include "flecsolve/vectors/mesh.hh"
 #include "flecsolve/solvers/cg.hh"
+#include "flecsolve/util/config.hh"
 
 #include "csr_utils.hh"
 
@@ -45,7 +46,7 @@ struct diagnostic {
 		return false;
 	}
 
-	std::size_t iter;
+	int iter;
 	double e_prev;
 	double e_0;
 	double cond;
@@ -85,12 +86,13 @@ int cgtest() {
 			x.set_random(7);
 
 			diagnostic diag(A, x, cs.cond);
-			krylov_params params(cg::settings{2000, 1e-9, 1e-9, false},
-			                     cg::topo_work<>::get(b),
-			                     std::move(A),
-			                     op::I,
-			                     diag);
-			auto slv = op::create(std::move(params));
+			op::krylov_parameters params(cg::settings("cg-solver"),
+			                             cg::topo_work<>::get(b),
+			                             std::move(A),
+			                             op::I,
+			                             std::ref(diag));
+			read_config("cg.cfg", params);
+			op::krylov slv(std::move(params));
 
 			auto info = slv.apply(b, x);
 
@@ -98,6 +100,7 @@ int cgtest() {
 			            (info.iters == cs.iters_rel));
 			EXPECT_FALSE(diag.monotonic_fail);
 			EXPECT_FALSE(diag.convergence_fail);
+			EXPECT_TRUE(info.iters == diag.iter);
 
 			++i;
 		}

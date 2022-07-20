@@ -6,6 +6,7 @@
 #include <flecsi/flog.hh>
 #include <flecsi/util/array_ref.hh>
 #include <flecsi/execution.hh>
+#include <functional>
 
 #include "solver_settings.hh"
 #include "shell.hh"
@@ -20,17 +21,24 @@ static constexpr std::size_t nwork = (krylov_dim_bound + 1) + 3;
 
 struct settings : solver_settings {
 	using base_t = solver_settings;
-	settings(int maxiter, float rtol)
-		: base_t{maxiter, rtol, 0.0, false},
-		  max_krylov_dim(maxiter), pre_side{precond_side::right},
-		  restart(false) {}
+	settings(const char * pre) : solver_settings(pre) {}
 
-	settings(int maxiter, int max_kdim, float rtol)
-		: base_t{maxiter, rtol, 0.0, false},
-		  max_krylov_dim(max_kdim), pre_side{precond_side::right},
-		  restart(true) {}
+	auto options() {
+		auto desc = solver_settings::options();
+		// clang-format off
+		desc.add_options()
+			(label("max-krylov-dim").c_str(), po::value<int>(&max_krylov_dim)->default_value(-1), "maximum krylov dimension")
+			(label("pre-side").c_str(),
+			 po::value<std::string>()->default_value("right")->notifier(
+				 std::bind1st(std::mem_fn(&settings::set_preside), this)), "preconditioner side")
+			(label("restart").c_str(), po::value<bool>(&restart)->default_value(false), "should restart");
+		// clang-format on
+		return desc;
+	}
 
 	void validate() {
+		if (max_krylov_dim < 0)
+			max_krylov_dim = maxiter;
 		flog_assert(max_krylov_dim <= krylov_dim_bound,
 		            "GMRES: max_krylov_dim is larger than bound");
 		if (!restart) {
@@ -43,6 +51,17 @@ struct settings : solver_settings {
 	int max_krylov_dim;
 	precond_side pre_side;
 	bool restart;
+
+private:
+	void set_preside(std::string side) {
+		if (side == "left")
+			pre_side = precond_side::left;
+		else if (side == "right")
+			pre_side = precond_side::right;
+		else {
+			flog_error("GMRES: invalid preconditioner side: " << side);
+		}
+	}
 };
 
 template<std::size_t Version = 0>
@@ -381,11 +400,10 @@ solver(const settings &, V &&) -> solver<V>;
 }
 
 namespace flecsolve {
-
-template<class W, class... Ops>
-struct traits<krylov_params<gmres::settings, W, Ops...>> {
-	using op = krylov_interface<W, gmres::solver>;
+template<>
+struct traits<gmres::settings> {
+	template<class W>
+	using solver_type = gmres::solver<W>;
 };
-
 }
 #endif
