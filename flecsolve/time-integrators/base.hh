@@ -21,7 +21,11 @@ struct base {
 		++integrator_step;
 	}
 
+	int get_current_step() const { return integrator_step; }
+
 	double get_current_dt() const { return current_dt; }
+
+	bool fixed_dt() const { return params.use_fixed_dt; }
 
 protected:
 	P params;
@@ -29,6 +33,17 @@ protected:
 	double current_dt;
 	double old_dt;
 	int integrator_step;
+};
+
+template<class P>
+struct implicit : base<P> {
+	using base<P>::params;
+
+	implicit(P && p) : base<P>(std::move(p)) {}
+
+	auto & get_solver() { return params.solver; }
+
+	const auto & get_solver() const { return params.solver; }
 };
 
 }

@@ -142,6 +142,7 @@
         -DCMAKE_CXX_FLAGS="${CXX_FLAGS}" \
         -DCMAKE_C_COMPILER=${C_COMPILER} \
         -DCMAKE_C_FLAGS="${C_FLAGS}" \
+        -DENABLE_UNIT_TESTS=on \
         ${CMAKE_OPTIONS} \
         ../..
     - make
