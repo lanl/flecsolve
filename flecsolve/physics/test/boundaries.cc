@@ -77,17 +77,18 @@ static check yhi{[](std::size_t, std::size_t) { return 1.0; },
 
 template<class Vec>
 constexpr auto make_bcs(const Vec &) {
-
+	using namespace flecsolve::physics;
 	auto bndry_xlo =
-		physics::dirichlet<Vec, msh::x_axis, msh::boundary_low>::create({-1.0});
+	 bc<dirichlet<Vec>, msh::x_axis, msh::boundary_low>::create({-1.0});
+
 
 	auto bndry_xhi =
-		physics::dirichlet<Vec, msh::x_axis, msh::boundary_high>::create({1.0});
+	bc<dirichlet<Vec>, msh::x_axis, msh::boundary_high>::create({1.0});
 
 	auto bndry_ylo =
-		physics::neumann<Vec, msh::y_axis, msh::boundary_low>::create({});
+		bc<neumann<Vec>, msh::y_axis, msh::boundary_low>::create({});
 	auto bndry_yhi =
-		physics::neumann<Vec, msh::y_axis, msh::boundary_high>::create({});
+		bc<neumann<Vec>, msh::y_axis, msh::boundary_high>::create({});
 
 	return std::make_tuple(bndry_xlo, bndry_xhi, bndry_ylo, bndry_yhi);
 }

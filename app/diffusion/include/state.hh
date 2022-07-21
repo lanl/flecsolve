@@ -22,4 +22,14 @@ std::array<
 	NVAR>
 	diffb;
 
+template<auto N>
+constexpr inline auto faces_ref()
+{
+	return
+		util::key_array<flecsi::field<scalar_t>::Reference<msh, msh::faces>, msh::axes>
+			{diffb[N][msh::x_axis](m),
+			diffb[N][msh::y_axis](m),
+			diffb[N][msh::z_axis](m)};
+}
+
 } // namespace diffusion

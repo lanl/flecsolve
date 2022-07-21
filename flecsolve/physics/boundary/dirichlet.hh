@@ -5,36 +5,32 @@
 #include <utility>
 #include <vector>
 
+#include "flecsolve/physics/boundary/bc_base.hh"
 #include "flecsolve/physics/common/operator_base.hh"
 #include "flecsolve/physics/common/vector_types.hh"
-#include "flecsolve/physics/tasks/operator_task.hh"
+
 #include "flecsolve/vectors/variable.hh"
 
 namespace flecsolve {
 namespace physics {
 
-template<class Vec,
-         auto Axis,
-         auto Boundary,
-         auto Var = Vec::var.value>
+template<class Vec, auto Var = Vec::var.value>
 struct dirichlet;
 
-template<class Vec,
-         auto Axis,
-         auto Boundary,
-         auto Var>
-struct operator_parameters<dirichlet<Vec, Axis, Boundary, Var>> {
-	static constexpr auto op_axis = Axis;
-	static constexpr auto op_boundary = Boundary;
+template<class Vec, auto Var>
+struct operator_parameters<dirichlet<Vec, Var>> {
 	scalar_t<Vec> boundary_value = 0.0;
 };
 
 namespace tasks {
-template<class Vec,
-         auto Axis,
-         auto Boundary,
-         auto Var>
-struct operator_task<dirichlet<Vec, Axis, Boundary, Var>> {
+template<class Vec, auto Axis, auto Boundary, auto Var>
+struct operator_task<bc<dirichlet<Vec, Var>, Axis, Boundary>> {
+	template<class U, class P>
+	static constexpr void launch(const U & u, P & p) {
+		const auto & subu = u.template subset(variable<Var>);
+		flecsi::execute<operate>(
+			subu.data.topo, subu.data.ref(), p.boundary_value);
+	}
 	static constexpr void
 	operate(topo_acc<Vec> m, field_acc<Vec, flecsi::wo> u, scalar_t<Vec> v) {
 		auto jj = m.template get_stencil<Axis,
@@ -47,32 +43,8 @@ struct operator_task<dirichlet<Vec, Axis, Boundary, Var>> {
 		}
 	}
 };
+
 } // tasks
-
-template<class Vec,
-         auto Axis,
-         auto Boundary,
-         auto Var>
-struct dirichlet : operator_settings<dirichlet<Vec, Axis, Boundary, Var>> {
-
-	using base_type = operator_settings<dirichlet<Vec, Axis, Boundary, Var>>;
-	using exact_type = typename base_type::exact_type;
-	using param_type = typename base_type::param_type;
-	using task_type = typename base_type::task_type;
-
-	dirichlet(param_type p) : base_type(p) {}
-
-	template<class U, class V>
-	constexpr auto apply(const U & u, V &) const {
-		const auto & subu = u.template subset(variable<Var>);
-		flecsi::execute<task_type::operate>(
-			subu.data.topo, subu.data.ref(), this->parameters.boundary_value);
-	}
-};
-
-// template<class Topo, typename Topo::axis Axis, typename Topo::domain
-// Boundary, class Scalar> dirchilet(Axis, Boundary, Scalar)->dirchilet<Topo,
-// Axis, Boundary, Scalar>
 
 }
 }

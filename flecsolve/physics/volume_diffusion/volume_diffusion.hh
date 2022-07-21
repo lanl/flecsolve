@@ -9,12 +9,14 @@
 
 #include "flecsolve/physics/common/operator_base.hh"
 #include "flecsolve/physics/common/operator_utils.hh"
+#include "flecsolve/physics/expressions/operator_expression.hh"
 #include "flecsolve/physics/common/vector_types.hh"
 #include "flecsolve/physics/common/state_store.hh"
 #include "flecsolve/physics/tasks/operator_task.hh"
 
 namespace flecsolve {
 namespace physics {
+
 
 /**
  * @brief operator of finite-volume diffusion
@@ -165,6 +167,31 @@ struct volume_diffusion_op : operator_settings<volume_diffusion_op<Vec, Var>> {
 		 ...);
 	}
 };
+
+template<class Derived>
+struct operator_creator;
+
+template<class Vec, auto Var>
+struct operator_creator<volume_diffusion_op<Vec, Var>>
+{
+	template<template<class, auto> class CoeffOp, class FacesRefArr, class CellsRef>
+	static constexpr decltype(auto) create(FacesRefArr fra, CellsRef cr, scalar_t<Vec> beta, scalar_t<Vec> alpha, topo_slot_t<Vec> & m)
+	{
+		auto coeffop = CoeffOp<Vec, Var>::create({fra});
+		auto voldiff = volume_diffusion_op<Vec,Var>::create(
+			{cr, fra, beta, alpha}, m);
+	return op_expr(coeffop, voldiff);
+	}
+};
+
+template<class Vec, class FacesRefArr, class CellsRef, template<class, auto> class CoeffOp, auto Var>
+constexpr decltype(auto) create_volume_operator(const Vec&, FacesRefArr fra, CellsRef cr, scalar_t<Vec> beta, scalar_t<Vec> alpha, topo_slot_t<Vec> m)
+{
+	auto coeffop = CoeffOp<Vec, Var>::create({fra});
+	auto voldiff = volume_diffusion_op<Vec,Var>::create(
+		{cr, fra, beta, alpha}, m);
+	return op_expr(coeffop, voldiff);
+}
 
 }
 }

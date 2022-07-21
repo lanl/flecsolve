@@ -111,18 +111,10 @@ template<class Vec>
 constexpr decltype(auto) make_boundary_operator_neumann(const Vec &) {
 	using namespace flecsolve::physics;
 
-	auto bndxl =
-		neumann<Vec, msh::x_axis, msh::boundary_low>::create(
-			{});
-	auto bndxh =
-		neumann<Vec, msh::x_axis, msh::boundary_high>::create(
-			{});
-	auto bndyl =
-		neumann<Vec, msh::y_axis, msh::boundary_low>::create(
-			{});
-	auto bndyh =
-		neumann<Vec, msh::y_axis, msh::boundary_high>::create(
-			{});
+	auto bndxl = bc<neumann<Vec>, msh::x_axis, msh::boundary_low>::create({});
+	auto bndxh = bc<neumann<Vec>, msh::x_axis, msh::boundary_high>::create({});
+	auto bndyl = bc<neumann<Vec>, msh::y_axis, msh::boundary_low>::create({});
+	auto bndyh = bc<neumann<Vec>, msh::y_axis, msh::boundary_high>::create({});
 
 	return op_expr(
 		flecsolve::multivariable<Vec::var.value>, bndxl, bndxh, bndyl, bndyh);
@@ -132,19 +124,19 @@ template<class Vec>
 constexpr decltype(auto) make_boundary_operator_dirichlet(const Vec &) {
 	using namespace flecsolve::physics;
 
-	auto bndxl =
-		dirichlet<Vec, msh::x_axis, msh::boundary_low>::create(
-			{1.0E-9});
-	auto bndxh =
-		dirichlet<Vec, msh::x_axis, msh::boundary_high>::create(
-			{1.0E-9});
-	auto bndyl =
-		dirichlet<Vec, msh::y_axis, msh::boundary_low>::create(
-			{1.0E-9});
-	auto bndyh =
-		dirichlet<Vec, msh::y_axis, msh::boundary_high>::create(
-			{1.0E-9});
+	// auto bndxl =
+	// 	dirichlet<Vec, msh::x_axis, msh::boundary_low>::create({1.0E-9});
+	// auto bndxh =
+	// 	dirichlet<Vec, msh::x_axis, msh::boundary_high>::create({1.0E-9});
+	// auto bndyl =
+	// 	dirichlet<Vec, msh::y_axis, msh::boundary_low>::create({1.0E-9});
+	// auto bndyh =
+	// 	dirichlet<Vec, msh::y_axis, msh::boundary_high>::create({1.0E-9});
 
+	auto bndxl = bc<dirichlet<Vec>, msh::x_axis, msh::boundary_low>::create({1.0E-9});
+	auto bndxh = bc<dirichlet<Vec>, msh::x_axis, msh::boundary_high>::create({1.0E-9});
+	auto bndyl = bc<dirichlet<Vec>, msh::y_axis, msh::boundary_low>::create({1.0E-9});
+	auto bndyh = bc<dirichlet<Vec>, msh::y_axis, msh::boundary_high>::create({1.0E-9});
 	return op_expr(
 		flecsolve::multivariable<Vec::var.value>, bndxl, bndxh, bndyl, bndyh);
 }
@@ -153,12 +145,8 @@ template<class Vec>
 constexpr decltype(auto) make_boundary_operator_pseudo(const Vec &) {
 	using namespace flecsolve::physics;
 
-	auto bndl =
-		neumann<Vec, msh::z_axis, msh::boundary_low>::create(
-			{});
-	auto bndh =
-		neumann<Vec, msh::z_axis, msh::boundary_high>::create(
-			{});
+	auto bndl = bc<neumann<Vec>, msh::z_axis, msh::boundary_low>::create({});
+	auto bndh = bc<neumann<Vec>, msh::z_axis, msh::boundary_high>::create({});
 	return op_expr(flecsolve::multivariable<Vec::var.value>, bndl, bndh);
 }
 
@@ -174,10 +162,17 @@ decltype(auto) make_volume_operator(const Vec & v) {
 	         diffb[N][msh::y_axis](m),
 	         diffb[N][msh::z_axis](m)};
 
-	auto coeffop = coefficent<Vec>::create({bref});
-	auto voldiff = volume_diffusion_op<Vec>::create(
-		{diffa[N](m), bref, 1.0, 0.0}, m);
+	auto coeffop = unit_coefficent<Vec>::create({bref});
+	auto voldiff =
+		volume_diffusion_op<Vec>::create({diffa[N](m), bref, 1.0, 0.0}, m);
 	return op_expr(flecsolve::multivariable<Vec::var.value>, coeffop, voldiff);
+}
+
+template<auto N, class Vec>
+decltype(auto) make_volume_operator_X(const Vec & v) {
+	using namespace flecsolve::physics;
+	return operator_creator<volume_diffusion_op<Vec>>::template create<
+		unit_coefficent>(faces_ref<N>(), diffa[N](m), 1.0, 0.0, m);
 }
 
 int driver() {
@@ -188,12 +183,6 @@ int driver() {
 	// fill auxiliary data fields
 	for (std::size_t n = 0; n < NVAR; ++n) {
 		execute<fill_field<msh::cells>>(m, diffa[n](m), DEFAULT_VAL);
-		// execute<fill_field<msh::faces>>(
-		// 	m, diffb[n][msh::x_axis](m), DEFAULT_VAL);
-		// execute<fill_field<msh::faces>>(
-		// 	m, diffb[n][msh::y_axis](m), DEFAULT_VAL);
-		// execute<fill_field<msh::faces>>(
-		// 	m, diffb[n][msh::z_axis](m), DEFAULT_VAL);
 	}
 
 	// set up initial conditions
@@ -242,7 +231,7 @@ int driver() {
 		flecsolve::multivariable<diffusion_var::v1, diffusion_var::v2>,
 		// make_boundary_operator_neumann(vec1),
 		bnd_op_1,
-		make_volume_operator<0>(vec1),
+		make_volume_operator_X<0>(vec1),
 		// make_boundary_operator_dirichlet(vec2),
 		bnd_op_2,
 		make_volume_operator<1>(vec2));

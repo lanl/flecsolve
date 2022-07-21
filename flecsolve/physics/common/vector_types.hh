@@ -60,9 +60,13 @@ using cell_ref = field_ref<Vec, topo_t<Vec>::cells>;
 namespace components {
 
 template<class Vec>
+struct FacesOneHandle {
+	std::optional<face_ref<Vec>> faces_x;
+};
+
+template<class Vec>
 struct FacesHandle {
-	std::optional<flecsi::util::key_array<face_ref<Vec>, topo_axes_t<Vec>>>
-		faces;
+	std::optional<flecsi::util::key_array<face_ref<Vec>, topo_axes_t<Vec>>> faces;
 };
 
 template<class Vec>

@@ -100,16 +100,16 @@ constexpr decltype(auto) make_boundary_operator(const Vec &) {
 	using namespace flecsolve::physics;
 
 	auto bndxl =
-		neumann<Vec, msh::x_axis, msh::boundary_low>::create(
+		bc<neumann<Vec>, msh::x_axis, msh::boundary_low>::create(
 			{});
 	auto bndxh =
-		neumann<Vec, msh::x_axis, msh::boundary_high>::create(
+		bc<neumann<Vec>, msh::x_axis, msh::boundary_high>::create(
 			{});
 	auto bndyl =
-		neumann<Vec, msh::y_axis, msh::boundary_low>::create(
+		bc<neumann<Vec>, msh::y_axis, msh::boundary_low>::create(
 			{});
 	auto bndyh =
-		neumann<Vec, msh::y_axis, msh::boundary_high>::create(
+		bc<neumann<Vec>, msh::y_axis, msh::boundary_high>::create(
 			{});
 
 	return op_expr(
@@ -121,10 +121,10 @@ constexpr decltype(auto) make_boundary_operator_pseudo(const Vec &) {
 	using namespace flecsolve::physics;
 
 	auto bndl =
-		neumann<Vec, msh::z_axis, msh::boundary_low>::create(
+		bc<neumann<Vec>, msh::z_axis, msh::boundary_low>::create(
 			{});
 	auto bndh =
-		neumann<Vec, msh::z_axis, msh::boundary_high>::create(
+		bc<neumann<Vec>, msh::z_axis, msh::boundary_high>::create(
 			{});
 	return op_expr(bndl, bndh);
 }
@@ -139,10 +139,20 @@ decltype(auto) make_volume_operator(const Vec & v) {
 	         diffb[msh::y_axis](m),
 	         diffb[msh::z_axis](m)};
 
-	auto coeffop = coefficent<Vec>::create({bref});
+	auto coeffop = unit_coefficent<Vec>::create({bref});
 	auto voldiff = volume_diffusion_op<Vec>::create(
 		{diffa(m), bref, 1.0, 0.0}, m);
 	return op_expr(coeffop, voldiff);
+}
+
+
+template<class Vec>
+decltype(auto) make_volume_operator_X(const Vec & v) {
+	using namespace flecsolve::physics;
+
+	return create_volume_operator<unit_coefficent>(v, {diffb[msh::x_axis](m),
+		diffb[msh::y_axis](m),
+		diffb[msh::z_axis](m)}, diffa(m), 1.0, 0.0, m);
 }
 
 int driver() {

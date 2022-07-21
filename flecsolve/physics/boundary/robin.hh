@@ -5,98 +5,53 @@
 #include <utility>
 #include <vector>
 
+#include "flecsolve/physics/common/vector_types.hh"
 #include "flecsolve/physics/common/operator_base.hh"
-#include "flecsolve/physics/tasks/operator_task.hh"
+#include "flecsolve/physics/boundary/bc_base.hh"
 
 namespace flecsolve {
 namespace physics {
 
-template<auto Var,
-         class Topo,
-         typename Topo::axis Axis,
-         typename Topo::domain Boundary,
-         class Scalar = double>
+template<class Vec, auto Var = Vec::var.value>
 struct robin;
 
-template<auto Var,
-         class Topo,
-         typename Topo::axis Axis,
-         typename Topo::domain Boundary,
-         class Scalar>
-struct operator_traits<robin<Var, Topo, Axis, Boundary, Scalar>> {
-	using scalar_t = Scalar;
-	using topo_t = Topo;
-	using topo_slot_t = flecsi::data::topology_slot<Topo>;
-	using topo_axes_t = typename topo_t::axes;
-	constexpr static auto dim = Topo::dimension;
-	using tasks_f = tasks::topology_tasks<topo_t, flecsi::field<scalar_t>>;
-
-	using cell_ref =
-		typename flecsi::field<scalar_t>::template Reference<topo_t,
-	                                                         topo_t::cells>;
-
-	using face_ref =
-		typename flecsi::field<scalar_t>::template Reference<topo_t,
-	                                                         topo_t::faces>;
-
-	constexpr static auto op_axis = Axis;
-	constexpr static auto op_boundary = Boundary;
+template<class Vec, auto var>
+struct operator_parameters<robin<Vec, Var>> : components::FacesOneHandle<Vec> {
+	scalar_t<Vec> alpha = 1.0;
+	scalar_t<Vec> beta = 0.0;
 };
 
-template<auto Var,
-         class Topo,
-         typename Topo::axis Axis,
-         typename Topo::domain Boundary,
-         class Scalar>
-struct operator_parameters<robin<Var, Topo, Axis, Boundary, Scalar>> {
-	using op_type = robin<Var, Topo, Axis, Boundary, Scalar>;
-	using cell_ref = typename operator_traits<op_type>::cell_ref;
-	using face_ref = typename operator_traits<op_type>::face_ref;
-
-	Scalar alpha = 1.0;
-	Scalar beta = 0.0;
-
-	std::optional<face_ref> b;
-};
-
-template<auto Var,
-         class Topo,
-         typename Topo::axis Axis,
-         typename Topo::domain Boundary,
-         class Scalar>
-struct robin : operator_settings<robin<Var, Topo, Axis, Boundary, Scalar>> {
-	using base_type =
-		operator_settings<robin<Var, Topo, Axis, Boundary, Scalar>>;
-	using exact_type = typename base_type::exact_type;
-	using param_type = typename base_type::param_type;
-	using topo_slot_t = typename operator_traits<exact_type>::topo_slot_t;
-	using cell_ref = typename operator_traits<exact_type>::cell_ref;
-	using tasks_f = typename operator_traits<exact_type>::tasks_f;
-
-	neumann(param_type p) : base_type(p) {}
-
-	template<class U, class V>
-	constexpr auto apply(const U & u, V &) const {
-
+namespace tasks {
+template<class Vec, auto Axis, auto Boundary, auto Var>
+struct operator_task<bc<robin<Vec, Var>, Axis, Boundary>> {
+	template<class U, class P>
+	static constexpr void launch(const U & u, P & p) {
 		const auto & subu = u.template subset(variable<Var>);
-		_apply(subu.data.topo, subu.data.ref());
+		flecsi::execute<operate>(
+			subu.data.topo, subu.data.ref(), p.faces_x, p.alpha, p.beta);
 	}
 
-	void _apply(topo_slot_t & m, cell_ref u) const {
-		if (this->parameters.b) {
-			flecsi::execute<tasks_f::template boundary_robin<Axis, Boundary>>(
-				m,
-				u,
-				*(this->parameters.b),
-				this->parameters.alpha,
-				this->parameters.beta);
-		}
-		else {
-			flecsi::execute<tasks_f::template boundary_robin_1<Axis, Boundary>>(
-				m, u, this->parameters.alpha, this->parameters.beta);
+	static void boundary_robin(topo_acc m,
+	                           acc<rw> u,
+	                           acc_all<ro> d,
+	                           scalar_t a,
+	                           scalar_t v) {
+		const scalar_t<Vec> dx = m.template dx<Axis>();
+		constexpr int nd = (Boundary == topo_t<Vec>::boundary_low ? -1 : 1);
+		auto [jj, jo] =
+			m.template get_stencil<Axis,
+		                           topo_t<Vec>::cells,
+		                           topo_t<Vec>::cells,
+		                           Boundary>(utils::offset_seq<nd>());
+
+		for (auto j : jj) {
+			u[j] = ((2.0 * a * d[j + jo] - dx * v) /
+			        (2.0 * a * d[j + jo] + dx * v)) *
+			       u[j + jo];
 		}
 	}
 };
+} // tasks
 
 }
 } // namespace physics
