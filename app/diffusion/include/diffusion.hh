@@ -107,21 +107,21 @@ void slope_field(msh::accessor<ro, ro> vm,
 	}
 }
 
-template<auto N, class Vec>
+template<class Vec>
 constexpr decltype(auto) make_boundary_operator_neumann(const Vec &) {
 	using namespace flecsolve::physics;
 
 	auto bndxl =
-		neumann<Vec::var.value, msh, msh::x_axis, msh::boundary_low>::create(
+		neumann<Vec, msh::x_axis, msh::boundary_low>::create(
 			{});
 	auto bndxh =
-		neumann<Vec::var.value, msh, msh::x_axis, msh::boundary_high>::create(
+		neumann<Vec, msh::x_axis, msh::boundary_high>::create(
 			{});
 	auto bndyl =
-		neumann<Vec::var.value, msh, msh::y_axis, msh::boundary_low>::create(
+		neumann<Vec, msh::y_axis, msh::boundary_low>::create(
 			{});
 	auto bndyh =
-		neumann<Vec::var.value, msh, msh::y_axis, msh::boundary_high>::create(
+		neumann<Vec, msh::y_axis, msh::boundary_high>::create(
 			{});
 
 	return op_expr(
@@ -133,31 +133,31 @@ constexpr decltype(auto) make_boundary_operator_dirichlet(const Vec &) {
 	using namespace flecsolve::physics;
 
 	auto bndxl =
-		dirichlet<Vec::var.value, Vec, msh::x_axis, msh::boundary_low>::create(
+		dirichlet<Vec, msh::x_axis, msh::boundary_low>::create(
 			{1.0E-9});
 	auto bndxh =
-		dirichlet<Vec::var.value, Vec, msh::x_axis, msh::boundary_high>::create(
+		dirichlet<Vec, msh::x_axis, msh::boundary_high>::create(
 			{1.0E-9});
 	auto bndyl =
-		dirichlet<Vec::var.value, Vec, msh::y_axis, msh::boundary_low>::create(
+		dirichlet<Vec, msh::y_axis, msh::boundary_low>::create(
 			{1.0E-9});
 	auto bndyh =
-		dirichlet<Vec::var.value, Vec, msh::y_axis, msh::boundary_high>::create(
+		dirichlet<Vec, msh::y_axis, msh::boundary_high>::create(
 			{1.0E-9});
 
 	return op_expr(
 		flecsolve::multivariable<Vec::var.value>, bndxl, bndxh, bndyl, bndyh);
 }
 
-template<auto N, class Vec>
+template<class Vec>
 constexpr decltype(auto) make_boundary_operator_pseudo(const Vec &) {
 	using namespace flecsolve::physics;
 
 	auto bndl =
-		neumann<Vec::var.value, msh, msh::z_axis, msh::boundary_low>::create(
+		neumann<Vec, msh::z_axis, msh::boundary_low>::create(
 			{});
 	auto bndh =
-		neumann<Vec::var.value, msh, msh::z_axis, msh::boundary_high>::create(
+		neumann<Vec, msh::z_axis, msh::boundary_high>::create(
 			{});
 	return op_expr(flecsolve::multivariable<Vec::var.value>, bndl, bndh);
 }
@@ -174,8 +174,8 @@ decltype(auto) make_volume_operator(const Vec & v) {
 	         diffb[N][msh::y_axis](m),
 	         diffb[N][msh::z_axis](m)};
 
-	auto coeffop = coefficent<Vec::var.value, Vec>::create({bref});
-	auto voldiff = volume_diffusion_op<Vec::var.value, Vec>::create(
+	auto coeffop = coefficent<Vec>::create({bref});
+	auto voldiff = volume_diffusion_op<Vec>::create(
 		{diffa[N](m), bref, 1.0, 0.0}, m);
 	return op_expr(flecsolve::multivariable<Vec::var.value>, coeffop, voldiff);
 }
@@ -231,12 +231,12 @@ int driver() {
 
 	auto bnd_op_1 =
 		flecsolve::physics::op_expr(flecsolve::multivariable<diffusion_var::v1>,
-	                                make_boundary_operator_neumann<0>(vec1),
-	                                make_boundary_operator_pseudo<0>(vec1));
+	                                make_boundary_operator_dirichlet(vec1),
+	                                make_boundary_operator_pseudo(vec1));
 	auto bnd_op_2 =
 		flecsolve::physics::op_expr(flecsolve::multivariable<diffusion_var::v2>,
-	                                make_boundary_operator_neumann<1>(vec2),
-	                                make_boundary_operator_pseudo<1>(vec2));
+	                                make_boundary_operator_neumann(vec2),
+	                                make_boundary_operator_pseudo(vec2));
 	// build the operator on the variables
 	auto A = flecsolve::physics::op_expr(
 		flecsolve::multivariable<diffusion_var::v1, diffusion_var::v2>,

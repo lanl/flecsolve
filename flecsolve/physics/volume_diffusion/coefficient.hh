@@ -17,17 +17,17 @@
 namespace flecsolve {
 namespace physics {
 
-template<auto Var, class Vec>
+template<class Vec, auto Var = Vec::var.value>
 struct coefficent;
 
-template<auto Var, class Vec>
-struct operator_parameters<coefficent<Var, Vec>> : components::FacesHandle<Vec> {
-	using op_type = operator_parameters<coefficent<Var, Vec>>;
+template<class Vec, auto Var>
+struct operator_parameters<coefficent<Vec, Var>> : components::FacesHandle<Vec> {
+	using op_type = operator_parameters<coefficent<Vec, Var>>;
 };
 
 namespace tasks {
-template<auto Var, class Vec>
-struct operator_task<coefficent<Var, Vec>> {
+template<class Vec, auto Var>
+struct operator_task<coefficent<Vec, Var>> {
 	template<auto Axis>
 	static void unit_coef(topo_acc<Vec> m,
 	                                field_acc<Vec, ro> u,
@@ -42,10 +42,10 @@ struct operator_task<coefficent<Var, Vec>> {
 };
 }
 
-template<auto Var, class Vec>
-struct coefficent : operator_settings<coefficent<Var, Vec>> {
+template<class Vec, auto Var>
+struct coefficent : operator_settings<coefficent<Vec, Var>> {
 
-	using base_type = operator_settings<coefficent<Var, Vec>>;
+	using base_type = operator_settings<coefficent<Vec, Var>>;
 	using exact_type = typename base_type::exact_type;
 	using param_type = typename base_type::param_type;
 	using task_type = typename base_type::task_type;

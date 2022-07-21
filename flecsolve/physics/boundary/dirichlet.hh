@@ -13,30 +13,30 @@
 namespace flecsolve {
 namespace physics {
 
-template<auto Var,
-         class Vec,
-         topo_axes_t<Vec> Axis,
-         topo_domain_t<Vec> Boundary>
+template<class Vec,
+         auto Axis,
+         auto Boundary,
+         auto Var = Vec::var.value>
 struct dirichlet;
 
-template<auto Var,
-         class Vec,
-         topo_axes_t<Vec> Axis,
-         topo_domain_t<Vec> Boundary>
-struct operator_parameters<dirichlet<Var, Vec, Axis, Boundary>> {
+template<class Vec,
+         auto Axis,
+         auto Boundary,
+         auto Var>
+struct operator_parameters<dirichlet<Vec, Axis, Boundary, Var>> {
 	static constexpr auto op_axis = Axis;
 	static constexpr auto op_boundary = Boundary;
 	scalar_t<Vec> boundary_value = 0.0;
 };
 
 namespace tasks {
-template<auto Var,
-         class Vec,
-         topo_axes_t<Vec> Axis,
-         topo_domain_t<Vec> Boundary>
-struct operator_task<dirichlet<Var, Vec, Axis, Boundary>> {
+template<class Vec,
+         auto Axis,
+         auto Boundary,
+         auto Var>
+struct operator_task<dirichlet<Vec, Axis, Boundary, Var>> {
 	static constexpr void
-	operate(topo_acc<Vec> m, field_acc<Vec, flecsi::ro> u, scalar_t<Vec> v) {
+	operate(topo_acc<Vec> m, field_acc<Vec, flecsi::wo> u, scalar_t<Vec> v) {
 		auto jj = m.template get_stencil<Axis,
 		                                 topo_t<Vec>::cells,
 		                                 topo_t<Vec>::cells,
@@ -49,13 +49,13 @@ struct operator_task<dirichlet<Var, Vec, Axis, Boundary>> {
 };
 } // tasks
 
-template<auto Var,
-         class Vec,
-         topo_axes_t<Vec> Axis,
-         topo_domain_t<Vec> Boundary>
-struct dirichlet : operator_settings<dirichlet<Var, Vec, Axis, Boundary>> {
+template<class Vec,
+         auto Axis,
+         auto Boundary,
+         auto Var>
+struct dirichlet : operator_settings<dirichlet<Vec, Axis, Boundary, Var>> {
 
-	using base_type = operator_settings<dirichlet<Var, Vec, Axis, Boundary>>;
+	using base_type = operator_settings<dirichlet<Vec, Axis, Boundary, Var>>;
 	using exact_type = typename base_type::exact_type;
 	using param_type = typename base_type::param_type;
 	using task_type = typename base_type::task_type;

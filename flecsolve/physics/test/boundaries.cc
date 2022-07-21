@@ -26,8 +26,6 @@ const field<double>::definition<msh, msh::cells> xd;
 flecsi::util::key_array<field<double>::definition<msh, msh::faces>, msh::axes>
 	bd;
 
-enum class bndvar { v1 = 1, v2 };
-
 template<class F, class T, class A, class D>
 struct check {
 	static constexpr double ftol = 1e-8;
@@ -77,6 +75,23 @@ static check yhi{[](std::size_t, std::size_t) { return 1.0; },
                  std::integral_constant<msh::axis, msh::y_axis>{},
                  std::integral_constant<msh::domain, msh::boundary_high>{}};
 
+template<class Vec>
+constexpr auto make_bcs(const Vec &) {
+
+	auto bndry_xlo =
+		physics::dirichlet<Vec, msh::x_axis, msh::boundary_low>::create({-1.0});
+
+	auto bndry_xhi =
+		physics::dirichlet<Vec, msh::x_axis, msh::boundary_high>::create({1.0});
+
+	auto bndry_ylo =
+		physics::neumann<Vec, msh::y_axis, msh::boundary_low>::create({});
+	auto bndry_yhi =
+		physics::neumann<Vec, msh::y_axis, msh::boundary_high>::create({});
+
+	return std::make_tuple(bndry_xlo, bndry_xhi, bndry_ylo, bndry_yhi);
+}
+
 int boundary_test() {
 
 	init_mesh({NX, NY, 1});
@@ -84,37 +99,20 @@ int boundary_test() {
 	execute<fill_field<msh::faces>>(m, bd[msh::y_axis](m), 1.0);
 	execute<fill_field<msh::faces>>(m, bd[msh::z_axis](m), 1.0);
 	UNIT () {
-		vec::mesh x(variable<bndvar::v1>, m, xd(m));
+		vec::mesh x(m, xd(m));
 
-		// using Vec = decltype(x);
-		// auto bndry_xlo = physics::make_operator<
-		// 	physics::
-		// 		dirichlet<bndvar::v1, Vec, msh::x_axis, msh::boundary_low>>(
-		// 	-1.0);
+		auto [bndry_xlo, bndry_xhi, bndry_ylo, bndry_yhi] = make_bcs(x);
+		x.set_scalar(1.0);
 
-		// auto bndry_xhi = physics::make_operator<
-		// 	physics::
-		// 		dirichlet<bndvar::v1, Vec, msh::x_axis, msh::boundary_high>>(
-		// 	1.0);
+		bndry_xlo.apply(x, x);
+		bndry_xhi.apply(x, x);
+		bndry_ylo.apply(x, x);
+		bndry_yhi.apply(x, x);
 
-		// auto bndry_ylo = physics::make_operator<
-		// 	physics::
-		// 		neumann<bndvar::v1, Vec, msh::y_axis, msh::boundary_low>>();
-		// auto bndry_yhi = physics::make_operator<
-		// 	physics::
-		// 		neumann<bndvar::v1, Vec, msh::y_axis, msh::boundary_high>>();
-
-		// x.set_scalar(1.0);
-
-		// bndry_xlo.apply(x, x);
-		// bndry_xhi.apply(x, x);
-		// bndry_ylo.apply(x, x);
-		// bndry_yhi.apply(x, x);
-
-		// EXPECT_EQ((test<xlo>(m, xd(m))), 0);
-		// EXPECT_EQ((test<xhi>(m, xd(m))), 0);
-		// EXPECT_EQ((test<ylo>(m, xd(m))), 0);
-		// EXPECT_EQ((test<yhi>(m, xd(m))), 0);
+		EXPECT_EQ((test<xlo>(m, xd(m))), 0);
+		EXPECT_EQ((test<xhi>(m, xd(m))), 0);
+		EXPECT_EQ((test<ylo>(m, xd(m))), 0);
+		EXPECT_EQ((test<yhi>(m, xd(m))), 0);
 	};
 }
 

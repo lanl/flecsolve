@@ -163,19 +163,6 @@ constexpr auto make_array(T value) -> std::array<T, N> {
 	return a;
 }
 
-template<class Vec, template<auto> class F>
-struct sweep_fn {
-
-	template<class... Args>
-	static constexpr decltype(auto) sweep(Args &&... args) {
-		foo(std::forward<Args>(args)..., topo_axes_t<Vec>());
-	}
-	template<class... Args, auto... Axis>
-	static constexpr decltype(auto) foo(Args &&... args,
-										flecsi::util::constants<Axis...>) {
-		return (F<Axis>(std::forward<Args>(args...)), ...);
-	}
-};
 
 }
 }

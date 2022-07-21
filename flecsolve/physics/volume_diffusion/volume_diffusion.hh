@@ -28,45 +28,21 @@ namespace physics {
  * @tparam Topo topology
  * @tparam Scalar scalar data-type
  */
-template<auto Var, class Vec>
+template<class Vec, auto Var = Vec::var.value>
 struct volume_diffusion_op;
 
-// template<auto Var, class Topo, class Scalar>
-// struct operator_traits<volume_diffusion_op<Var, Topo, Scalar>> {
-// 	using scalar_t = Scalar;
-// 	using topo_t = Topo;
-// 	using topo_slot_t = flecsi::data::topology_slot<Topo>;
-// 	using topo_axes_t = typename topo_t::axes;
-// 	constexpr static auto dim = Topo::dimension;
-// 	using tasks_f = tasks::topology_tasks<topo_t, flecsi::field<scalar_t>>;
-
-// 	using cell_def =
-// 		typename flecsi::field<scalar_t>::template definition<topo_t,
-// 	                                                          topo_t::cells>;
-// 	using cell_ref =
-// 		typename flecsi::field<scalar_t>::template Reference<topo_t,
-// 	                                                         topo_t::cells>;
-
-// 	using face_def =
-// 		typename flecsi::field<scalar_t>::template definition<topo_t,
-// 	                                                          topo_t::faces>;
-// 	using face_ref =
-// 		typename flecsi::field<scalar_t>::template Reference<topo_t,
-// 	                                                         topo_t::faces>;
-// };
-
-template<auto Var, class Vec>
-struct operator_parameters<volume_diffusion_op<Var, Vec>>
+template<class Vec, auto Var>
+struct operator_parameters<volume_diffusion_op<Vec, Var>>
 	: components::CellsHandle<Vec>, components::FacesHandle<Vec> {
-	using op_type = volume_diffusion_op<Var, Vec>;
+	using op_type = volume_diffusion_op<Vec, Var>;
 
 	scalar_t<Vec> beta = 1.0;
 	scalar_t<Vec> alpha = 0.0;
 };
 
 namespace tasks {
-template<auto Var, class Vec>
-struct operator_task<volume_diffusion_op<Var, Vec>> {
+template<class Vec, auto Var>
+struct operator_task<volume_diffusion_op<Vec, Var>> {
 	template<auto Axis>
 	static void update_flux(topo_acc<Vec> m,
 	                                field_acc_all<Vec, flecsi::ro> u_x,
@@ -124,25 +100,13 @@ struct operator_task<volume_diffusion_op<Var, Vec>> {
 };
 }
 
-template<auto Var, class Vec>
-struct volume_diffusion_op : operator_settings<volume_diffusion_op<Var, Vec>> {
+template<class Vec, auto Var>
+struct volume_diffusion_op : operator_settings<volume_diffusion_op<Vec, Var>> {
 
-	using base_type = operator_settings<volume_diffusion_op<Var, Vec>>;
+	using base_type = operator_settings<volume_diffusion_op<Vec, Var>>;
 	using exact_type = typename base_type::exact_type;
 	using param_type = typename base_type::param_type;
 	using task_type = typename base_type::task_type;
-
-	// using scalar_t = typename operator_traits<exact_type>::scalar_t;
-	// using topo_t = typename operator_traits<exact_type>::topo_t;
-
-	// // using diffop_t = DiffOp<my_t>;
-	// using topo_slot_t = typename operator_traits<exact_type>::topo_slot_t;
-	// using topo_axes_t = typename operator_traits<exact_type>::topo_axes_t;
-	// using cell_def = typename operator_traits<exact_type>::cell_def;
-	// using cell_ref = typename operator_traits<exact_type>::cell_ref;
-	// using face_def = typename operator_traits<exact_type>::face_def;
-	// using face_ref = typename operator_traits<exact_type>::face_ref;
-
 
 	static constexpr std::size_t dim = topo_axes_t<Vec>::size;
 

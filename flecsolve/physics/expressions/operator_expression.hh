@@ -97,5 +97,11 @@ inline constexpr auto op_expr(multivariable_t<vars...>, Ps... ps) {
 	return OpExpr<multivariable_t<vars...>, std::tuple<Ps...>>(ps...);
 }
 
+
+template<class... Ps>
+inline constexpr auto op_expr(Ps... ps) {
+	return OpExpr<multivariable_t<>, std::tuple<Ps...>>(ps...);
+}
+
 }
 }
