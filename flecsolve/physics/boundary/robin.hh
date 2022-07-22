@@ -16,9 +16,10 @@ template<class Vec, auto Var = Vec::var.value>
 struct robin;
 
 template<class Vec, auto var>
-struct operator_parameters<robin<Vec, Var>> : components::FacesOneHandle<Vec> {
+struct operator_parameters<robin<Vec, Var>> {
 	scalar_t<Vec> alpha = 1.0;
 	scalar_t<Vec> beta = 0.0;
+	components::faces_handle_single<Vec> faces_x;
 };
 
 namespace tasks {

@@ -57,22 +57,20 @@ using cell_def = field_def<Vec, topo_t<Vec>::cells>;
 template<class Vec>
 using cell_ref = field_ref<Vec, topo_t<Vec>::cells>;
 
+template<class T, class Vec>
+using axes_set = flecsi::util::key_array<T, topo_axes_t<Vec>>;
+
 namespace components {
 
 template<class Vec>
-struct FacesOneHandle {
-	std::optional<face_ref<Vec>> faces_x;
-};
+using faces_handle_single = std::optional<face_ref<Vec>>;
 
 template<class Vec>
-struct FacesHandle {
-	std::optional<flecsi::util::key_array<face_ref<Vec>, topo_axes_t<Vec>>> faces;
-};
+using faces_handle = std::optional<axes_set<face_ref<Vec>, Vec>>;
 
 template<class Vec>
-struct CellsHandle {
-	std::optional<cell_ref<Vec>> cells;
-};
+using cells_handle = std::optional<cell_ref<Vec>>;
+
 }
 
 }

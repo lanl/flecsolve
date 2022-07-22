@@ -22,8 +22,9 @@ template<class Vec, auto Var = Vec::var.value>
 struct unit_coefficent;
 
 template<class Vec, auto Var>
-struct operator_parameters<unit_coefficent<Vec, Var>> : components::FacesHandle<Vec> {
+struct operator_parameters<unit_coefficent<Vec, Var>> {
 	using op_type = operator_parameters<unit_coefficent<Vec, Var>>;
+	components::faces_handle<Vec> faces;
 };
 
 namespace tasks {
