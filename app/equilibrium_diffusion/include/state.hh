@@ -8,7 +8,7 @@
 
 using namespace flecsi;
 
-namespace diffusion {
+namespace eqdiff {
 
 using msh = flecsolve::physics::operator_mesh;
 

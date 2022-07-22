@@ -14,7 +14,7 @@
 #include "flecsolve/physics/boundary/dirichlet.hh"
 #include "flecsolve/physics/boundary/neumann.hh"
 #include "flecsolve/physics/expressions/operator_expression.hh"
-#include "flecsolve/physics/volume_diffusion/volume_diffusion.hh"
+#include "flecsolve/physics/volume_diffusion/diffusion.hh"
 #include "flecsolve/physics/volume_diffusion/coefficient.hh"
 #include "flecsolve/time-integrators/rk45.hh"
 #include "flecsolve/util/config.hh"
@@ -140,20 +140,12 @@ decltype(auto) make_volume_operator(const Vec & v) {
 	         diffb[msh::z_axis](m)};
 
 	auto coeffop = unit_coefficent<Vec>::create({bref});
-	auto voldiff = volume_diffusion_op<Vec>::create(
+	auto voldiff = diffusion<Vec>::create(
 		{diffa(m), bref, 1.0, 0.0}, m);
 	return op_expr(coeffop, voldiff);
 }
 
 
-template<class Vec>
-decltype(auto) make_volume_operator_X(const Vec & v) {
-	using namespace flecsolve::physics;
-
-	return create_volume_operator<unit_coefficent>(v, {diffb[msh::x_axis](m),
-		diffb[msh::y_axis](m),
-		diffb[msh::z_axis](m)}, diffa(m), 1.0, 0.0, m);
-}
 
 int driver() {
 

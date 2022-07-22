@@ -11,7 +11,7 @@
 #include "flecsolve/physics/boundary/dirichlet.hh"
 #include "flecsolve/physics/boundary/neumann.hh"
 #include "flecsolve/physics/expressions/operator_expression.hh"
-#include "flecsolve/physics/volume_diffusion/volume_diffusion.hh"
+#include "flecsolve/physics/volume_diffusion/diffusion.hh"
 #include "flecsolve/solvers/cg.hh"
 #include "flecsolve/solvers/solver_settings.hh"
 

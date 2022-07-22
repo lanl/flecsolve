@@ -14,7 +14,7 @@
 #include "flecsolve/physics/boundary/dirichlet.hh"
 #include "flecsolve/physics/boundary/neumann.hh"
 #include "flecsolve/physics/expressions/operator_expression.hh"
-#include "flecsolve/physics/volume_diffusion/volume_diffusion.hh"
+#include "flecsolve/physics/volume_diffusion/diffusion.hh"
 #include "flecsolve/physics/volume_diffusion/coefficient.hh"
 #include "flecsolve/solvers/krylov_interface.hh"
 #include "flecsolve/solvers/cg.hh"
@@ -25,7 +25,7 @@
 #include "state.hh"
 
 using namespace flecsi;
-namespace diffusion {
+namespace eqdiff {
 void init_mesh() {
 	std::vector<std::size_t> extents{{NX, NY, 1}};
 	auto colors = msh::distribute(processes(), extents);
@@ -164,15 +164,8 @@ decltype(auto) make_volume_operator(const Vec & v) {
 
 	auto coeffop = unit_coefficent<Vec>::create({bref});
 	auto voldiff =
-		volume_diffusion_op<Vec>::create({diffa[N](m), bref, 1.0, 0.0}, m);
+		diffusion<Vec>::create({diffa[N](m), bref, 1.0, 0.0}, m);
 	return op_expr(flecsolve::multivariable<Vec::var.value>, coeffop, voldiff);
-}
-
-template<auto N, class Vec>
-decltype(auto) make_volume_operator_X(const Vec & v) {
-	using namespace flecsolve::physics;
-	return operator_creator<volume_diffusion_op<Vec>>::template create<
-		unit_coefficent>(faces_ref<N>(), diffa[N](m), 1.0, 0.0, m);
 }
 
 int driver() {
@@ -229,10 +222,8 @@ int driver() {
 	// build the operator on the variables
 	auto A = flecsolve::physics::op_expr(
 		flecsolve::multivariable<diffusion_var::v1, diffusion_var::v2>,
-		// make_boundary_operator_neumann(vec1),
 		bnd_op_1,
-		make_volume_operator_X<0>(vec1),
-		// make_boundary_operator_dirichlet(vec2),
+		make_volume_operator<0>(vec1),
 		bnd_op_2,
 		make_volume_operator<1>(vec2));
 

@@ -1,4 +1,4 @@
-#include "diffusion.hh"
+#include "equilibrium_diffusion.hh"
 
 #include <flecsi/execution.hh>
 #include <flecsi/flog.hh>
@@ -13,7 +13,7 @@ int main(int argc, char ** argv) {
 
 	flecsi::flog::add_output_stream("clog", std::clog, true);
 
-	status = flecsi::start(diffusion::driver);
+	status = flecsi::start(eqdiff::driver);
 
 	flecsi::finalize();
 

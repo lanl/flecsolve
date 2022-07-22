@@ -31,12 +31,12 @@ namespace physics {
  * @tparam Scalar scalar data-type
  */
 template<class Vec, auto Var = Vec::var.value>
-struct volume_diffusion_op;
+struct diffusion;
 
 template<class Vec, auto Var>
-struct operator_parameters<volume_diffusion_op<Vec, Var>>
+struct operator_parameters<diffusion<Vec, Var>>
 	: components::CellsHandle<Vec>, components::FacesHandle<Vec> {
-	using op_type = volume_diffusion_op<Vec, Var>;
+	using op_type = diffusion<Vec, Var>;
 
 	scalar_t<Vec> beta = 1.0;
 	scalar_t<Vec> alpha = 0.0;
@@ -44,10 +44,10 @@ struct operator_parameters<volume_diffusion_op<Vec, Var>>
 
 namespace tasks {
 template<class Vec, auto Var>
-struct operator_task<volume_diffusion_op<Vec, Var>> {
+struct operator_task<diffusion<Vec, Var>> {
 	template<auto Axis>
 	static void update_flux(topo_acc<Vec> m,
-	                                field_acc_all<Vec, flecsi::ro> u_x,
+	                                field_acc_all<Vec, ro> u_x,
 	                                field_acc<Vec, ro> b_x,
 	                                field_acc<Vec, wo> fu_x) {
 		const scalar_t<Vec> dA = m.template normal_dA<Axis>();
@@ -65,8 +65,8 @@ struct operator_task<volume_diffusion_op<Vec, Var>> {
 
 	template<auto Axis>
 	static void sum_cell_flux(topo_acc<Vec> m,
-	                                  field_acc_all<Vec, flecsi::ro> fu_x,
-	                                  field_acc<Vec, rw> du) {
+	                                  field_acc<Vec, ro> fu_x,
+	                                  field_acc<Vec, wo> du) {
 		const scalar_t<Vec> i_dx = 1.0 / m.template dx<Axis>();
 		auto [jj, jp1] = m.template get_stencil<Axis, topo_t<Vec>::cells>(
 			utils::offset_seq<1>());
@@ -82,7 +82,7 @@ struct operator_task<volume_diffusion_op<Vec, Var>> {
 	                    field_acc_all<Vec, ro> a,
 	                    field_acc_all<Vec, ro> u,
 	                    field_acc_all<Vec, ro> du,
-	                    field_acc<Vec, rw> un) {
+	                    field_acc_all<Vec, wo> un) {
 		auto jj =
 			m.template get_stencil<topo_t<Vec>::x_axis, topo_t<Vec>::cells>(
 				utils::offset_seq<>());
@@ -92,8 +92,8 @@ struct operator_task<volume_diffusion_op<Vec, Var>> {
 		}
 	}
 
-	static void zero_op(topo_acc<Vec> m, field_acc_all<Vec, wo> u) {
-		auto jj = m.template get_stencil<topo_t<Vec>::x_axis, topo_t<Vec>::cells>(
+	static void zero(topo_acc<Vec> m, field_acc_all<Vec, wo> u) {
+		auto jj = m.template get_stencil<topo_t<Vec>::x_axis, topo_t<Vec>::cells, topo_t<Vec>::cells, topo_t<Vec>::all>(
 			utils::offset_seq<>());
 		for (auto j : jj) {
 			u[j] = 0.0;
@@ -103,9 +103,9 @@ struct operator_task<volume_diffusion_op<Vec, Var>> {
 }
 
 template<class Vec, auto Var>
-struct volume_diffusion_op : operator_settings<volume_diffusion_op<Vec, Var>> {
+struct diffusion : operator_settings<diffusion<Vec, Var>> {
 
-	using base_type = operator_settings<volume_diffusion_op<Vec, Var>>;
+	using base_type = operator_settings<diffusion<Vec, Var>>;
 	using exact_type = typename base_type::exact_type;
 	using param_type = typename base_type::param_type;
 	using task_type = typename base_type::task_type;
@@ -124,7 +124,7 @@ struct volume_diffusion_op : operator_settings<volume_diffusion_op<Vec, Var>> {
 
 	cell_ref<Vec> du;
 
-	volume_diffusion_op(topo_slot_t<Vec> & s, param_type parameters)
+	diffusion(topo_slot_t<Vec> & s, param_type parameters)
 		: base_type(parameters), fluxes(flux_store_t::get_state(s)),
 		  du(du_store_t::get_state(s)) {}
 
@@ -138,8 +138,8 @@ struct volume_diffusion_op : operator_settings<volume_diffusion_op<Vec, Var>> {
 
 	void _apply(topo_slot_t<Vec> & m, cell_ref<Vec> u, cell_ref<Vec> v) const {
 		// first, zero-out the fields to take results
-		flecsi::execute<task_type::zero_op>(m, v);
-		flecsi::execute<task_type::zero_op>(m, du);
+		flecsi::execute<task_type::zero>(m, v);
+		flecsi::execute<task_type::zero>(m, du);
 
 		// determine the fluxes along the axis
 		sweep(m, u, topo_axes_t<Vec>());
@@ -172,26 +172,17 @@ template<class Derived>
 struct operator_creator;
 
 template<class Vec, auto Var>
-struct operator_creator<volume_diffusion_op<Vec, Var>>
+struct operator_creator<diffusion<Vec, Var>>
 {
 	template<template<class, auto> class CoeffOp, class FacesRefArr, class CellsRef>
 	static constexpr decltype(auto) create(FacesRefArr fra, CellsRef cr, scalar_t<Vec> beta, scalar_t<Vec> alpha, topo_slot_t<Vec> & m)
 	{
 		auto coeffop = CoeffOp<Vec, Var>::create({fra});
-		auto voldiff = volume_diffusion_op<Vec,Var>::create(
+		auto voldiff = diffusion<Vec,Var>::create(
 			{cr, fra, beta, alpha}, m);
 	return op_expr(coeffop, voldiff);
 	}
 };
-
-template<class Vec, class FacesRefArr, class CellsRef, template<class, auto> class CoeffOp, auto Var>
-constexpr decltype(auto) create_volume_operator(const Vec&, FacesRefArr fra, CellsRef cr, scalar_t<Vec> beta, scalar_t<Vec> alpha, topo_slot_t<Vec> m)
-{
-	auto coeffop = CoeffOp<Vec, Var>::create({fra});
-	auto voldiff = volume_diffusion_op<Vec,Var>::create(
-		{cr, fra, beta, alpha}, m);
-	return op_expr(coeffop, voldiff);
-}
 
 }
 }

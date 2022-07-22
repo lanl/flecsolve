@@ -202,6 +202,7 @@ struct operator_mesh
 					static_assert("boundary not given\n");
 				}
 			}
+			return {0, 0}; //unreachable code, but clang complains
 		}
 
 		template<index_space Space, domain DM, auto Along, auto... Axis>

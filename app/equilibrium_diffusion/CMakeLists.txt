@@ -1,5 +1,5 @@
 
-set(APP_NAME "diffusion")
+set(APP_NAME "equilibrium_diffusion")
 
 #------------------------------------------------------------------------------#
 # Add an executable.

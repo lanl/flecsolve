@@ -2,7 +2,7 @@
 
 #include <cstddef>
 
-namespace diffusion {
+namespace eqdiff {
 
 using scalar_t = double;
 
