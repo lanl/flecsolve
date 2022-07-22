@@ -38,7 +38,7 @@ struct integrator : base<parameters<O, W>> {
 	void advance(double dt, Curr & curr, Out & out) {
 		current_dt = dt;
 		auto & F = params.get_operator();
-		auto & [k1, k2, k3, k4, k5, k6, next, z] = params.work;
+		auto & [k1, k2, k3, k4, k5, k6, z, next] = params.work;
 
 		F.apply(curr, k1);
 		next.axpy(0.25 * dt, k1, curr);
@@ -106,7 +106,7 @@ struct integrator : base<parameters<O, W>> {
 			if (good_solution) {
 				auto & z = std::get<workvecs::z>(params.work);
 				auto err_est = z.l2norm().get();
-				next_dt = 0.84 * current_dt *
+				next_dt = params.safety_factor * current_dt *
 				          std::pow((params.atol / err_est), 1. / 5.);
 				next_dt =
 					std::min(std::max(next_dt, params.min_dt), params.max_dt);

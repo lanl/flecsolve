@@ -98,7 +98,7 @@ struct integrator : base<parameters<O, W>> {
 		}
 		else {
 			auto & z = std::get<workvecs::z>(params.work);
-			auto est_err = z->l2norm().get();
+			auto est_err = z.l2norm().get();
 			next_dt = params.safety_factor * current_dt *
 			          std::pow(params.atol / est_err, 1. / 3.);
 			next_dt = std::min(std::max(next_dt, params.min_dt), params.max_dt);

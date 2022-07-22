@@ -251,7 +251,7 @@ struct mesh_tasks {
 	}
 
 	static real local_max(topo_acc m, acc<ro> u) {
-		auto ret = std::numeric_limits<real>::min();
+		auto ret = std::numeric_limits<real>::lowest();
 		for (auto dof : util::dofs(m)) {
 			if constexpr (is_complex)
 				ret = std::max(u[dof].real(), ret);
