@@ -8,6 +8,7 @@
 #include "flecsolve/vectors/mesh.hh"
 #include "flecsolve/vectors/multi.hh"
 #include "flecsolve/solvers/cg.hh"
+#include "flecsolve/util/config.hh"
 
 #include "csr_utils.hh"
 
@@ -67,16 +68,19 @@ int multicg() {
 		test_op A1(variable<vars::var1>, A);
 		test_op A2(variable<vars::var2>, A);
 
-		auto slv1 = op::create(
-			krylov_params(cg::settings{2000, 1e-9, 1e-9, false},
-		                  cg::topo_work<>::get(bm.subset(variable<vars::var1>)),
-		                  A1));
+		cg::settings settings("solver");
+		read_config("cgmulti.cfg", settings);
+
+		op::krylov slv1(op::krylov_parameters(
+			settings,
+			cg::topo_work<>::get(bm.subset(variable<vars::var1>)),
+			std::move(A1)));
 		auto info1 = slv1.apply(bm, xm);
 
-		auto slv2 = op::create(
-			krylov_params(cg::settings{2000, 1e-9, 1e-9, false},
-		                  cg::topo_work<>::get(bm.subset(variable<vars::var2>)),
-		                  A2));
+		op::krylov slv2(op::krylov_parameters(
+			settings,
+			cg::topo_work<>::get(bm.subset(variable<vars::var2>)),
+			std::move(A2)));
 		auto info2 = slv2.apply(bm, xm);
 
 		EXPECT_EQ(info1.iters, 161);
