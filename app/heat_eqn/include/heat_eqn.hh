@@ -16,7 +16,10 @@
 #include "flecsolve/physics/expressions/operator_expression.hh"
 #include "flecsolve/physics/volume_diffusion/diffusion.hh"
 #include "flecsolve/physics/volume_diffusion/coefficient.hh"
-#include "flecsolve/time-integrators/rk45.hh"
+#include "flecsolve/solvers/krylov_interface.hh"
+#include "flecsolve/solvers/cg.hh"
+#include "flecsolve/solvers/solver_settings.hh"
+//#include "flecsolve/time-integrators/rk45.hh"
 #include "flecsolve/util/config.hh"
 
 #include "parameters.hh"
@@ -88,8 +91,10 @@ void init_field_ball(msh::accessor<ro, ro> vm,
 			const auto y = (vm.value<msh::y_axis>(j) - 0.5);
 			for (auto i : vm.range<msh::cells, msh::x_axis, msh::extended>()) {
 				const auto x = (vm.value<msh::y_axis>(i) - 0.5);
-				const auto r = std::sqrt(x * x + y * y); xv[k][j][i] =
-					r > 0.3 ? 1.0E-9 : (0.3 - r); // vm.value<msh::x_axis>(i + 1);
+				const auto r = std::sqrt(x * x + y * y);
+				xv[k][j][i] = r > 0.3
+				                  ? 1.0E-9
+				                  : (0.3 - r); // vm.value<msh::x_axis>(i + 1);
 			}
 		}
 	}
@@ -99,34 +104,22 @@ template<class Vec>
 constexpr decltype(auto) make_boundary_operator(const Vec &) {
 	using namespace flecsolve::physics;
 
-	auto bndxl =
-		bc<neumann<Vec>, msh::x_axis, msh::boundary_low>::create(
-			{});
-	auto bndxh =
-		bc<neumann<Vec>, msh::x_axis, msh::boundary_high>::create(
-			{});
-	auto bndyl =
-		bc<neumann<Vec>, msh::y_axis, msh::boundary_low>::create(
-			{});
-	auto bndyh =
-		bc<neumann<Vec>, msh::y_axis, msh::boundary_high>::create(
-			{});
+	auto bndxl = bc<neumann<Vec>, msh::x_axis, msh::boundary_low>::create({});
+	auto bndxh = bc<neumann<Vec>, msh::x_axis, msh::boundary_high>::create({});
+	auto bndyl = bc<neumann<Vec>, msh::y_axis, msh::boundary_low>::create({});
+	auto bndyh = bc<neumann<Vec>, msh::y_axis, msh::boundary_high>::create({});
 
 	return op_expr(
-		bndxl, bndxh, bndyl, bndyh);
+		flecsolve::multivariable<Vec::var.value>, bndxl, bndxh, bndyl, bndyh);
 }
 
 template<class Vec>
 constexpr decltype(auto) make_boundary_operator_pseudo(const Vec &) {
 	using namespace flecsolve::physics;
 
-	auto bndl =
-		bc<neumann<Vec>, msh::z_axis, msh::boundary_low>::create(
-			{});
-	auto bndh =
-		bc<neumann<Vec>, msh::z_axis, msh::boundary_high>::create(
-			{});
-	return op_expr(bndl, bndh);
+	auto bndl = bc<neumann<Vec>, msh::z_axis, msh::boundary_low>::create({});
+	auto bndh = bc<neumann<Vec>, msh::z_axis, msh::boundary_high>::create({});
+	return op_expr(flecsolve::multivariable<Vec::var.value>, bndl, bndh);
 }
 
 template<class Vec>
@@ -140,12 +133,9 @@ decltype(auto) make_volume_operator(const Vec & v) {
 	         diffb[msh::z_axis](m)};
 
 	auto coeffop = unit_coefficent<Vec>::create({bref});
-	auto voldiff = diffusion<Vec>::create(
-		{diffa(m), bref, 1.0, 0.0}, m);
-	return op_expr(coeffop, voldiff);
+	auto voldiff = diffusion<Vec>::create({diffa(m), bref, 1.0, 0.0}, m);
+	return op_expr(flecsolve::multivariable<Vec::var.value>, coeffop, voldiff);
 }
-
-
 
 int driver() {
 
@@ -166,30 +156,51 @@ int driver() {
 					  "single core.\n";
 	}
 
-	flecsolve::vec::mesh u(m, ud(m)), un(m,und(m));
-
-	auto bnd_op = flecsolve::physics::op_expr(
-		make_boundary_operator(u), make_boundary_operator_pseudo(u));
+	// flecsolve::vec::mesh u(m, ud(m)), un(m,und(m));
+	flecsolve::vec::multi X(
+		flecsolve::vec::mesh(flecsolve::variable<heateqn_var::v1>, m, ud(m)));
+	flecsolve::vec::multi B(
+		flecsolve::vec::mesh(flecsolve::variable<heateqn_var::v1>, m, und(m)));
+	auto & [x] = X;
+	auto bnd_op =
+		flecsolve::physics::op_expr(flecsolve::multivariable<heateqn_var::v1>,
+	                                make_boundary_operator(x),
+	                                make_boundary_operator_pseudo(x));
 
 	// build the operator on the variables
-	auto F = flecsolve::physics::op_expr(bnd_op, make_volume_operator(u));
+	auto A =
+		flecsolve::physics::op_expr(flecsolve::multivariable<heateqn_var::v1>,
+	                                bnd_op,
+	                                make_volume_operator(x));
 
-	flecsolve::time_integrator::rk45::parameters params45(
-		"time-int",
-		std::ref(F),
-		flecsolve::time_integrator::rk45::topo_work<>::get(u));
+	flecsolve::op::krylov_parameters params(flecsolve::cg::settings("solver"),
+	                                        flecsolve::cg::topo_work<>::get(B),
+	                                        std::ref(A));
 
-	read_config("heateqn.cfg", params45);
-	flecsolve::time_integrator::rk45::integrator ti45(std::move(params45));
+	read_config("diffusion.cfg", params);
 
-	 while(ti45.get_current_time() < ti45.get_final_time())
-	 {
-	 	ti45.advance(ti45.get_current_dt(), u, u);
-	 	ti45.update();
-		execute<check_vals>(m, ud(m), "u");
-	 }
+	B.set_scalar(0.0);
+	// create the solver
+	flecsolve::op::krylov slv(std::move(params));
 
-	// helper print of final solutions
+	// run the solver
+	auto info = slv.apply(B, X);
+	// flecsolve::time_integrator::rk45::parameters params45(
+	// 	"time-int",
+	// 	std::ref(F),
+	// 	flecsolve::time_integrator::rk45::topo_work<>::get(u));
+
+	// read_config("heateqn.cfg", params45);
+	// flecsolve::time_integrator::rk45::integrator ti45(std::move(params45));
+
+	//  while(ti45.get_current_time() < ti45.get_final_time())
+	//  {
+	//  	ti45.advance(ti45.get_current_dt(), u, u);
+	//  	ti45.update();
+	// 	execute<check_vals>(m, ud(m), "u");
+	//  }
+
+	// // helper print of final solutions
 	if (processes() < 100) {
 		execute<check_vals>(m, ud(m), "u");
 	}

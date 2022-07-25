@@ -18,6 +18,7 @@
 #include "flecsolve/physics/volume_diffusion/coefficient.hh"
 #include "flecsolve/solvers/krylov_interface.hh"
 #include "flecsolve/solvers/cg.hh"
+#include "flecsolve/solvers/gmres.hh"
 #include "flecsolve/solvers/nka.hh"
 #include "flecsolve/solvers/solver_settings.hh"
 
@@ -124,15 +125,6 @@ template<class Vec>
 constexpr decltype(auto) make_boundary_operator_dirichlet(const Vec &) {
 	using namespace flecsolve::physics;
 
-	// auto bndxl =
-	// 	dirichlet<Vec, msh::x_axis, msh::boundary_low>::create({1.0E-9});
-	// auto bndxh =
-	// 	dirichlet<Vec, msh::x_axis, msh::boundary_high>::create({1.0E-9});
-	// auto bndyl =
-	// 	dirichlet<Vec, msh::y_axis, msh::boundary_low>::create({1.0E-9});
-	// auto bndyh =
-	// 	dirichlet<Vec, msh::y_axis, msh::boundary_high>::create({1.0E-9});
-
 	auto bndxl = bc<dirichlet<Vec>, msh::x_axis, msh::boundary_low>::create({1.0E-9});
 	auto bndxh = bc<dirichlet<Vec>, msh::x_axis, msh::boundary_high>::create({1.0E-9});
 	auto bndyl = bc<dirichlet<Vec>, msh::y_axis, msh::boundary_low>::create({1.0E-9});
@@ -154,8 +146,6 @@ template<auto N, class Vec>
 decltype(auto) make_volume_operator(const Vec & v) {
 	using namespace flecsolve::physics;
 
-	// volume_diffusion_op<Vec::var.value, msh> voldiff(
-	// 	m, {diff_beta, diff_alpha, diffa(m), diffb(m)});
 	flecsi::util::key_array<flecsi::field<scalar_t>::Reference<msh, msh::faces>,
 	                        msh::axes>
 		bref{diffb[N][msh::x_axis](m),
@@ -235,7 +225,11 @@ int driver() {
 	flecsolve::op::krylov_parameters params(
 		flecsolve::cg::settings("solver"),
 		flecsolve::cg::topo_work<>::get(RHS),
-		std::move(A));
+		std::ref(A));
+	// flecsolve::op::krylov_parameters params(
+	// 	flecsolve::gmres::settings("solver"),
+	// 	flecsolve::gmres::topo_work<>::get(RHS),
+	// 	std::ref(A));
 	read_config("diffusion.cfg", params);
 
 	// create the solver

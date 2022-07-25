@@ -6,8 +6,8 @@ namespace eqdiff {
 
 using scalar_t = double;
 
-constexpr std::size_t NX = 16;
-constexpr std::size_t NY = 16;
+constexpr std::size_t NX = 4;
+constexpr std::size_t NY = 4;
 constexpr std::size_t NZ = 1;
 
 constexpr std::size_t NVAR = 2;
