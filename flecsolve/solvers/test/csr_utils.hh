@@ -187,7 +187,7 @@ struct csr_op {
 	template<class domain_vec, class range_vec>
 	void apply(const domain_vec & x, range_vec & y) const {
 		flecsi::execute<spmv<CSR>, flecsi::mpi>(
-			mat, x.data.topo, x.data.ref(), y.data.ref());
+			mat, x.data.topo(), x.data.ref(), y.data.ref());
 	}
 
 	template<class domain_vec, class range_vec>

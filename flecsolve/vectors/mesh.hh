@@ -50,7 +50,7 @@ struct mesh<anon_var::anonymous, Topo, Space, Scalar>
 
 	template<class Slot, class Ref>
 	mesh(Slot & topo, Ref ref)
-		: base_t(data::mesh<Topo, Space, Scalar>{topo, ref}) {}
+		: base_t(data::mesh<Topo, Space, Scalar>{std::ref(topo), ref}) {}
 
 	template<auto var>
 	const auto & subset(variable_t<var>) const {

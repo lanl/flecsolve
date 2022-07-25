@@ -74,7 +74,7 @@ struct topo_solver_state {
 
 	static auto get_work(const Vec & rhs) {
 		return make_work(
-			rhs.data.topo, defs, std::make_index_sequence<NumWork>());
+			rhs.data.topo(), defs, std::make_index_sequence<NumWork>());
 	}
 
 protected:

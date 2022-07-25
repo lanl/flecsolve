@@ -41,15 +41,16 @@ struct mesh {
 		}
 	};
 
-	topo_slot_t & topo;
+	std::reference_wrapper<topo_slot_t> topo_slot;
 	field_reference reference;
 
 	auto ref() const { return reference; }
 	auto fid() const { return ref().fid(); }
+	topo_slot_t & topo() const { return topo_slot; }
 };
 
 template<class Slot, class Ref>
-mesh(Slot &, Ref)
+mesh(std::reference_wrapper<Slot>, Ref)
 	-> mesh<typename Ref::Base::Topology, Ref::space, typename Ref::value_type>;
 
 template<class Topo, typename Topo::index_space Space, class T>

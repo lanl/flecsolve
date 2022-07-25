@@ -37,7 +37,7 @@ struct operator_task<bc<dirichlet<Vec, Var>, Axis, Boundary>> {
 	static constexpr void launch(const U & u, P & p) {
 		const auto & subu = u.template subset(variable<Var>);
 		flecsi::execute<operate>(
-			subu.data.topo, subu.data.ref(), p.boundary_value);
+			subu.data.topo(), subu.data.ref(), p.boundary_value);
 	}
 	static constexpr void
 	operate(topo_acc<Vec> m, field_acc<Vec, flecsi::wo> u, scalar_t<Vec> v) {

@@ -58,7 +58,7 @@ int extest() {
 				auto good_solution = ti.check_solution();
 				if (good_solution or ti.fixed_dt()) {
 					ti.update();
-					x.copy(xnew);
+					std::swap(x, xnew);
 				}
 				dt = ti.get_next_dt(good_solution);
 			}

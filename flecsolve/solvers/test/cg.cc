@@ -21,7 +21,7 @@ const realf::definition<testmesh, testmesh::cells> xd, bd;
 template<class Op, class Vec>
 struct diagnostic {
 	diagnostic(const Op & A, const Vec & x0, double cond)
-		: iter(0), cond(cond), A(A), Ax(x0.data.topo, axdef(x0.data.topo)),
+		: iter(0), cond(cond), A(A), Ax(x0.data.topo(), axdef(x0.data.topo())),
 		  monotonic_fail(false), convergence_fail(false) {
 		A.apply(x0, Ax);
 		auto nrm = x0.dot(Ax).get();
