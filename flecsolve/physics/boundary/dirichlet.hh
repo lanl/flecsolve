@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "flecsolve/physics/boundary/bc_base.hh"
+#include "flecsolve/physics/common/operator_utils.hh"
 #include "flecsolve/physics/common/operator_base.hh"
 #include "flecsolve/physics/common/vector_types.hh"
 
@@ -20,6 +21,13 @@ struct dirichlet;
 template<class Vec, auto Var>
 struct operator_parameters<dirichlet<Vec, Var>> {
 	scalar_t<Vec> boundary_value = 0.0;
+};
+
+template<class Vec, auto Var>
+struct operator_traits<dirichlet<Vec, Var>>
+{
+	using op_type = dirichlet<Vec, Var>;
+	static constexpr std::string_view label{"dirichlet"};
 };
 
 namespace tasks {

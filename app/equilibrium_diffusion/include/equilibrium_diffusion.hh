@@ -152,7 +152,8 @@ decltype(auto) make_volume_operator(const Vec & v) {
 	         diffb[N][msh::y_axis](m),
 	         diffb[N][msh::z_axis](m)};
 
-	auto coeffop = unit_coefficent<Vec>::create({bref});
+	//auto vd = operator_creator<diffusion<Vec>, constant_coefficent>::create(bref, diffa[N](m), 1.0, 0.0, m);
+	auto coeffop = constant_coefficent<Vec>::create({bref});
 	auto voldiff =
 		diffusion<Vec>::create({diffa[N](m), bref, 1.0, 0.0}, m);
 	return op_expr(flecsolve::multivariable<Vec::var.value>, coeffop, voldiff);
@@ -217,8 +218,14 @@ int driver() {
 		bnd_op_2,
 		make_volume_operator<1>(vec2));
 
+	std :: cout << A.to_string() << std::endl;
+
+	auto apar = A.get_parameters<0>(X);
+
+	A.reset(apar);
 	// set the RHS to vanish
 	RHS.set_scalar(0.0);
+
 
 	// get the solver parameters and workspace, & bind the operator to the
 	// solver

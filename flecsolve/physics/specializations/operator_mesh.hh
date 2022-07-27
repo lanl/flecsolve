@@ -248,7 +248,7 @@ struct operator_mesh
 			flecsi::topo::narray_utils::color(cd, MPI_COMM_WORLD);
 
 		auto [fcs, fpartitions] = flecsi::topo::narray_utils::color_auxiliary(
-			ne, nc, pcs, aux_ex, MPI_COMM_WORLD, false, true);
+			ne, nc, pcs, aux_ex, MPI_COMM_WORLD, false, false);
 
 		coloring c;
 		c.comm = MPI_COMM_WORLD;

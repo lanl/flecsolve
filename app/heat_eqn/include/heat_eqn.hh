@@ -156,12 +156,8 @@ int driver() {
 					  "single core.\n";
 	}
 
-	// flecsolve::vec::mesh u(m, ud(m)), un(m,und(m));
-	flecsolve::vec::multi X(
-		flecsolve::vec::mesh(flecsolve::variable<heateqn_var::v1>, m, ud(m)));
-	flecsolve::vec::multi B(
-		flecsolve::vec::mesh(flecsolve::variable<heateqn_var::v1>, m, und(m)));
-	auto & [x] = X;
+	flecsolve::vec::mesh x(flecsolve::variable<heateqn_var::v1>, m, ud(m)), b(flecsolve::variable<heateqn_var::v1>,m,und(m));
+
 	auto bnd_op =
 		flecsolve::physics::op_expr(flecsolve::multivariable<heateqn_var::v1>,
 	                                make_boundary_operator(x),
@@ -174,17 +170,17 @@ int driver() {
 	                                make_volume_operator(x));
 
 	flecsolve::op::krylov_parameters params(flecsolve::cg::settings("solver"),
-	                                        flecsolve::cg::topo_work<>::get(B),
+	                                        flecsolve::cg::topo_work<>::get(b),
 	                                        std::ref(A));
 
 	read_config("diffusion.cfg", params);
 
-	B.set_scalar(0.0);
+	b.set_scalar(0.0);
 	// create the solver
 	flecsolve::op::krylov slv(std::move(params));
 
 	// run the solver
-	auto info = slv.apply(B, X);
+	auto info = slv.apply(b, x);
 	// flecsolve::time_integrator::rk45::parameters params45(
 	// 	"time-int",
 	// 	std::ref(F),

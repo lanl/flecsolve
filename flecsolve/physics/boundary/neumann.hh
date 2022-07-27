@@ -20,6 +20,13 @@ struct operator_parameters<neumann<Vec, Var>> {
 	scalar_t<Vec> flux_value = 0.0;
 };
 
+template<class Vec, auto Var>
+struct operator_traits<neumann<Vec, Var>>
+{
+	using op_type = neumann<Vec, Var>;
+	static constexpr std::string_view label{"neumann"};
+};
+
 namespace tasks {
 template<class Vec, auto Axis, auto Boundary, auto Var>
 struct operator_task<bc<neumann<Vec, Var>, Axis, Boundary>> {

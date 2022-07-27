@@ -21,6 +21,7 @@ inline constexpr auto start(T && t) {
 	return std::forward<T>(t);
 }
 
+
 template<class VT, class T, class K = utils::mp::iota<std::tuple_size_v<T>>>
 struct OpExpr;
 
@@ -30,39 +31,6 @@ struct OpExpr<multivariable_t<vars...>, std::tuple<Ps...>, has<Is...>> {
 
 	OpExpr(Ps... ps) : ops(std::make_tuple(ps...)) {}
 
-	template<class _T>
-	struct Flat {
-		_T ops;
-		constexpr decltype(auto) operator*() {
-			return (start(*std::get<Is>(ops)), ...);
-		}
-	};
-
-	template<class... P_>
-	inline constexpr static auto flat(P_ &&... p) {
-		return Flat<std::tuple<P_...>>{
-			std::tuple<P_...>{std::forward<P_>(p)...}};
-	}
-
-	// set/get
-	template<class J>
-	constexpr decltype(auto) at(J const & i) {
-		return (start(std::get<Is>(this->ops).at(i)), ...);
-	}
-
-	template<class J>
-	constexpr decltype(auto) at(J const & i) const {
-		return (start(std::get<Is>(this->ops).at(i)), ...);
-	}
-
-	// returns flattened expression (all nested tuples expanded)
-	constexpr decltype(auto) flat() {
-		return flat(std::get<Is>(this->ops).flat()...);
-	}
-
-	operator decltype (*(flat(std::get<Is>(ops).flat()...)))() {
-		return *flat();
-	}
 
 	template<class U, class V>
 	constexpr void apply(const U & u, V & v) const {
@@ -75,17 +43,41 @@ struct OpExpr<multivariable_t<vars...>, std::tuple<Ps...>, has<Is...>> {
 		v.subtract(f, v);
 	}
 
-	template<size_t I = 0, class... Pars>
+	constexpr decltype(auto) flat() const{
+		return std::tuple_cat(std::apply([&](auto...a){
+		  return std::tuple_cat(a.flat()...);}, ops));
+	  }
+
+
+	template<class... Pars>
 	constexpr void reset(std::tuple<Pars...> op_pars) {
-		this->at(I) = std::get<I>(op_pars);
-		if constexpr (I + 1 != sizeof...(Pars)) {
-			reset<I + 1>(op_pars);
+		_res(op_pars, flat());
+	}
+
+	template<std::size_t I = 0, class ...Pars, class T>
+	constexpr void _res(std::tuple<Pars...> opp, T t)
+	{
+		std::get<I>(t).reset(std::get<I>(opp));
+		if constexpr (I + 1 != sizeof...(Pars))
+		{
+			_res<I+1>(opp, t);
 		}
 	}
 
 	template<auto CPH, class VPH>
 	constexpr decltype(auto) get_parameters(VPH & v) const {
-		return std::make_tuple(this->at(Is)...);
+		//return std::make_tuple(this->at(Is)...);
+		return std::apply([&](const auto&...a){ return std::make_tuple(a.template get_parameters<CPH>(v)...);}, flat());
+	}
+
+	const std::string to_string() const
+	{
+		std::ostringstream ss;
+		ss << "[";
+		//std::apply([&](const auto& ...a){ (ss << ... << a.to_string());}, flat());
+		std::apply([&](const auto& ...a){ ((ss << a.to_string() << " "), ...);}, ops);
+		ss << "]";
+		return ss.str();
 	}
 
 	static constexpr auto input_var = multivariable<vars...>;
@@ -96,6 +88,8 @@ template<auto... vars, class... Ps>
 inline constexpr auto op_expr(multivariable_t<vars...>, Ps... ps) {
 	return OpExpr<multivariable_t<vars...>, std::tuple<Ps...>>(ps...);
 }
+
+
 
 }
 }

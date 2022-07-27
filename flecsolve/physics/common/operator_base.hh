@@ -4,16 +4,20 @@
 #include <flecsi/execution.hh>
 #include <flecsi/util/array_ref.hh>
 #include <flecsi/util/constant.hh>
+#include <string_view>
 #include <tuple>
 #include <type_traits>
 #include <utility>
 
-namespace flecsolve::physics {
+namespace flecsolve{
+namespace physics {
 
 template<class Derived>
 struct operator_traits;
 template<class Derived>
 struct operator_parameters;
+template<class Derived>
+struct operator_creator;
 
 namespace tasks
 {
@@ -43,6 +47,12 @@ private:
 	friend BaseType<Derived>;
 };
 
+template<class Derived, template<class> class BaseType>
+struct operator_traits<operator_base<Derived, BaseType>>
+{
+	static constexpr std::string_view label{"base"};
+};
+
 template<class Derived>
 struct operator_settings : operator_base<Derived, operator_settings> {
 
@@ -50,24 +60,6 @@ struct operator_settings : operator_base<Derived, operator_settings> {
 	using exact_type = typename base_type::exact_type;
 	using param_type = operator_parameters<Derived>;
 	using task_type = tasks::operator_task<Derived>;
-
-	// template <class C_>
-	struct Flat : exact_type {
-		constexpr param_type & operator*() { return this->parameters; }
-	};
-	template<class I>
-	constexpr decltype(auto) at(I const & i) {
-		return parameters;
-	}
-
-	template<class I>
-	constexpr decltype(auto) at(I const & i) const {
-		return parameters;
-	}
-	constexpr decltype(auto) flat() { return static_cast<Flat &>(*this); }
-	constexpr decltype(auto) flat() const {
-		return static_cast<Flat const &>(*this);
-	}
 
 	template<class P>
 	operator_settings(P && p) : base_type() {
@@ -89,105 +81,30 @@ struct operator_settings : operator_base<Derived, operator_settings> {
 		parameters = pars;
 	}
 
+	constexpr decltype(auto) flat() const
+	{
+	  return std::make_tuple(*this);
+	}
+
+	const auto to_string() const
+	{
+		return operator_traits<exact_type>::label;
+	}
+
 	template<class... Args>
 	static constexpr auto create(param_type && pars, Args &&... args) {
 		return exact_type(args..., std::forward<param_type>(pars));
 	}
 
+	// static constexpr auto get_label()
+	// {
+	// 	return std::string_view{std::string(base_type::get_label()) + std::string("::") + std::string(exact_type::label)};
+	// }
 	// private:
 
 	param_type parameters;
 	friend exact_type;
 };
-
-// template<class Derived>
-// struct operator_host
-// {
-// 	using base_type = operator_base<Derived, operator_settings>;
-// 	using exact_type = typename base_type::exact_type;
-// 	using param_type = operator_parameters<Derived>;
-
-// 	template<class... Args>
-// 	static constexpr auto create(param_type && pars, Args &&... args) {
-// 		return exact_type(args..., std::forward<param_type>(pars));
-// 	}
-// };
-
-// template<class> struct emptymix;
-
-// template<class Derived, template<class> class MixinSet=emptymix>
-// struct operator_host : operator_settings<Derived>, MixinSet<Derived>
-// {
-//   using base_type = operator_settings<Derived>;
-//   using exact_type = typename base_type::exact_type;
-//   using param_type = operator_parameters<Derived>;
-//   using mixset_type = MixinSet<Derived>;
-
-//   template<class P>
-//   operator_host(P && p) : base_type(std::forward<P>(p)), mixset_type(){}
-
-//   template<class...Args>
-//   static constexpr auto create(param_type && pars, Args&& ...args)
-//   {
-//       return exact_type(args..., std::forward<param_type>(pars));
-//   }
-
-//   template <class... Args>
-//   int run_mixes(Args&&... args) {
-//       mixset_type::exec(std::forward<Args>(args)...);
-//       return 0;
-//   }
-// };
-
-// template<template<class> class... Mixins>
-// struct make_mixins {
-// 	template<class Derived>
-// 	struct templ : Mixins<Derived>... {
-// 		template<class... Args>
-// 		void exec(Args &&... args) {
-// 			(Mixins<Derived>::exec(std::forward<Args>(args)...), ...);
-// 		}
-// 	};
-// };
-
-// template<class ML>
-// struct execute_mixins;
-
-// template<class Derived, template<class> class MixinSet>
-// struct execute_mixins<MixinSet<Derived>>
-// 	: operator_base<Derived, execute_mixins>, MixinSet<Derived> {
-// 	using base_type = operator_base<Derived, execute_mixins>;
-// 	using exact_type = typename base_type::exact_type;
-// 	using mixset_type = MixinSet<Derived>;
-
-// 	template<class... Args>
-// 	void exec(Args &&... args) {
-// 		mixset_type::exec(std::forward<Args>(args)...);
-// 	}
-// };
-
-// template <class TopHost, class Mixes, class Tuple, std::size_t... ii>
-// constexpr decltype(auto) make_ophost_impl(std::index_sequence<ii...>,
-//                                           Tuple &&tuple) {
-//   return TopHost(std::make_from_tuple<std::tuple_element_t<ii, Mixes>>(
-//       std::get<ii>(std::forward<Tuple>(tuple)))...);
-// }
-
-// template <template <template <class> class...> class HT,
-//           template <class> class... Mixes, class... Tuples>
-// constexpr decltype(auto) make_ophost(Tuples &&...tuples) {
-//   static_assert(sizeof...(Mixes) == sizeof...(Tuples));
-//   using TopHost = HT<Mixes...>;
-//   return make_ophost_impl<TopHost, std::tuple<Mixes<TopHost>...>>(
-//       std::make_index_sequence<sizeof...(Mixes)>{},
-//       std::make_tuple(std::forward<Tuples>(tuples)...));
-// }
-
-template<class Op, class... Ps>
-inline auto make_operator(Ps &&... ps) {
-	auto pars = Op::getParamType(std::forward<Ps>(ps)...);
-	return Op(pars);
-}
 
 template<typename>
 struct is_tuple : std::false_type {};
@@ -195,4 +112,5 @@ struct is_tuple : std::false_type {};
 template<typename... T>
 struct is_tuple<std::tuple<T...>> : std::true_type {};
 
+}
 }
