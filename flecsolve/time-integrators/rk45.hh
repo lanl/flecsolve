@@ -18,7 +18,7 @@ struct parameters : rk23::parameters<Op, Work> {
 };
 template<class O, class W>
 parameters(const char *, O &&, W &&)
-	-> parameters<std::decay_t<O>, std::decay_t<W>>;
+	-> parameters<O, W>;
 
 enum workvecs : std::size_t { k1, k2, k3, k4, k5, k6, z, next, nvecs };
 

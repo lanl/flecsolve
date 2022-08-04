@@ -47,6 +47,7 @@ template<class VarType, class... Vecs>
 struct multi : public multivector_base<Vecs...> {
 	using base = multivector_base<Vecs...>;
 	using base::data;
+	static constexpr std::size_t num_components = sizeof...(Vecs);
 
 	template<
 		class... VT,
@@ -125,6 +126,11 @@ struct multi : public multivector_base<Vecs...> {
 			return multi<VarType, decltype(getvar<vars>())...>(
 				getvar<vars>()...);
 		}
+	}
+
+	template<class F>
+	constexpr decltype(auto) apply(F&& f) {
+		return std::apply(std::forward<F>(f), data);
 	}
 
 	static constexpr auto var =

@@ -236,6 +236,11 @@ struct mesh {
 		// TODO: update for multiaccessor
 		flecsi::execute<tasks::dump, flecsi::mpi>(pre, x.topo(), x.ref());
 	}
+
+	template<class F, class ... Vecs>
+	static constexpr decltype(auto) apply(F && f, Vecs && ... vecs) {
+		return std::forward<F>(f)(std::forward<Vecs>(vecs)...);
+	}
 };
 
 }

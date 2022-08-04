@@ -22,6 +22,8 @@ public:
 	using data_t = Data;
 	using ops_t = Ops;
 
+	static constexpr std::size_t num_components = 1;
+
 	template<class D>
 	vector(D && d) : data(std::forward<D>(d)) {}
 
@@ -278,6 +280,11 @@ public:
 	constexpr decltype(auto) subset(multivariable_t<var>) const {
 		static_assert(var == Variable);
 		return *this;
+	}
+
+	template<class F>
+	constexpr decltype(auto) apply(F&& f) {
+		return std::forward<F>(f)(*this);
 	}
 
 	Data data;
