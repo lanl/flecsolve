@@ -41,18 +41,25 @@ struct operator_task<bc<dirichlet<Vec, Var>, Axis, Boundary>> {
 	}
 	static constexpr void
 	operate(topo_acc<Vec> m, field_acc<Vec, flecsi::wo> u, scalar_t<Vec> v) {
-		auto jj = m.template get_stencil<Axis,
-		                                 topo_t<Vec>::cells,
-		                                 topo_t<Vec>::cells,
-		                                 Boundary>(utils::offset_seq<>());
+		// auto jj = m.template get_stencil<Axis,
+		//                                  topo_t<Vec>::cells,
+		//                                  topo_t<Vec>::cells,
+		//                                  Boundary>(utils::offset_seq<>());
 
-		for (auto j : jj) {
-			u[j] = v;
+		// for (auto j : jj) {
+		// 	u[j] = v;
+		auto uv = m.template mdspanx<Axis>(u);
+		auto [ii,jj,kk] = m.template full_range<topo_t<Vec>::cells, Axis, Boundary>();
+		for (auto k : kk) {
+			for (auto j : jj) {
+				for (auto i : ii) {
+					uv[k][j][i] = v;
+				}
+			}
 		}
 	}
 };
 
-} // tasks
-
+}
 }
 }

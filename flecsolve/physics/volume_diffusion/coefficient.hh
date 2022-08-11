@@ -45,13 +45,23 @@ struct operator_task<constant_coefficent<Vec, Var>> {
 
 	template<auto Axis>
 	static void unit_coef(topo_acc<Vec> m,
-	                                field_acc<Vec, flecsi::wo> b,scalar_t<Vec> c) {
-		auto jj = m.template get_stencil<Axis, topo_t<Vec>::faces>(
-			utils::offset_seq<>());
-
-		for (auto j : jj) {
-			b[j] = c;
+	                    field_acc<Vec, flecsi::wo> b,
+						scalar_t<Vec> c) {
+		auto bv = m.template mdspanx<Axis>(b);
+		auto [ii,jj,kk] = m.template full_range<topo_t<Vec>::cells, Axis>();
+		for (auto k : kk) {
+			for (auto j : jj) {
+				for (auto i : ii) {
+					bv[k][j][i] = c;
+				}
+			}
 		}
+		// auto jj = m.template get_stencil<Axis, topo_t<Vec>::faces>(
+		// 	utils::offset_seq<>());
+
+		// for (auto j : jj) {
+		// 	b[j] = c;
+		// }
 	}
 
 	template<auto... Axis>

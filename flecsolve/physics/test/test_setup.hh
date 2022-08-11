@@ -8,6 +8,7 @@
 #include "flecsolve/vectors/mesh.hh"
 #include "flecsolve/vectors/multi.hh"
 
+#include "flecsolve/physics/specializations/fvm_narray.hh"
 #include "flecsolve/physics/boundary/dirichlet.hh"
 #include "flecsolve/physics/boundary/neumann.hh"
 #include "flecsolve/physics/expressions/operator_expression.hh"
@@ -21,7 +22,7 @@ namespace physics_testing {
 
 using scalar_t = double;
 
-using msh = physics::operator_mesh;
+using msh = physics::fvm_narray;
 
 msh::slot m;
 msh::cslot coloring;
@@ -51,9 +52,9 @@ inline void check_vals(msh::accessor<ro, ro> vm,
 	oss << "--------------------\n";
 	oss << title << "\n";
 	oss << "--------------------\n";
-	for (auto j : vm.range<msh::cells, msh::y_axis, msh::logical>()) {
+	for (auto j : vm.range<msh::cells, msh::y_axis, msh::all>()) {
 		oss << "j = " << j << std::setw(6) << " | ";
-		for (auto i : vm.range<msh::cells, msh::x_axis, msh::logical>()) {
+		for (auto i : vm.range<msh::cells, msh::x_axis, msh::all>()) {
 			oss << xv[1][j][i] << " ";
 		}
 		oss << "\n";
@@ -62,6 +63,12 @@ inline void check_vals(msh::accessor<ro, ro> vm,
 
 	oss << "\n";
 	std ::cout << oss.str();
+
+	for(auto i : vm.dofs<msh::cells>())
+	{
+		std :: cout << i << " ";
+	}
+	std::cout << "\n";
 }
 
 template<auto Space>

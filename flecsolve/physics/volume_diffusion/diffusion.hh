@@ -58,11 +58,11 @@ struct operator_task<diffusion<Vec, Var>> {
 		auto su = subu.data.ref();
 		auto sv = subv.data.ref();
 
-		flecsi::execute<zero>(m, sv);
-		flecsi::execute<zero>(m, du);
+		// flecsi::execute<zero>(m, sv);
+		//  flecsi::execute<zero>(m, du);
 
-		// determine the fluxes along the axis
-		// sweep(m, su, *(p.b), fluxes, du, topo_axes_t<Vec>());
+		// // determine the fluxes along the axis
+		// // sweep(m, su, *(p.b), fluxes, du, topo_axes_t<Vec>());
 		flecsi::execute<update_flux<topo_t<Vec>::x_axis>>(
 			m, su, (*(p.b))[topo_t<Vec>::x_axis], fluxes[0]);
 		flecsi::execute<update_flux<topo_t<Vec>::y_axis>>(
@@ -70,10 +70,14 @@ struct operator_task<diffusion<Vec, Var>> {
 		flecsi::execute<update_flux<topo_t<Vec>::z_axis>>(
 			m, su, (*(p.b))[topo_t<Vec>::z_axis], fluxes[2]);
 
-		flecsi::execute<sum_cell_flux<topo_t<Vec>::x_axis>>(m, fluxes[0], du);
-		flecsi::execute<sum_cell_flux<topo_t<Vec>::y_axis>>(m, fluxes[1], du);
-		flecsi::execute<sum_cell_flux<topo_t<Vec>::z_axis>>(m, fluxes[2], du);
-		// collect all prior calculations and apply to range vector
+		flecsi::execute<sum_cell_flux>(
+			m, fluxes[0], fluxes[1], fluxes[2], du);
+		// flecsi::execute<sum_cell_flux<topo_t<Vec>::x_axis>>(m, fluxes[0],
+		// du); flecsi::execute<sum_cell_flux<topo_t<Vec>::y_axis>>(m,
+		// fluxes[1], du);
+		// flecsi::execute<sum_cell_flux<topo_t<Vec>::z_axis>>(m, fluxes[2],
+		// du);
+		// // collect all prior calculations and apply to range vector
 		flecsi::execute<operate>(m, p.beta, p.alpha, (*(p.a)), su, du, sv);
 	}
 
@@ -85,27 +89,66 @@ struct operator_task<diffusion<Vec, Var>> {
 		const scalar_t<Vec> dA = m.template normal_dA<Axis>();
 		const scalar_t<Vec> idx = 1.0 / m.template dx<Axis>();
 
-		auto [jj, jm1] =
-			m.template get_stencil<Axis,
-		                           topo_t<Vec>::cells,
-		                           topo_t<Vec>::faces>(utils::offset_seq<-1>());
+		auto uv = m.template mdspanx<Axis>(u_x);
+		auto bv = m.template mdspanx<Axis, topo_t<Vec>::faces>(b_x);
+		auto fv = m.template mdspanx<Axis, topo_t<Vec>::faces>(fu_x);
 
-		for (auto j : jj) {
-			fu_x[j] = b_x[j] * (dA * idx) * (u_x[j] - u_x[j + jm1]);
+		auto [ii, jj, kk] = m.template full_range<topo_t<Vec>::faces, Axis>();
+
+		for (auto k : kk) {
+			for (auto j : jj) {
+				for (auto i : ii) {
+					fv[k][j][i] =
+						bv[k][j][i] * (dA * idx) * (uv[k][j][i] - uv[k][j][i]);
+				}
+			}
 		}
+		// auto [jj, jm1] =
+		// 	m.template get_stencil<Axis,
+		//                            topo_t<Vec>::cells,
+		//                            topo_t<Vec>::faces>(utils::offset_seq<-1>());
+
+		// for (auto j : jj) {
+		// 	fu_x[j] = b_x[j] * (dA * idx) * (u_x[j] - u_x[j + jm1]);
+		// }
 	}
 
-	template<auto Axis>
 	static void sum_cell_flux(topo_acc<Vec> m,
 	                          field_acc_all<Vec, flecsi::ro> fu_x,
+	                          field_acc_all<Vec, flecsi::ro> fu_y,
+	                          field_acc_all<Vec, flecsi::ro> fu_z,
 	                          field_acc<Vec, flecsi::rw> du) {
-		const scalar_t<Vec> i_dx = 1.0 / m.template dx<Axis>();
-		auto [jj, jp1] = m.template get_stencil<Axis, topo_t<Vec>::cells>(
-			utils::offset_seq<1>());
+		const scalar_t<Vec> i_dx = 1.0 / m.template dx<topo_t<Vec>::x_axis>();
+		const scalar_t<Vec> i_dy = 1.0 / m.template dx<topo_t<Vec>::y_axis>();
+		const scalar_t<Vec> i_dz = 1.0 / m.template dx<topo_t<Vec>::z_axis>();
 
-		for (auto j : jj) {
-			du[j] += (fu_x[j + jp1] - fu_x[j]) * i_dx;
+		auto fxv =
+			m.template mdspanx<topo_t<Vec>::x_axis, topo_t<Vec>::faces>(fu_x);
+		auto fyv =
+			m.template mdspanx<topo_t<Vec>::x_axis, topo_t<Vec>::faces>(fu_y);
+		auto fzv =
+			m.template mdspanx<topo_t<Vec>::x_axis, topo_t<Vec>::faces>(fu_z);
+		auto duv = m.template mdspanx<>(du);
+
+		auto [ii, jj, kk] =
+			m.template full_range<topo_t<Vec>::cells, topo_t<Vec>::x_axis>();
+
+		for (auto k : kk) {
+			for (auto j : jj) {
+				for (auto i : ii) {
+					duv[k][j][i] = ((fxv[k][j][i + 1] - fxv[k][j][i]) * i_dx) +
+					              ((fyv[k][j + 1][i] - fyv[k][j][i]) * i_dy) +
+					              ((fzv[k + 1][j][i] - fzv[k][j][i]) * i_dz);
+				}
+			}
 		}
+
+		// auto [jj, jp1] = m.template get_stencil<Axis, topo_t<Vec>::cells>(
+		// 	utils::offset_seq<1>());
+
+		// for (auto j : jj) {
+		// 	du[j] += (fu_x[j + jp1] - fu_x[j]) * i_dx;
+		// }
 	}
 
 	static void operate(topo_acc<Vec> m,
@@ -114,38 +157,53 @@ struct operator_task<diffusion<Vec, Var>> {
 	                    field_acc<Vec, flecsi::ro> a,
 	                    field_acc<Vec, flecsi::ro> u,
 	                    field_acc<Vec, flecsi::ro> du,
-	                    field_acc<Vec, flecsi::rw> un) {
-		auto jj =
-			m.template get_stencil<topo_t<Vec>::x_axis, topo_t<Vec>::cells>(
-				utils::offset_seq<>());
+	                    field_acc<Vec, flecsi::rw> v) {
+		auto av = m.template mdspanx<>(a);
+		auto uv = m.template mdspanx<>(u);
+		auto duv = m.template mdspanx<>(du);
+		auto vv = m.template mdspanx<>(v);
 
-		for (auto j : jj) {
-			un[j] = (-beta * du[j]) + (alpha * a[j] * u[j]);
+		auto [ii, jj, kk] =
+			m.template full_range<topo_t<Vec>::cells, topo_t<Vec>::x_axis>();
+		for (auto k : kk) {
+			for (auto j : jj) {
+				for (auto i : ii) {
+					vv[k][j][i] = (-beta * duv[k][j][i]) +
+					              (alpha * av[k][j][i] * uv[k][j][i]);
+				}
+			}
 		}
+		// auto jj =
+		// 	m.template get_stencil<topo_t<Vec>::x_axis, topo_t<Vec>::cells>(
+		// 		utils::offset_seq<>());
+
+		// for (auto j : jj) {
+		// 	un[j] = (-beta * du[j]) + (alpha * a[j] * u[j]);
+		// }
 	}
 
-	static void zero(topo_acc<Vec> m, field_acc_all<Vec, flecsi::wo> u) {
-		auto jj =
-			m.template get_stencil<topo_t<Vec>::x_axis, topo_t<Vec>::cells>(
-				utils::offset_seq<>());
-		for (auto j : jj) {
-			u[j] = 0.0;
-		}
-	}
+	// static void zero(topo_acc<Vec> m, field_acc_all<Vec, flecsi::wo> u) {
+	// auto jj =
+	// 	m.template get_stencil<topo_t<Vec>::x_axis, topo_t<Vec>::cells>(
+	// 		utils::offset_seq<>());
+	// for (auto j : jj) {
+	// 	u[j] = 0.0;
+	// }
+	// }
 
-	template<auto... Axis>
-	static constexpr void
-	sweep(topo_slot_t<Vec> & m,
-	      cell_ref<Vec> u,
-	      axes_set<face_ref<Vec>, Vec> & b,
-	      std::array<face_ref<Vec>, sizeof...(Axis)> & flx,
-	      cell_ref<Vec> du,
-	      flecsi::util::constants<Axis...>) {
+	// template<auto... Axis>
+	// static constexpr void
+	// sweep(topo_slot_t<Vec> & m,
+	//       cell_ref<Vec> u,
+	//       axes_set<face_ref<Vec>, Vec> & b,
+	//       std::array<face_ref<Vec>, sizeof...(Axis)> & flx,
+	//       cell_ref<Vec> du,
+	//       flecsi::util::constants<Axis...>) {
 
-		(flecsi::execute<update_flux<Axis>>(m, u, b[Axis], flx[Axis]), ...);
+	// (flecsi::execute<update_flux<Axis>>(m, u, b[Axis], flx[Axis]), ...);
 
-		(flecsi::execute<sum_cell_flux<Axis>>(m, flx[Axis], du), ...);
-	}
+	// (flecsi::execute<sum_cell_flux<Axis>>(m, flx[Axis], du), ...);
+	// }
 };
 }
 
@@ -183,10 +241,9 @@ struct diffusion : operator_settings<diffusion<Vec, Var>> {
 	}
 };
 
-
 template<class Vec, auto Var>
 struct operator_creator<diffusion<Vec, Var>> {
-	template<template<class, auto> class CoeffOp,
+	template<template<class, auto> class CoeffFn,
 	         class FacesRefArr,
 	         class CellsRef>
 	static constexpr decltype(auto) create(FacesRefArr fra,
@@ -194,12 +251,11 @@ struct operator_creator<diffusion<Vec, Var>> {
 	                                       scalar_t<Vec> beta,
 	                                       scalar_t<Vec> alpha,
 	                                       topo_slot_t<Vec> & m) {
-		auto coeffop = CoeffOp<Vec, Var>::create({fra});
+		auto coeffop = CoeffFn<Vec, Var>::create({fra});
 		auto voldiff = diffusion<Vec, Var>::create({cr, fra, beta, alpha}, m);
-		return op_expr(flecsolve::multivariable<Vec::var.value>, coeffop, voldiff);
+		return op_expr(
+			flecsolve::multivariable<Vec::var.value>, coeffop, voldiff);
 	}
-
-
 };
 
 }

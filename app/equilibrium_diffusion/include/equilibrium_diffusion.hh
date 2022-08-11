@@ -218,11 +218,9 @@ int driver() {
 		bnd_op_2,
 		make_volume_operator<1>(vec2));
 
-	std :: cout << A.to_string() << std::endl;
 
-	auto apar = A.get_parameters<0>(X);
 
-	A.reset(apar);
+
 	// set the RHS to vanish
 	RHS.set_scalar(0.0);
 

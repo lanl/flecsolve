@@ -10,8 +10,6 @@
 #include "flecsolve/physics/boundary/dirichlet.hh"
 #include "flecsolve/physics/boundary/neumann.hh"
 
-#include "flecsolve/physics/specializations/operator_mesh.hh"
-
 #include "test_setup.hh"
 
 using namespace flecsi;
@@ -38,9 +36,10 @@ struct check {
 
 		UNIT (name) {
 
-			auto xv = m.mdspan<msh::cells>(x);
-			for (auto j : m.range<msh::cells, msh::y_axis, OD>()) {
-				for (auto i : m.range<msh::cells, msh::x_axis, ID>()) {
+			auto xv = m.mdspanx<A::value>(x);
+			auto [ii,jj,kk] = m.full_range<msh::cells, A::value, D::value>();
+			for (auto j : jj) {
+				for (auto i : ii) {
 					EXPECT_LT(std::abs(f(j, i) - xv[1][j][i]), ftol);
 				}
 			}
@@ -105,10 +104,13 @@ int boundary_test() {
 		auto [bndry_xlo, bndry_xhi, bndry_ylo, bndry_yhi] = make_bcs(x);
 		x.set_scalar(1.0);
 
-		bndry_xlo.apply(x, x);
-		bndry_xhi.apply(x, x);
+		//bndry_xlo.apply(x, x);
+		//bndry_xhi.apply(x, x);
 		bndry_ylo.apply(x, x);
-		bndry_yhi.apply(x, x);
+		//bndry_yhi.apply(x, x);
+
+
+		execute<check_vals>(m, xd(m), "checks");
 
 		EXPECT_EQ((test<xlo>(m, xd(m))), 0);
 		EXPECT_EQ((test<xhi>(m, xd(m))), 0);

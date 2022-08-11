@@ -37,17 +37,29 @@ struct operator_task<bc<neumann<Vec, Var>, Axis, Boundary>> {
 	}
 	static constexpr void
 	operate(topo_acc<Vec> m, field_acc<Vec, flecsi::rw> u, scalar_t<Vec> v) {
-		const scalar_t<Vec> dx = m.template dx<Axis>();
 		constexpr int nd = (Boundary == topo_t<Vec>::boundary_low ? 1 : -1);
-		auto [jj, jo] =
-			m.template get_stencil<Axis,
-		                           topo_t<Vec>::cells,
-		                           topo_t<Vec>::cells,
-		                           Boundary>(utils::offset_seq<nd>());
+		const scalar_t<Vec> dx = m.template dx<Axis>();
+		auto uv = m.template mdspanx<Axis>(u);
+		auto [ii,jj,kk] = m.template full_range<topo_t<Vec>::cells, Axis, Boundary>();
 
-		for (auto j : jj) {
-			u[j] = u[j + jo] - static_cast<scalar_t<Vec>>(nd) * dx * v;
+		for (auto k : kk) {
+			for (auto j : jj) {
+				for (auto i : ii) {
+					uv[k][j][i] = u[j+nd] - static_cast<scalar_t<Vec>>(nd)*dx*v;
+				}
+			}
 		}
+		// const scalar_t<Vec> dx = m.template dx<Axis>();
+		// constexpr int nd = (Boundary == topo_t<Vec>::boundary_low ? 1 : -1);
+		// auto [jj, jo] =
+		// 	m.template get_stencil<Axis,
+		//                            topo_t<Vec>::cells,
+		//                            topo_t<Vec>::cells,
+		//                            Boundary>(utils::offset_seq<nd>());
+
+		// for (auto j : jj) {
+		// 	u[j] = u[j + jo] - static_cast<scalar_t<Vec>>(nd) * dx * v;
+		// }
 	}
 };
 } // tasks

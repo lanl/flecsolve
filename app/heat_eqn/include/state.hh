@@ -1,6 +1,6 @@
 #pragma once
 
-#include "flecsolve/physics/specializations/operator_mesh.hh"
+#include "flecsolve/physics/specializations/fvm_narray.hh"
 #include <flecsi/data.hh>
 #include <flecsi/util/constant.hh>
 
@@ -10,7 +10,7 @@ using namespace flecsi;
 
 namespace heat_eqn {
 
-using msh = flecsolve::physics::operator_mesh;
+using msh = flecsolve::physics::fvm_narray;
 
 msh::slot m;
 msh::cslot coloring;
