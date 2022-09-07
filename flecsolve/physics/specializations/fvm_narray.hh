@@ -1,6 +1,5 @@
 #pragma once
 
-#include <bits/utility.h>
 #include <flecsi/data.hh>
 #include <flecsi/topo/narray/coloring_utils.hh>
 #include <flecsi/topo/narray/interface.hh>
@@ -14,6 +13,7 @@
 namespace flecsolve {
 namespace physics {
 
+// TODO: seperate from topology
 namespace fvmtools {
 
 template<std::size_t Dim>
@@ -21,6 +21,7 @@ constexpr auto makeis() {
 	return std::make_index_sequence<Dim>();
 }
 
+// axis rotation helpers
 constexpr std::array<std::size_t, 3> idx{0, 1, 2};
 constexpr std::array<std::size_t, 3> idy{2, 0, 1};
 constexpr std::array<std::size_t, 3> idz{1, 2, 0};
@@ -57,6 +58,7 @@ translate_index(flecsi::util::id x,
 	return (translate(x, strides[Index], std::get<Index>(subranges)) + ...);
 }
 
+// utilities for doing arithmatic on `axes`
 template<auto Axis, std::size_t I, std::size_t Dim>
 static constexpr auto jump_idx() {
 	return static_cast<decltype(Axis)>((Axis + I) % Dim);
@@ -67,11 +69,21 @@ static constexpr auto next_idx() {
 	return jump_idx<Axis, 1, Dim>();
 }
 
+// utilitiy for `if constexpr` no-match case
 template<bool flag = false>
 void static_no_match() {
 	static_assert(flag, "no match");
 }
 
+/**
+ * @brief applys a function on a set of cells defined by a tuple of ranges
+ *
+ * @tparam Box a 3-D view of the data
+ * @tparam IdxT a tuple of index ranges, ordered `z`,`y`,`x` (though not
+ * required)
+ * @tparam F the function to apply
+ * @tparam Args arguments to the function
+ */
 template<class Box, class IdxT, class F, class... Args>
 inline void apply_to(Box box, IdxT && idxs, F && f, Args &&... args) {
 	for (auto k : std::get<0>(idxs)) {
@@ -83,6 +95,15 @@ inline void apply_to(Box box, IdxT && idxs, F && f, Args &&... args) {
 	}
 }
 
+/**
+ * @brief same as `apply_to`, but explicitly passes the indicies to the function
+ *
+ * @tparam Box a 3-D view of the data
+ * @tparam IdxT a tuple of index ranges, ordered `z`,`y`,`x` (though not
+ * required)
+ * @tparam F the function to apply
+ * @tparam Args arguments to the function
+ */
 template<class Box, class IdxT, class F, class... Args>
 inline void
 apply_to_with_index(Box box, IdxT && idxs, F && f, Args &&... args) {
