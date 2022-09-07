@@ -21,8 +21,7 @@ struct operator_parameters<neumann<Vec, Var>> {
 };
 
 template<class Vec, auto Var>
-struct operator_traits<neumann<Vec, Var>>
-{
+struct operator_traits<neumann<Vec, Var>> {
 	using op_type = neumann<Vec, Var>;
 	static constexpr std::string_view label{"neumann"};
 };
@@ -39,27 +38,21 @@ struct operator_task<bc<neumann<Vec, Var>, Axis, Boundary>> {
 	operate(topo_acc<Vec> m, field_acc<Vec, flecsi::rw> u, scalar_t<Vec> v) {
 		constexpr int nd = (Boundary == topo_t<Vec>::boundary_low ? 1 : -1);
 		const scalar_t<Vec> dx = m.template dx<Axis>();
-		auto uv = m.template mdspanx<Axis>(u);
-		auto [ii,jj,kk] = m.template full_range<topo_t<Vec>::cells, Axis, Boundary>();
+		const scalar_t<Vec> d_shift = static_cast<scalar_t<Vec>>(nd) * dx * v;
 
-		for (auto k : kk) {
-			for (auto j : jj) {
-				for (auto i : ii) {
-					uv[k][j][i] = u[j+nd] - static_cast<scalar_t<Vec>>(nd)*dx*v;
-				}
-			}
-		}
-		// const scalar_t<Vec> dx = m.template dx<Axis>();
-		// constexpr int nd = (Boundary == topo_t<Vec>::boundary_low ? 1 : -1);
-		// auto [jj, jo] =
-		// 	m.template get_stencil<Axis,
-		//                            topo_t<Vec>::cells,
-		//                            topo_t<Vec>::cells,
-		//                            Boundary>(utils::offset_seq<nd>());
-
-		// for (auto j : jj) {
-		// 	u[j] = u[j + jo] - static_cast<scalar_t<Vec>>(nd) * dx * v;
-		// }
+		auto uv = m.template mdspan<topo_t<Vec>::cells>(u);
+		fvmtools::apply_to_with_index(
+			uv,
+			m.template full_range<topo_t<Vec>::cells, Axis, Boundary>(),
+			[&](const auto k, const auto j, const auto i, auto xv) {
+				if constexpr (Axis == topo_t<Vec>::x_axis)
+					return xv[k][j][i + nd] - d_shift;
+				else if constexpr (Axis == topo_t<Vec>::y_axis)
+					return xv[k][j + nd][i] - d_shift;
+				else if constexpr (Axis == topo_t<Vec>::z_axis)
+					return xv[k + nd][j][i] - d_shift;
+			},
+			uv);
 	}
 };
 } // tasks

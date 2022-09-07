@@ -10,7 +10,8 @@
 
 #include "flecsolve/vectors/data/mesh.hh"
 
-namespace flecsolve::physics {
+namespace flecsolve {
+namespace physics {
 
 template<class Vec>
 using scalar_t = typename Vec::scalar;
@@ -28,14 +29,15 @@ template<class Vec>
 using topo_domain_t = typename topo_t<Vec>::domain;
 
 template<class Vec>
-using topo_acc = typename topo_t<Vec>::template accessor<flecsi::ro, flecsi::ro>;
-//using topo_acc = typename Vec::data_t::topo_acc;
+using topo_acc =
+	typename topo_t<Vec>::template accessor<flecsi::ro>;
+// using topo_acc = typename Vec::data_t::topo_acc;
 
 template<class Vec, flecsi::partition_privilege_t priv>
 using field_acc = typename Vec::data_t::template acc<priv>;
 
 template<class Vec, flecsi::partition_privilege_t priv>
-using field_acc_all = typename Vec::data_t::template acc<priv>;
+using field_acc_all = typename Vec::data_t::template acc_all<priv>;
 
 using vec::data::field;
 
@@ -74,4 +76,5 @@ using cells_handle = std::optional<cell_ref<Vec>>;
 
 }
 
+}
 }

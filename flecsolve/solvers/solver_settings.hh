@@ -41,7 +41,8 @@ protected:
 	std::string label(const char * suf) { return {prefix + "." + suf}; }
 };
 
-struct solve_stats {};
+struct solve_stats {
+};
 
 struct solve_info {
 	solve_info() : iters(0), restarts(0) {}

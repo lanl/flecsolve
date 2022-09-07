@@ -43,7 +43,7 @@ if(NOT FORMAT_ONLY)
 	$<INSTALL_INTERFACE:include>)
 
   add_subdirectory(flecsolve)
-  add_subdirectory(app)
+  add_subdirectory(examples)
 
   install(TARGETS linalg EXPORT flecsi-linalgTargets
 	INCLUDES DESITNATION include)

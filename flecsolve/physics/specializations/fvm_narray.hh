@@ -14,17 +14,16 @@
 namespace flecsolve {
 namespace physics {
 
-template<typename T, flecsi::data::layout L>
-// using field = vec::data::field<T, L>;
-using field = flecsi::field<T, L>;
-
 namespace fvmtools {
 
-constexpr std::array<std::size_t, 3> idx {0, 1, 2};
-constexpr std::array<std::size_t, 3> idy {2, 0, 1};
-constexpr std::array<std::size_t, 3> idz {1, 2, 0};
-//constexpr std::array<std::array<std::size_t, 3>, 3> idv {xr, yr, zr};
-constexpr flecsi::util::key_array<std::array<std::size_t, dimension>, axes> idv {xr, yr, zr};
+template<std::size_t Dim>
+constexpr auto makeis() {
+	return std::make_index_sequence<Dim>();
+}
+
+constexpr std::array<std::size_t, 3> idx{0, 1, 2};
+constexpr std::array<std::size_t, 3> idy{2, 0, 1};
+constexpr std::array<std::size_t, 3> idz{1, 2, 0};
 
 inline static std::size_t digit(flecsi::util::id & x, std::size_t d) {
 	std::size_t ret = x % d;
@@ -68,6 +67,34 @@ static constexpr auto next_idx() {
 	return jump_idx<Axis, 1, Dim>();
 }
 
+template<bool flag = false>
+void static_no_match() {
+	static_assert(flag, "no match");
+}
+
+template<class Box, class IdxT, class F, class... Args>
+inline void apply_to(Box box, IdxT && idxs, F && f, Args &&... args) {
+	for (auto k : std::get<0>(idxs)) {
+		for (auto j : std::get<1>(idxs)) {
+			for (auto i : std::get<2>(idxs)) {
+				box[k][j][i] = f(std::forward<Args>(args)...);
+			}
+		}
+	}
+}
+
+template<class Box, class IdxT, class F, class... Args>
+inline void
+apply_to_with_index(Box box, IdxT && idxs, F && f, Args &&... args) {
+	for (auto k : std::get<0>(idxs)) {
+		for (auto j : std::get<1>(idxs)) {
+			for (auto i : std::get<2>(idxs)) {
+				box[k][j][i] = f(k, j, i, std::forward<Args>(args)...);
+			}
+		}
+	}
+}
+
 }
 
 struct fvm_narray
@@ -106,7 +133,7 @@ struct fvm_narray
 	template<class B>
 	struct interface : B {
 		/**
-		 * @brief Currently, the domain enum of the topology is not mapped into
+		 * Currently, the domain enum of the topology is not mapped into
 		 * the interface, this is workaround
 		 *
 		 * @tparam DM interface domain
@@ -146,53 +173,29 @@ struct fvm_narray
 			return B::template range<IS, A, NAD<DM>()>();
 		}
 
-		template<index_space INIS, axis INAX, domain DM = logical>
+		template<index_space MAJORSPACE = cells,
+		         axis MAJORAXIS = x_axis,
+		         domain DM = logical>
 		constexpr auto full_range() {
 			using namespace fvmtools;
-
-			return std::make_tuple(
-				range<INIS, INAX, DM>(),
-				range<cells, jump_idx<INAX, 1, dimension>(), logical>(),
-				range<cells, jump_idx<INAX, 2, dimension>(), logical>());
-		}
-
-		template<index_space INIS, axis INAX, domain DM = logical>
-		constexpr auto full_range_flat() {
-			using namespace fvmtools;
-			auto stacked = full_range<INIS, INAX, DM>();
-			auto strides = utils::make_array(
-				extents<INIS, INAX>() / extents<INIS, INAX>(),
-				extents<INIS, INAX>(),
-				extents<cells, jump_idx<INAX, 1, dimension>()>() *
-					extents<INIS, INAX>());
-			return flecsi::util::transform_view(
-				flecsi::util::iota_view<flecsi::util::id>(
-					0,
-					subranges_size(stacked,
-			                       std::make_index_sequence<dimension>())),
-				[=](const auto & x) {
-					return flecsi::topo::id<INIS>(
-						translate_index(x,
-				                        stacked,
-				                        strides,
-				                        std::make_index_sequence<dimension>()));
-				});
-		}
-
-		template<axis INAX = x_axis,
-		         index_space INIS = cells,
-		         typename T,
-		         flecsi::Privileges P>
-		FLECSI_INLINE_TARGET auto mdspanx(
-			flecsi::data::accessor<flecsi::data::dense, T, P> const & a) const {
-			using namespace fvmtools;
-			auto const s = a.span();
-			auto const exs = utils::make_array(
-				extents<INIS, INAX>(),
-				extents<cells, jump_idx<INAX, 1, dimension>()>(),
-				extents<cells, jump_idx<INAX, 2, dimension>()>());
-			return flecsi::util::mdspan<typename decltype(s)::element_type,
-			                            dimension>(s.data(), exs);
+			if constexpr (MAJORAXIS == x_axis) {
+				return std::make_tuple(range<cells, z_axis, logical>(),
+				                       range<cells, y_axis, logical>(),
+				                       range<MAJORSPACE, x_axis, DM>());
+			}
+			else if constexpr (MAJORAXIS == y_axis) {
+				return std::make_tuple(range<cells, z_axis, logical>(),
+				                       range<MAJORSPACE, y_axis, DM>(),
+				                       range<cells, x_axis, logical>());
+			}
+			else if constexpr (MAJORAXIS == z_axis) {
+				return std::make_tuple(range<MAJORSPACE, z_axis, DM>(),
+				                       range<cells, y_axis, logical>(),
+				                       range<cells, x_axis, logical>());
+			}
+			else {
+				static_no_match();
+			}
 		}
 
 		template<axis A, index_space IS = cells>
@@ -207,7 +210,22 @@ struct fvm_narray
 
 		template<index_space Space>
 		constexpr auto dofs() {
-			return full_range_flat<Space, x_axis>();
+			using namespace fvmtools;
+			auto stacked = std::make_tuple(range<cells, x_axis, logical>(),
+			                               range<cells, y_axis, logical>(),
+			                               range<cells, z_axis, logical>());
+			auto strides = utils::make_array(
+				extents<cells, x_axis>() / extents<cells, x_axis>(),
+				extents<cells, x_axis>(),
+				extents<cells, x_axis>() * extents<cells, y_axis>());
+
+			return flecsi::util::transform_view(
+				flecsi::util::iota_view<flecsi::util::id>(
+					0, subranges_size(stacked, makeis<dimension>())),
+				[=](const auto & x) {
+					return flecsi::topo::id<cells>(translate_index(
+						x, stacked, strides, makeis<dimension>()));
+				});
 		}
 
 		template<axis A>
@@ -223,6 +241,8 @@ struct fvm_narray
 			                                       A,
 			                                       B::domain::ghost_low>())));
 		}
+
+		double volume() { return product(axes()); }
 
 		template<axis A>
 		double normal_dA() {
@@ -242,10 +262,10 @@ struct fvm_narray
 	}
 
 	static coloring color(colors axis_colors, coord axis_extents) {
-		coord hdepths(dimension, 1);
-		coord bdepths(dimension, 1);
-		std::vector<bool> periodic(dimension, false);
-		std::vector<bool> aux_ex(dimension, true);
+		coord hdepths{1, 1, 1}; //(dimension, 1);
+		coord bdepths{1, 1, 1}; //(dimension, 1);
+		std::vector<bool> periodic{false, false, false}; //(dimension, false);
+		std::vector<bool> aux_ex{true, true, true}; //(dimension, true);
 		coloring_definition cd{
 			axis_colors, axis_extents, hdepths, bdepths, periodic};
 
@@ -285,7 +305,6 @@ struct fvm_narray
 	                         gbox const & g) {
 		meta_data & md = sm.policy_meta_;
 		md.delta = geom(sm, g, axes());
-
 	}
 
 	static void initialize(flecsi::data::topology_slot<fvm_narray> & s,

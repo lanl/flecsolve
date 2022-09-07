@@ -9,8 +9,20 @@
 #include <type_traits>
 #include <utility>
 
-namespace flecsolve{
+namespace flecsolve {
 namespace physics {
+
+	/**
+	* !!THIS DESIGN IS SUBJECT TO CHANGE!!
+	*
+	* `operators` are constructed through specilization of 3 required and 1 optional classes:
+	*
+	*	operator_traits<specalized>: defines compile-time features of the operator; holds no run-time data.
+	*	operator_parameters<specalized>: defines the parameters of the operator, i.e. all run-time data
+	*	tasks::operator_task<specalized>: the run-time execution, should define `launch()`
+	*	(optional) operator_creator<specialized>: holds the particular operator construction.
+	*
+	*/
 
 template<class Derived>
 struct operator_traits;
@@ -19,10 +31,9 @@ struct operator_parameters;
 template<class Derived>
 struct operator_creator;
 
-namespace tasks
-{
-	template<class Derived>
-	struct operator_task;
+namespace tasks {
+template<class Derived>
+struct operator_task;
 }
 
 template<class Derived, template<class> class BaseType>
@@ -48,8 +59,7 @@ private:
 };
 
 template<class Derived, template<class> class BaseType>
-struct operator_traits<operator_base<Derived, BaseType>>
-{
+struct operator_traits<operator_base<Derived, BaseType>> {
 	static constexpr std::string_view label{"base"};
 };
 
@@ -81,15 +91,9 @@ struct operator_settings : operator_base<Derived, operator_settings> {
 		parameters = pars;
 	}
 
-	constexpr decltype(auto) flat() const
-	{
-	  return std::make_tuple(*this);
-	}
+	constexpr decltype(auto) flat() const { return std::make_tuple(*this); }
 
-	const auto to_string() const
-	{
-		return operator_traits<exact_type>::label;
-	}
+	const auto to_string() const { return operator_traits<exact_type>::label; }
 
 	template<class... Args>
 	static constexpr auto create(param_type && pars, Args &&... args) {
@@ -98,7 +102,8 @@ struct operator_settings : operator_base<Derived, operator_settings> {
 
 	// static constexpr auto get_label()
 	// {
-	// 	return std::string_view{std::string(base_type::get_label()) + std::string("::") + std::string(exact_type::label)};
+	// 	return std::string_view{std::string(base_type::get_label()) +
+	// std::string("::") + std::string(exact_type::label)};
 	// }
 	// private:
 

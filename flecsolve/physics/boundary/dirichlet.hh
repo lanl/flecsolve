@@ -9,6 +9,7 @@
 #include "flecsolve/physics/common/operator_utils.hh"
 #include "flecsolve/physics/common/operator_base.hh"
 #include "flecsolve/physics/common/vector_types.hh"
+#include "flecsolve/physics/specializations/fvm_narray.hh"
 
 #include "flecsolve/vectors/variable.hh"
 
@@ -24,8 +25,7 @@ struct operator_parameters<dirichlet<Vec, Var>> {
 };
 
 template<class Vec, auto Var>
-struct operator_traits<dirichlet<Vec, Var>>
-{
+struct operator_traits<dirichlet<Vec, Var>> {
 	using op_type = dirichlet<Vec, Var>;
 	static constexpr std::string_view label{"dirichlet"};
 };
@@ -41,22 +41,10 @@ struct operator_task<bc<dirichlet<Vec, Var>, Axis, Boundary>> {
 	}
 	static constexpr void
 	operate(topo_acc<Vec> m, field_acc<Vec, flecsi::wo> u, scalar_t<Vec> v) {
-		// auto jj = m.template get_stencil<Axis,
-		//                                  topo_t<Vec>::cells,
-		//                                  topo_t<Vec>::cells,
-		//                                  Boundary>(utils::offset_seq<>());
-
-		// for (auto j : jj) {
-		// 	u[j] = v;
-		auto uv = m.template mdspanx<Axis>(u);
-		auto [ii,jj,kk] = m.template full_range<topo_t<Vec>::cells, Axis, Boundary>();
-		for (auto k : kk) {
-			for (auto j : jj) {
-				for (auto i : ii) {
-					uv[k][j][i] = v;
-				}
-			}
-		}
+		fvmtools::apply_to(
+			m.template mdspan<topo_t<Vec>::cells>(u),
+			m.template full_range<topo_t<Vec>::cells, Axis, Boundary>(),
+			[&]() { return v; });
 	}
 };
 

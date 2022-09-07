@@ -266,8 +266,11 @@ struct topology_tasks {
 	 * @param u cell-centered field which operation is applied on
 	 */
 	template<axis A, domain D>
-	static void
-	boundary_robin(topo_acc m, acc<rw> u, acc_all<ro> d, scalar_t a, scalar_t v) {
+	static void boundary_robin(topo_acc m,
+	                           acc<rw> u,
+	                           acc_all<ro> d,
+	                           scalar_t a,
+	                           scalar_t v) {
 		const scalar_t dx = m.template dx<A>();
 		constexpr int nd = (D == topo_t::boundary_low ? -1 : 1);
 		auto [jj, jo] =

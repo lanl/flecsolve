@@ -14,7 +14,8 @@ struct testmesh : flecsi::topo::specialization<flecsi::topo::narray, testmesh> {
 	using hypercube = base::hypercube;
 	using coloring_definition = base::coloring_definition;
 
-	struct meta_data {};
+	struct meta_data {
+	};
 
 	static constexpr std::size_t dimension = 1;
 

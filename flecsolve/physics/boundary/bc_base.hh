@@ -22,8 +22,7 @@ struct operator_parameters<bc<Spec, Axis, Boundary>>
 };
 
 template<class Spec, auto Axis, auto Boundary>
-struct operator_traits<bc<Spec, Axis, Boundary>>
-{
+struct operator_traits<bc<Spec, Axis, Boundary>> {
 	static constexpr std::string_view label{"boundary_condition"};
 };
 
@@ -35,14 +34,12 @@ struct bc : operator_settings<bc<Spec, Axis, Boundary>> {
 	using param_type = typename base_type::param_type;
 	using task_type = typename base_type::task_type;
 
-
 	bc(param_type p) : base_type(p) {}
 
 	template<class U, class V>
 	constexpr auto apply(const U & u, V &) const {
 		task_type::launch(u, this->parameters);
 	}
-
 };
 
 }

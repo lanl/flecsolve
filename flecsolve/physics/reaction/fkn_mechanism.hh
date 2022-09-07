@@ -31,7 +31,7 @@ struct operator_parameters<fkn_mechanism<Var, Scalar>> {
 	std::array<Scalar, 4> ki = {1.28, 2.4E6, 33.6, 2.4E3};
 };
 
-namespace task{
+namespace task {
 template<class Vec, class Uec>
 struct fkn_op {
 	template<class Par,
