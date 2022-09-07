@@ -29,8 +29,7 @@ template<class Vec>
 using topo_domain_t = typename topo_t<Vec>::domain;
 
 template<class Vec>
-using topo_acc =
-	typename topo_t<Vec>::template accessor<flecsi::ro>;
+using topo_acc = typename topo_t<Vec>::template accessor<flecsi::ro>;
 // using topo_acc = typename Vec::data_t::topo_acc;
 
 template<class Vec, flecsi::partition_privilege_t priv>

@@ -12,17 +12,20 @@
 namespace flecsolve {
 namespace physics {
 
-	/**
-	* !!THIS DESIGN IS SUBJECT TO CHANGE!!
-	*
-	* `operators` are constructed through specilization of 3 required and 1 optional classes:
-	*
-	*	operator_traits<specalized>: defines compile-time features of the operator; holds no run-time data.
-	*	operator_parameters<specalized>: defines the parameters of the operator, i.e. all run-time data
-	*	tasks::operator_task<specalized>: the run-time execution, should define `launch()`
-	*	(optional) operator_creator<specialized>: holds the particular operator construction.
-	*
-	*/
+/**
+ * !!THIS DESIGN IS SUBJECT TO CHANGE!!
+ *
+ * `operators` are constructed through specilization of 3 required and 1
+ *optional classes:
+ *
+ *	operator_traits<specalized>: defines compile-time features of the operator;
+ *holds no run-time data. operator_parameters<specalized>: defines the
+ *parameters of the operator, i.e. all run-time data
+ *	tasks::operator_task<specalized>: the run-time execution, should define
+ *`launch()` (optional) operator_creator<specialized>: holds the particular
+ *operator construction.
+ *
+ */
 
 template<class Derived>
 struct operator_traits;

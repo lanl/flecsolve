@@ -80,9 +80,9 @@ const inline auto make_faces_ref(const vec_fld<msh::faces> & fs) {
 // `rhsd`s are the right-hand side fields
 // `diff_srcd`'s are a field of source terms
 std::array<fld<msh::cells>, NVAR> xd{}, rhsd{}, diff_srcd{};
-// `diff_coeffd`'s are the `x`,`y`,`z` fields of face-centered coefficient values
+// `diff_coeffd`'s are the `x`,`y`,`z` fields of face-centered coefficient
+// values
 std::array<vec_fld<msh::faces>, NVAR> diff_coeffd{};
-
 
 //===================================================
 //=============== utility functions==================
@@ -129,8 +129,8 @@ void check_vals(msh::accessor<ro, ro> vm,
 }
 
 /**
-* constructs full-boundary neumann conditions
-*/
+ * constructs full-boundary neumann conditions
+ */
 template<class Vec>
 constexpr decltype(auto) make_boundary_operator_neumann(const Vec &) {
 	using namespace flecsolve::physics;
@@ -145,8 +145,8 @@ constexpr decltype(auto) make_boundary_operator_neumann(const Vec &) {
 }
 
 /**
-* constructs full-boundary dirichlet conditions
-*/
+ * constructs full-boundary dirichlet conditions
+ */
 template<class Vec>
 constexpr decltype(auto) make_boundary_operator_dirichlet(const Vec &) {
 	using namespace flecsolve::physics;
@@ -164,8 +164,8 @@ constexpr decltype(auto) make_boundary_operator_dirichlet(const Vec &) {
 }
 
 /**
-* used to make occupy the "unused" `z-axis` boundary for the 2D problem
-*/
+ * used to make occupy the "unused" `z-axis` boundary for the 2D problem
+ */
 template<class Vec>
 constexpr decltype(auto) make_boundary_operator_pseudo(const Vec &) {
 	using namespace flecsolve::physics;
@@ -176,11 +176,11 @@ constexpr decltype(auto) make_boundary_operator_pseudo(const Vec &) {
 }
 
 /**
-* constructs the diffusion operator.
-*
-* the coefficent object is used to set the face-centered coefficent values
-* used by the diffusion operator
-*/
+ * constructs the diffusion operator.
+ *
+ * the coefficent object is used to set the face-centered coefficent values
+ * used by the diffusion operator
+ */
 template<std::size_t N, class Vec>
 decltype(auto)
 make_volume_operator(const Vec & v, scalar_t beta, scalar_t alpha) {
@@ -195,8 +195,8 @@ make_volume_operator(const Vec & v, scalar_t beta, scalar_t alpha) {
 }
 
 /**
-* utility routine to construct the multivectors from arrays of fields
-*/
+ * utility routine to construct the multivectors from arrays of fields
+ */
 namespace detail {
 template<class FieldDefArr, std::size_t... I>
 decltype(auto) make_multivector(const FieldDefArr & fd,

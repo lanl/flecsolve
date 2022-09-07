@@ -29,20 +29,20 @@ template<class VT, class T, class K = utils::mp::iota<std::tuple_size_v<T>>>
 struct OpExpr;
 
 /**
-* @brief represents a 'sentence' of operators
-*
-* `OpExpr` is an expression tree, with a simple syntax.
-* All nodes have the `operator` interface:
-* ```
-*   operator::apply(const Domain& in, Range& out) -> void
-*   operator::get_parameters() -> std::tuple<Parameters...>
-*   operator::reset(const Domain& in, Range& out) -> void
-* ```
-* see `common/operator_base.hh`
-*
-* Expressions allow for composable algorithms, and in future work
-* for a more powerful domain-specific language.
-*/
+ * @brief represents a 'sentence' of operators
+ *
+ * `OpExpr` is an expression tree, with a simple syntax.
+ * All nodes have the `operator` interface:
+ * ```
+ *   operator::apply(const Domain& in, Range& out) -> void
+ *   operator::get_parameters() -> std::tuple<Parameters...>
+ *   operator::reset(const Domain& in, Range& out) -> void
+ * ```
+ * see `common/operator_base.hh`
+ *
+ * Expressions allow for composable algorithms, and in future work
+ * for a more powerful domain-specific language.
+ */
 template<auto... vars, class... Ps, int... Is>
 struct OpExpr<multivariable_t<vars...>, std::tuple<Ps...>, has<Is...>> {
 	std::tuple<Ps...> ops;
@@ -62,15 +62,15 @@ struct OpExpr<multivariable_t<vars...>, std::tuple<Ps...>, has<Is...>> {
 	}
 
 	/**
-	* @brief flatten/concretize the expression
-	*
-	* `OpExpr` is constructed as a tree, with placeholder nodes and concrete
-	* operators, but it is sometimes necessary to interacte with the operators
-	* only, such as retreiving operator parameters. This routine is meant
-	* to allow that.
-	*/
-	//TODO: should be protected, the interface shouldn't expose this ambiguity
-	//TODO: this feels a little brutish, maybe isn't efficient either
+	 * @brief flatten/concretize the expression
+	 *
+	 * `OpExpr` is constructed as a tree, with placeholder nodes and concrete
+	 * operators, but it is sometimes necessary to interacte with the operators
+	 * only, such as retreiving operator parameters. This routine is meant
+	 * to allow that.
+	 */
+	// TODO: should be protected, the interface shouldn't expose this ambiguity
+	// TODO: this feels a little brutish, maybe isn't efficient either
 	constexpr decltype(auto) flat() const {
 		return std::tuple_cat(std::apply(
 			[&](auto... a) { return std::tuple_cat(a.flat()...); }, ops));

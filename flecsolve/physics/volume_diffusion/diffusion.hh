@@ -197,7 +197,6 @@ struct operator_task<diffusion<Vec, Var>> {
 };
 } // tasks
 
-
 /**
  * @brief operator of finite-volume diffusion
  *

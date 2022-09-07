@@ -47,13 +47,37 @@ constexpr auto make_bcs(const Vec & v) {
 		bc<dirichlet<Vec>, msh::z_axis, msh::boundary_high>::create({1.0}));
 }
 
-static fvm_check chk_constx{[](auto...){ return 3.14; }, "face coefficient constant [x]",fconstant<msh::x_axis>{}, fconstant<msh::faces>{}, fconstant<msh::logical>{}};
-static fvm_check chk_consty{[](auto...){ return 3.14; }, "face coefficient constant [y]",fconstant<msh::y_axis>{}, fconstant<msh::faces>{}, fconstant<msh::logical>{}};
-static fvm_check chk_constz{[](auto...){ return 3.14; }, "face coefficient constant [z]",fconstant<msh::z_axis>{}, fconstant<msh::faces>{}, fconstant<msh::logical>{}};
+static fvm_check chk_constx{[](auto...) { return 3.14; },
+                            "face coefficient constant [x]",
+                            fconstant<msh::x_axis>{},
+                            fconstant<msh::faces>{},
+                            fconstant<msh::logical>{}};
+static fvm_check chk_consty{[](auto...) { return 3.14; },
+                            "face coefficient constant [y]",
+                            fconstant<msh::y_axis>{},
+                            fconstant<msh::faces>{},
+                            fconstant<msh::logical>{}};
+static fvm_check chk_constz{[](auto...) { return 3.14; },
+                            "face coefficient constant [z]",
+                            fconstant<msh::z_axis>{},
+                            fconstant<msh::faces>{},
+                            fconstant<msh::logical>{}};
 
-static fvm_check chk_avgx{[](auto...){ return 1.0; }, "face coefficient as directional avg of cells [x]",fconstant<msh::x_axis>{}, fconstant<msh::faces>{}, fconstant<msh::logical>{}};
-static fvm_check chk_avgy{[](auto...){ return 1.0; }, "face coefficient as directional avg of cells [y]",fconstant<msh::y_axis>{}, fconstant<msh::faces>{}, fconstant<msh::logical>{}};
-static fvm_check chk_avgz{[](auto...){ return 1.0; }, "face coefficient as directional avg of cells [z]",fconstant<msh::z_axis>{}, fconstant<msh::faces>{}, fconstant<msh::logical>{}};
+static fvm_check chk_avgx{[](auto...) { return 1.0; },
+                          "face coefficient as directional avg of cells [x]",
+                          fconstant<msh::x_axis>{},
+                          fconstant<msh::faces>{},
+                          fconstant<msh::logical>{}};
+static fvm_check chk_avgy{[](auto...) { return 1.0; },
+                          "face coefficient as directional avg of cells [y]",
+                          fconstant<msh::y_axis>{},
+                          fconstant<msh::faces>{},
+                          fconstant<msh::logical>{}};
+static fvm_check chk_avgz{[](auto...) { return 1.0; },
+                          "face coefficient as directional avg of cells [z]",
+                          fconstant<msh::z_axis>{},
+                          fconstant<msh::faces>{},
+                          fconstant<msh::logical>{}};
 
 int fvm_coeff_test() {
 
@@ -65,12 +89,12 @@ int fvm_coeff_test() {
 
 		// set boundaries (manual)
 		auto [bxl, bxh, byl, byh, bzl, bzh] = make_bcs(x);
-		bxl.apply(x,x);
-		bxh.apply(x,x);
-		byl.apply(x,x);
-		byh.apply(x,x);
-		bzl.apply(x,x);
-		bzh.apply(x,x);
+		bxl.apply(x, x);
+		bxh.apply(x, x);
+		byl.apply(x, x);
+		byh.apply(x, x);
+		bzl.apply(x, x);
+		bzh.apply(x, x);
 
 		auto [coef_const, coef_avg] = make_coeff_setters(x);
 
