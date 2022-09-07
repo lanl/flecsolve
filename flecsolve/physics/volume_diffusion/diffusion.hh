@@ -121,7 +121,7 @@ struct operator_task<diffusion<Vec, Var>> {
 
 		auto fvx = m.template mdspan<topo_t<Vec>::faces>(fu_x);
 		auto fvy = m.template mdspan<topo_t<Vec>::faces>(fu_y);
-		auto fvz = m.template mdspan<topo_t<Vec>::faces>(fu_y);
+		auto fvz = m.template mdspan<topo_t<Vec>::faces>(fu_z);
 
 		fvmtools::apply_to_with_index(
 			fvx,
@@ -159,7 +159,7 @@ struct operator_task<diffusion<Vec, Var>> {
 
 		auto fvx = m.template mdspan<topo_t<Vec>::faces>(fu_x);
 		auto fvy = m.template mdspan<topo_t<Vec>::faces>(fu_y);
-		auto fvz = m.template mdspan<topo_t<Vec>::faces>(fu_y);
+		auto fvz = m.template mdspan<topo_t<Vec>::faces>(fu_z);
 
 		auto duv = m.template mdspan<topo_t<Vec>::cells>(du);
 
