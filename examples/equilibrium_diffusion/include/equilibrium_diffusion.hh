@@ -5,8 +5,6 @@
 #include <flecsi/flog.hh>
 #include <flecsi/util/constant.hh>
 
-#include <flecsi/io.hh>
-
 #include <iomanip>
 #include <iostream>
 
@@ -212,7 +210,7 @@ decltype(auto) make_multivector(const FieldDefArr & fd) {
 	return detail::make_multivector(fd, std::make_index_sequence<NVAR>{});
 }
 
-int driver() {
+inline int driver() {
 
 	// initialize the mesh
 	init_mesh();
