@@ -10,7 +10,6 @@
 
 #include "flecsolve/physics/common/operator_base.hh"
 #include "flecsolve/physics/common/vector_types.hh"
-#include "flecsolve/physics/tasks/operator_task.hh"
 #include "flecsolve/vectors/data/mesh.hh"
 #include "flecsolve/vectors/variable.hh"
 

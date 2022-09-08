@@ -9,12 +9,6 @@
 #include "flecsolve/vectors/multi.hh"
 
 #include "flecsolve/physics/specializations/fvm_narray.hh"
-#include "flecsolve/physics/boundary/dirichlet.hh"
-#include "flecsolve/physics/boundary/neumann.hh"
-#include "flecsolve/physics/expressions/operator_expression.hh"
-#include "flecsolve/physics/volume_diffusion/diffusion.hh"
-#include "flecsolve/solvers/cg.hh"
-#include "flecsolve/solvers/solver_settings.hh"
 
 using namespace flecsi;
 namespace flecsolve {

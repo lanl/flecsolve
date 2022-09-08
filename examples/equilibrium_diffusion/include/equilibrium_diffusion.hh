@@ -248,6 +248,7 @@ inline int driver() {
 		flecsolve::physics::op_expr(flecsolve::multivariable<diffusion_var::v1>,
 	                                make_boundary_operator_dirichlet(vec1),
 	                                make_boundary_operator_pseudo(vec1));
+
 	// neumann boundary for the `v2` vector
 	auto bnd_op_2 =
 		flecsolve::physics::op_expr(flecsolve::multivariable<diffusion_var::v2>,
