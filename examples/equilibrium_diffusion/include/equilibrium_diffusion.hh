@@ -202,7 +202,7 @@ void field_out(msh::accessor<ro, ro> vm,
 template<class FieldDefArr, std::size_t... I>
 void fields_out(const FieldDefArr & fd, std::ofstream& of, std::index_sequence<I...>) {
 	using namespace flecsolve;
-	(flecsi::execute<field_out<I>>(m, fd[I](m), of),...);
+	(flecsi::execute<field_out<I>, flecsi::mpi>(m, fd[I](m), of),...);
 }
 } // namespace detail
 
