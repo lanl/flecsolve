@@ -13,7 +13,6 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 endif()
 
 find_package(FleCSI REQUIRED)
-
 find_package(FleCSICMake REQUIRED)
 
 set(ENABLE_UNIT_TESTS ON)
@@ -29,6 +28,9 @@ set(ClangFormat_VERSION "8" CACHE STRING "Set the required version
 mark_as_advanced(ClangFormat_VERSION)
 include(format)
 
+# option to build examples
+option(FLECSOLVE_BUILD_EXAMPLES "Build the examples" OFF)
+
 if(NOT FORMAT_ONLY)
   add_library(linalg INTERFACE)
   add_library(FleCSI::linalg ALIAS linalg)
@@ -39,7 +41,9 @@ if(NOT FORMAT_ONLY)
 	$<INSTALL_INTERFACE:include>)
 
   add_subdirectory(flecsolve)
-  add_subdirectory(examples)
+  if(FLECSOLVE_BUILD_EXAMPLES)
+    add_subdirectory(examples)
+  endif()
 
   install(TARGETS linalg EXPORT flecsi-linalgTargets
 	INCLUDES DESITNATION include)

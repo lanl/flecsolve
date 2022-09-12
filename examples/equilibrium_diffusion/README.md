@@ -1,5 +1,15 @@
 Example for `multivector` equilibrium diffusion
 
+**Compiling**
+To compile the example, run `cmake` with the `-DFLECSOLVE_BUILD_EXAMPLES=ON` option
+
+**Running**
+The binary takes as input three parameters `NX`,`NY` which define the extent of the mesh.
+
+```bash
+$> mpirun -np 4 ./equilibrium_diffusion 32 32
+```
+
 **Overview**
 This example shows how to construct a `multivector` using `enum` types that refer to seperate subvectors, and how operators may be built that are `apply()`'d to a specific subvector or the full `multivector`.
 

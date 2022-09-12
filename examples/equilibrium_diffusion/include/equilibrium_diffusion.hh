@@ -31,9 +31,10 @@ namespace eqdiff {
 using scalar_t = double;
 
 // define the problem dimensions
-constexpr std::size_t NX = 8;
-constexpr std::size_t NY = 8;
-constexpr std::size_t NZ = 1;
+inline flecsi::program_option<std::size_t>
+NX("NX", "The x extents of the mesh.", 1);
+inline flecsi::program_option<std::size_t>
+NY("NY", "The y extents of the mesh.", 1);
 
 // declare the "variable"'s of the "multivector"
 constexpr std::size_t NVAR = 2;
@@ -87,7 +88,7 @@ std::array<vec_fld<msh::faces>, NVAR> diff_coeffd{};
 //===================================================
 
 void init_mesh() {
-	std::vector<std::size_t> extents{{NX, NY, NZ}};
+	std::vector<std::size_t> extents{{NX.value(), NY.value(), 1}};
 	auto colors = msh::distribute(processes(), extents);
 	coloring.allocate(colors, extents);
 
@@ -223,6 +224,10 @@ decltype(auto) make_multivector(const FieldDefArr & fd) {
 
 inline int driver() {
 
+	flog(info) << "multivector 2D diffusion: \n";
+	flog(info) << "nranks = " << processes() << "\n";
+
+	flog(info) << "initializing mesh\n";
 	// initialize the mesh
 	init_mesh();
 
@@ -235,6 +240,7 @@ inline int driver() {
 
 	auto & [vec1, vec2] = X;
 
+	flog(info) << "setting initial multivectors\n";
 	// set both to scalar
 	X.set_scalar(2.0);
 
@@ -244,6 +250,8 @@ inline int driver() {
 	//===================================================
 	//=============== operators =========================
 	//===================================================
+
+	flog(info) << "constructing operators\n";
 
 	// diffusion operator parameters
 	std::array<scalar_t, NVAR> diff_param_alpha, diff_param_beta;
@@ -279,6 +287,7 @@ inline int driver() {
 	//=============== solver ============================
 	//===================================================
 
+	flog(info) << "constructing solver\n";
 	// get the solver parameters and workspace, & bind the operator to the
 	// solver
 	flecsolve::op::krylov_parameters params(
@@ -291,9 +300,11 @@ inline int driver() {
 	// create the solver
 	flecsolve::op::krylov slv(std::move(params));
 
+	flog(info) << "applying the solver\n";
 	// run the solver
 	auto info = slv.apply(RHS, X);
 
+	flog(info) << "apply complete\n";
 	// print some statistics on the solve
 	flog(info) << "norm = " << info.res_norm_final << "\n";
 	flog(info) << "iters = " << info.iters << "\n";
