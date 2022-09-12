@@ -5,86 +5,49 @@
 #include <utility>
 #include <vector>
 
+#include "flecsolve/physics/boundary/bc_base.hh"
+#include "flecsolve/physics/common/operator_utils.hh"
 #include "flecsolve/physics/common/operator_base.hh"
-#include "flecsolve/physics/tasks/operator_task.hh"
+#include "flecsolve/physics/common/vector_types.hh"
+#include "flecsolve/physics/specializations/fvm_narray.hh"
+
 #include "flecsolve/vectors/variable.hh"
 
 namespace flecsolve {
 namespace physics {
 
-template<auto Var,
-         class Topo,
-         typename Topo::axis Axis,
-         typename Topo::domain Boundary,
-         class Scalar = double>
+template<class Vec, auto Var = Vec::var.value>
 struct dirichlet;
 
-template<auto Var,
-         class Topo,
-         typename Topo::axis Axis,
-         typename Topo::domain Boundary,
-         class Scalar>
-struct operator_traits<dirichlet<Var, Topo, Axis, Boundary, Scalar>> {
-	using scalar_t = Scalar;
-	using topo_t = Topo;
-	using topo_slot_t = flecsi::data::topology_slot<Topo>;
-	using topo_axes_t = typename topo_t::axes;
-	constexpr static auto dim = Topo::dimension;
-	using tasks_f = tasks::topology_tasks<topo_t, flecsi::field<scalar_t>>;
-	using cell_ref =
-		typename flecsi::field<scalar_t>::template Reference<topo_t,
-	                                                         topo_t::cells>;
-
-	using face_ref =
-		typename flecsi::field<scalar_t>::template Reference<topo_t,
-	                                                         topo_t::faces>;
-
-	constexpr static auto op_axis = Axis;
-	constexpr static auto op_boundary = Boundary;
+template<class Vec, auto Var>
+struct operator_parameters<dirichlet<Vec, Var>> {
+	scalar_t<Vec> boundary_value = 0.0;
 };
 
-template<auto Var,
-         class Topo,
-         typename Topo::axis Axis,
-         typename Topo::domain Boundary,
-         class Scalar>
-struct operator_parameters<dirichlet<Var, Topo, Axis, Boundary, Scalar>> {
-	Scalar boundary_value;
+template<class Vec, auto Var>
+struct operator_traits<dirichlet<Vec, Var>> {
+	using op_type = dirichlet<Vec, Var>;
+	static constexpr std::string_view label{"dirichlet"};
 };
 
-template<auto Var,
-         class Topo,
-         typename Topo::axis Axis,
-         typename Topo::domain Boundary,
-         class Scalar>
-struct dirichlet
-	: operator_settings<dirichlet<Var, Topo, Axis, Boundary, Scalar>> {
-
-	using base_type =
-		operator_settings<dirichlet<Var, Topo, Axis, Boundary, Scalar>>;
-	using exact_type = typename base_type::exact_type;
-	using param_type = typename base_type::param_type;
-	using topo_slot_t = typename operator_traits<exact_type>::topo_slot_t;
-	using cell_ref = typename operator_traits<exact_type>::cell_ref;
-	using tasks_f = typename operator_traits<exact_type>::tasks_f;
-
-	dirichlet(param_type p) : base_type(p) {}
-
-	template<class U, class V>
-	constexpr auto apply(const U & u, V &) const {
+namespace tasks {
+template<class Vec, auto Axis, auto Boundary, auto Var>
+struct operator_task<bc<dirichlet<Vec, Var>, Axis, Boundary>> {
+	template<class U, class P>
+	static constexpr void launch(const U & u, P & p) {
 		const auto & subu = u.template subset(variable<Var>);
-		_apply(subu.data.topo, subu.data.ref());
+		flecsi::execute<operate>(
+			subu.data.topo, subu.data.ref(), p.boundary_value);
 	}
-
-	void _apply(topo_slot_t & m, cell_ref u) const {
-		flecsi::execute<tasks_f::template boundary_set<Axis, Boundary>>(
-			this->parameters.boundary_value, m, u);
+	static constexpr void
+	operate(topo_acc<Vec> m, field_acc<Vec, flecsi::wo> u, scalar_t<Vec> v) {
+		fvmtools::apply_to(
+			m.template mdspan<topo_t<Vec>::cells>(u),
+			m.template full_range<topo_t<Vec>::cells, Axis, Boundary>(),
+			[&]() { return v; });
 	}
 };
 
-// template<class Topo, typename Topo::axis Axis, typename Topo::domain
-// Boundary, class Scalar> dirchilet(Axis, Boundary, Scalar)->dirchilet<Topo,
-// Axis, Boundary, Scalar>
-
+}
 }
 }

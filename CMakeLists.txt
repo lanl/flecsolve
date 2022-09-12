@@ -10,16 +10,12 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "9.0")
     message(FATAL_ERROR "Version 9.0 of gnu compilers required!")
   endif()
-  if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "10.0")
-    message(FATAL_ERROR "Cannot use this GCC version due to a regression:"
-      "<https://gcc.gnu.org/bugzilla/show_bug.cgi?id=83258>")
-  endif()
 endif()
 
 find_package(FleCSI REQUIRED)
-
 find_package(FleCSICMake REQUIRED)
 
+set(ENABLE_UNIT_TESTS ON)
 set(ENABLE_FLOG ${FleCSI_ENABLE_FLOG})
 set(FLECSI_RUNTIME_MODEL ${FleCSI_RUNTIME_MODEL})
 set(FLECSI_BACKEND ${FleCSI_BACKEND})
@@ -32,6 +28,9 @@ set(ClangFormat_VERSION "8" CACHE STRING "Set the required version
 mark_as_advanced(ClangFormat_VERSION)
 include(format)
 
+# option to build examples
+option(FLECSOLVE_BUILD_EXAMPLES "Build the examples" OFF)
+
 if(NOT FORMAT_ONLY)
   add_library(linalg INTERFACE)
   add_library(FleCSI::linalg ALIAS linalg)
@@ -42,7 +41,9 @@ if(NOT FORMAT_ONLY)
 	$<INSTALL_INTERFACE:include>)
 
   add_subdirectory(flecsolve)
-  add_subdirectory(app)
+  if(FLECSOLVE_BUILD_EXAMPLES)
+    add_subdirectory(examples)
+  endif()
 
   install(TARGETS linalg EXPORT flecsi-linalgTargets
 	INCLUDES DESITNATION include)
