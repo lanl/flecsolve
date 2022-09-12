@@ -96,7 +96,7 @@ struct operator_settings : operator_base<Derived, operator_settings> {
 
 	constexpr decltype(auto) flat() const { return std::make_tuple(*this); }
 
-	const auto to_string() const { return operator_traits<exact_type>::label; }
+	auto to_string() const { return operator_traits<exact_type>::label; }
 
 	template<class... Args>
 	static constexpr auto create(param_type && pars, Args &&... args) {
