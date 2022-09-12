@@ -32,20 +32,20 @@ inline void fill_box_slopex(msh::accessor<ro, ro> vm,
 	physics::fvmtools::apply_to_with_index(
 		vm.mdspan<Space>(xa),
 		vm.full_range<Space, Axis>(),
-		[&](const auto k, const auto j, const auto i) { return i; });
+		[&](const auto, const auto, const auto i) { return i; });
 }
 
 inline int check_apply_to() {
 	UNIT ("fvm_apply") {
 		// check the apply routine
 		scalar_t val_in = 3.14;
-		static fvm_check fvm_apply_args{[&](auto...) { return val_in + 1.0; },
-		                                "fvm_apply_args"};
+		static fvm_check<>::test fvm_apply_args{
+			[&](auto...) { return val_in + 1.0; }, "fvm_apply_args"};
 
 		execute<fill_box_increment<msh::cells, msh::x_axis>>(m, xd(m), val_in);
 		EXPECT_EQ((test<fvm_apply_args>(m, xd(m))), 0);
 
-		static fvm_check fvm_apply_xargs{
+		static fvm_check<>::test fvm_apply_xargs{
 			[](std::size_t, std::size_t, std::size_t i) { return i; },
 			"fvm_apply_extra_args"};
 
@@ -56,9 +56,7 @@ inline int check_apply_to() {
 
 int fvm_mesh_test() {
 	init_mesh({16, 16, 8});
-	UNIT () {
-		check_apply_to();
-	};
+	UNIT () { check_apply_to(); };
 }
 
 unit::driver<fvm_mesh_test> driver;

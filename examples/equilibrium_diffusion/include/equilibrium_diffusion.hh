@@ -65,7 +65,7 @@ template<auto S>
 using vec_fldr = util::key_array<fldr<S>, msh::axes>;
 
 // useful to produce an array of field references from an array of field defs
-const inline auto make_faces_ref(const vec_fld<msh::faces> & fs) {
+inline auto make_faces_ref(const vec_fld<msh::faces> & fs) {
 	return vec_fldr<msh::faces>{
 		fs[msh::x_axis](m), fs[msh::y_axis](m), fs[msh::z_axis](m)};
 }
@@ -156,11 +156,11 @@ constexpr decltype(auto) make_boundary_operator_pseudo(const Vec &) {
  */
 template<std::size_t N, class Vec>
 decltype(auto)
-make_volume_operator(const Vec & v, scalar_t beta, scalar_t alpha) {
+make_volume_operator(const Vec &, scalar_t beta, scalar_t alpha) {
 	using namespace flecsolve::physics;
 
 	auto constant_coeff = coefficient<constant_coefficient<Vec>, Vec>::create(
-		{1.0, make_faces_ref(diff_coeffd[N])});
+		{{1.0}, make_faces_ref(diff_coeffd[N])});
 	auto voldiff = diffusion<Vec>::create(
 		{diff_srcd[N](m), make_faces_ref(diff_coeffd[N]), beta, alpha}, m);
 	return op_expr(

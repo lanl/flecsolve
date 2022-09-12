@@ -153,10 +153,6 @@ struct operator_task<diffusion<Vec, Var>> {
 	                          field_acc_all<Vec, flecsi::ro> fu_y,
 	                          field_acc_all<Vec, flecsi::ro> fu_z,
 	                          field_acc_all<Vec, flecsi::wo> du) {
-		const scalar_t<Vec> i_dx = 1.0 / m.template dx<topo_t<Vec>::x_axis>();
-		const scalar_t<Vec> i_dy = 1.0 / m.template dx<topo_t<Vec>::y_axis>();
-		const scalar_t<Vec> i_dz = 1.0 / m.template dx<topo_t<Vec>::z_axis>();
-
 		auto fvx = m.template mdspan<topo_t<Vec>::faces>(fu_x);
 		auto fvy = m.template mdspan<topo_t<Vec>::faces>(fu_y);
 		auto fvz = m.template mdspan<topo_t<Vec>::faces>(fu_z);

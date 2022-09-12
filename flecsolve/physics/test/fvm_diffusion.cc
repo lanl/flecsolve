@@ -20,9 +20,6 @@ using namespace flecsi;
 namespace flecsolve {
 namespace physics_testing {
 
-constexpr std::size_t NX = 16;
-constexpr std::size_t NY = 16;
-
 fld<msh::cells> xd, yd;
 
 fld<msh::cells> ad;
@@ -76,13 +73,13 @@ constexpr decltype(auto) make_boundary_operator_dirichlet(const Vec &) {
 
 template<class Vec>
 decltype(auto)
-make_volume_operator(const Vec & v, scalar_t beta, scalar_t alpha) {
+make_volume_operator(const Vec &, scalar_t beta, scalar_t alpha) {
 	using namespace flecsolve::physics;
 
 	// auto vd = operator_creator<diffusion<Vec>,
 	// constant_coefficent>::create(bref, diffa[N](m), 1.0, 0.0, m);
 	auto constant_coeff = coefficient<constant_coefficient<Vec>, Vec>::create(
-		{1.0, make_faces_ref(bd)});
+		{{1.0}, make_faces_ref(bd)});
 
 	auto voldiff =
 		diffusion<Vec>::create({ad(m), make_faces_ref(bd), beta, alpha}, m);
@@ -90,7 +87,7 @@ make_volume_operator(const Vec & v, scalar_t beta, scalar_t alpha) {
 		flecsolve::multivariable<Vec::var.value>, constant_coeff, voldiff);
 }
 
-static fvm_check zero_flux{[](auto...) { return 0.0; }, "flux is zero"};
+static fvm_check<>::test zero_flux{[](auto...) { return 0.0; }, "flux is zero"};
 
 static inline int source_only(msh::accessor<ro, ro> m,
                               field<scalar_t>::accessor<ro, na> xa,
