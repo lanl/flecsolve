@@ -214,18 +214,6 @@ void fields_out(FieldDeffArr & fd, std::string filen) {
 
 	detail::fields_out(fd, of, std::make_index_sequence<NVAR>{});
 
-	// of << std::fixed << std::setprecision(6) << std::setfill(' ');
-	// for (auto k : vm.range<msh::cells, msh::z_axis, msh::all>()) {
-	// 	const scalar_t z = vm.value<msh::y_axis>(k);
-	// 	for (auto j : vm.range<msh::cells, msh::y_axis, msh::all>()) {
-	// 		const scalar_t y = vm.value<msh::y_axis>(j);
-	// 		for (auto i : vm.range<msh::cells, msh::x_axis, msh::all>()) {
-	// 			const scalar_t x = vm.value<msh::x_axis>(i);
-	// 			of << i << " " << j << " " << k << " " << x << " " << y << " "
-	// 			   << z << " " << xv[k][j][i] << "\n";
-	// 		}
-	// 	}
-	// }
 }
 
 template<class FieldDefArr>
@@ -297,10 +285,7 @@ inline int driver() {
 		flecsolve::cg::settings("solver"),
 		flecsolve::cg::topo_work<>::get(RHS),
 		std::ref(A));
-	// flecsolve::op::krylov_parameters params(
-	// 	flecsolve::gmres::settings("solver"),
-	// 	flecsolve::gmres::topo_work<>::get(RHS),
-	// 	std::ref(A));
+
 	read_config("diffusion.cfg", params);
 
 	// create the solver

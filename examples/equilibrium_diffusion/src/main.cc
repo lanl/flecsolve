@@ -1,3 +1,24 @@
+/*************************************
+* Example: equilibrium diffusion with multivectors
+*
+* This solves the
+*
+*	-β ∇ (b ∇ u ) = 0
+*
+* For a 2D multivector system
+*
+*	MV == [v1, v2]
+*
+* Initially,
+*
+*	MV = 1.0
+*
+* The operator is volume diffusion, differentiated through the BCs.
+* On v1, BCs are outflow; On v2, they are zero-flux.
+*
+*
+*/
+
 #include "equilibrium_diffusion.hh"
 
 #include <flecsi/execution.hh>
