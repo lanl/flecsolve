@@ -101,31 +101,6 @@ void init_mesh() {
 	run::context::instance().add_topology(m);
 }
 
-void check_vals(msh::accessor<ro, ro> vm,
-                field<scalar_t>::accessor<ro, na> xa,
-                std::string title) {
-	auto xv = vm.mdspan<msh::cells>(xa);
-
-	std::ostringstream oss;
-
-	oss << "====================\n";
-	oss << "--------------------\n";
-	oss << title << "\n";
-	oss << "--------------------\n";
-	oss << std::fixed << std::setprecision(6) << std::setfill(' ');
-	for (auto j : vm.range<msh::cells, msh::y_axis, msh::all>()) {
-		oss << "j = " << j << std::setw(3) << " | ";
-		for (auto i : vm.range<msh::cells, msh::x_axis, msh::all>()) {
-			oss << std::setw(9) << xv[1][j][i] << " ";
-		}
-		oss << "\n";
-	}
-	oss << "====================\n";
-
-	oss << "\n";
-	std ::cout << oss.str();
-}
-
 /**
  * constructs full-boundary neumann conditions
  */
@@ -203,6 +178,54 @@ decltype(auto) make_multivector(const FieldDefArr & fd,
 	return vec::multi{
 		vec::mesh(variable<static_cast<diffusion_var>(I)>, m, fd[I](m))...};
 }
+
+template<std::size_t I>
+void field_out(msh::accessor<ro, ro> vm,
+               field<scalar_t>::accessor<wo, na> xa,
+               std::ofstream & ofs) {
+	auto xv = vm.mdspan<msh::cells>(xa);
+
+	for (auto k : vm.range<msh::cells, msh::z_axis, msh::all>()) {
+		const scalar_t z = vm.value<msh::y_axis>(k);
+		for (auto j : vm.range<msh::cells, msh::y_axis, msh::all>()) {
+			const scalar_t y = vm.value<msh::y_axis>(j);
+			for (auto i : vm.range<msh::cells, msh::x_axis, msh::all>()) {
+				const scalar_t x = vm.value<msh::x_axis>(i);
+				ofs << I << ": " << i << " " << j << " " << k << " " << x << " " << y << " "
+				   << z << " " << xv[k][j][i] << "\n";
+			}
+		}
+	}
+}
+
+template<class FieldDefArr, std::size_t... I>
+void fields_out(const FieldDefArr & fd, std::ofstream& of, std::index_sequence<I...>) {
+	using namespace flecsolve;
+	(flecsi::execute<field_out<I>>(m, fd[I](m), of),...);
+}
+} // namespace detail
+
+template<class FieldDeffArr>
+void fields_out(FieldDeffArr & fd, std::string filen) {
+
+	std::stringstream ss;
+	ss << filen << "_" << process() << ".dat";
+	std::ofstream of(ss.str(), std::ofstream::out);
+
+	detail::fields_out(fd, of, std::make_index_sequence<NVAR>{});
+
+	// of << std::fixed << std::setprecision(6) << std::setfill(' ');
+	// for (auto k : vm.range<msh::cells, msh::z_axis, msh::all>()) {
+	// 	const scalar_t z = vm.value<msh::y_axis>(k);
+	// 	for (auto j : vm.range<msh::cells, msh::y_axis, msh::all>()) {
+	// 		const scalar_t y = vm.value<msh::y_axis>(j);
+	// 		for (auto i : vm.range<msh::cells, msh::x_axis, msh::all>()) {
+	// 			const scalar_t x = vm.value<msh::x_axis>(i);
+	// 			of << i << " " << j << " " << k << " " << x << " " << y << " "
+	// 			   << z << " " << xv[k][j][i] << "\n";
+	// 		}
+	// 	}
+	// }
 }
 
 template<class FieldDefArr>
@@ -291,17 +314,12 @@ inline int driver() {
 	flog(info) << "iters = " << info.iters << "\n";
 
 	// helper print of final solutions
-	if (processes() < 100) {
-		execute<check_vals>(m, xd[0](m), "v1");
-		//"[variable1] solution with zero-flux boundary (n ⋅ ∇ u=0 on ∂Ω) ");
-		execute<check_vals>(m, xd[1](m), "v2");
-		//"[variable2] solution vanishes at boundary (u=0 on ∂Ω)");
-	}
-	else {
-		flog(info) << "to see asci representation of ivs & solutions, run on a "
-					  "single core.\n";
-	}
+	std::string file_final = "ed_final";
 
-	return 0;
+	flog(info) << "writing out solution to " << file_final << "_N.dat\n";
+
+	fields_out(xd, file_final);
+
+		return 0;
 }
 } // namespace
