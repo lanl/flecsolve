@@ -19,7 +19,7 @@ target_include_directories(
 #------------------------------------------------------------------------------#
 target_link_libraries(${APP_NAME}
 PRIVATE
-  FleCSI::linalg
+  flecsolve
 )
 
 add_custom_command(

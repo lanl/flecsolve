@@ -29,6 +29,7 @@ include(format)
 
 # option to build examples
 option(FLECSOLVE_BUILD_EXAMPLES "Build the examples" OFF)
+mark_as_advanced(FLECSOLVE_BUILD_EXAMPLES)
 
 if(NOT FORMAT_ONLY)
   include(library)
@@ -37,6 +38,11 @@ if(NOT FORMAT_ONLY)
 	EXPORT_TARGET   flecsolveTargets
 	NAMESPACE       flecsolve
 	LINK_PUBLIC     FleCSI::FleCSI MPI::MPI_CXX)
+
+  if(FLECSOLVE_BUILD_EXAMPLES)
+    message(STATUS "Adding examples directory")
+    add_subdirectory(examples)
+  endif()
 
   include(CMakePackageConfigHelpers)
   configure_package_config_file(cmake/flecsolveConfig.cmake.in
