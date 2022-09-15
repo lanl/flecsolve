@@ -77,6 +77,7 @@ if(NOT FORMAT_ONLY)
   summary_info("FLECSI_BACKEND" "${FleCSI_BACKEND}" TRUE)
   summary_option("ENABLE_FLOG" ${ENABLE_FLOG} "")
   summary_option("ENABLE_UNIT_TESTS" ${ENABLE_UNIT_TESTS} "")
+  summary_option("FLECSOLVE_BUILD_EXAMPLES" ${FLECSOLVE_BUILD_EXAMPLES} "")
   # string(APPEND _summary "\n")
 
   message(STATUS ${_summary})
