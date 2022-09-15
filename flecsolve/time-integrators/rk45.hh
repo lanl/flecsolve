@@ -17,8 +17,7 @@ struct parameters : rk23::parameters<Op, Work> {
 	                                 std::forward<W>(work)) {}
 };
 template<class O, class W>
-parameters(const char *, O &&, W &&)
-	-> parameters<O, W>;
+parameters(const char *, O &&, W &&) -> parameters<O, W>;
 
 enum workvecs : std::size_t { k1, k2, k3, k4, k5, k6, z, next, nvecs };
 

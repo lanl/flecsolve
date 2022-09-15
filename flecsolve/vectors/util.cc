@@ -9,7 +9,9 @@ std::istream & operator>>(std::istream & in, norm_type & norm) {
 	std::string token;
 	in >> token;
 
-	std::transform(token.begin(), token.end(), token.begin(),
+	std::transform(token.begin(),
+	               token.end(),
+	               token.begin(),
 	               [](unsigned char c) { return std::tolower(c); });
 
 	if (token == "inf")
@@ -18,7 +20,8 @@ std::istream & operator>>(std::istream & in, norm_type & norm) {
 		norm = norm_type::l1;
 	else if (token == "l2")
 		norm = norm_type::l2;
-	else in.setstate(std::ios_base::failbit);
+	else
+		in.setstate(std::ios_base::failbit);
 
 	return in;
 }

@@ -7,13 +7,17 @@
 namespace flecsolve::vec {
 
 template<class F, class... Vecs>
-constexpr decltype(auto) apply(F && f, Vecs && ... vecs) {
-	using fvec = std::tuple_element_t<0, std::tuple<std::remove_reference_t<Vecs>...>>;
-	static_assert((... && (fvec::num_components == std::remove_reference_t<Vecs>::num_components)));
+constexpr decltype(auto) apply(F && f, Vecs &&... vecs) {
+	using fvec =
+		std::tuple_element_t<0, std::tuple<std::remove_reference_t<Vecs>...>>;
+	static_assert((... && (fvec::num_components ==
+	                       std::remove_reference_t<Vecs>::num_components)));
 	if constexpr (fvec::num_components == 1)
-		return fvec::ops_t::apply(std::forward<F>(f), std::forward<Vecs>(vecs)...);
+		return fvec::ops_t::apply(std::forward<F>(f),
+		                          std::forward<Vecs>(vecs)...);
 	else
-		return fvec::ops_t::apply(std::forward<F>(f), std::forward<Vecs>(vecs).data...);
+		return fvec::ops_t::apply(std::forward<F>(f),
+		                          std::forward<Vecs>(vecs).data...);
 }
 
 enum class norm_type { inf, l2, l1 };

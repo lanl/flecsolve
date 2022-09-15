@@ -129,7 +129,7 @@ struct multi : public multivector_base<Vecs...> {
 	}
 
 	template<class F>
-	constexpr decltype(auto) apply(F&& f) {
+	constexpr decltype(auto) apply(F && f) {
 		return std::apply(std::forward<F>(f), data);
 	}
 

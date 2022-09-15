@@ -72,7 +72,8 @@ struct mesh {
 				z.topo(), z.ref(), x.ref());
 		}
 		else {
-			flecsi::execute<tasks::subtract>(z.topo(), z.ref(), x.ref(), y.ref());
+			flecsi::execute<tasks::subtract>(
+				z.topo(), z.ref(), x.ref(), y.ref());
 		}
 	}
 
@@ -84,7 +85,8 @@ struct mesh {
 			flecsi::execute<tasks::multiply_self>(z.topo(), z.ref(), x.ref());
 		}
 		else {
-			flecsi::execute<tasks::multiply>(z.topo(), z.ref(), x.ref(), y.ref());
+			flecsi::execute<tasks::multiply>(
+				z.topo(), z.ref(), x.ref(), y.ref());
 		}
 	}
 
@@ -164,7 +166,8 @@ struct mesh {
 			flecsi::execute<tasks::add_scalar_self>(y.topo(), y.ref(), alpha);
 		}
 		else {
-			flecsi::execute<tasks::add_scalar>(y.topo(), y.ref(), x.ref(), alpha);
+			flecsi::execute<tasks::add_scalar>(
+				y.topo(), y.ref(), x.ref(), alpha);
 		}
 	}
 
@@ -237,8 +240,8 @@ struct mesh {
 		flecsi::execute<tasks::dump, flecsi::mpi>(pre, x.topo(), x.ref());
 	}
 
-	template<class F, class ... Vecs>
-	static constexpr decltype(auto) apply(F && f, Vecs && ... vecs) {
+	template<class F, class... Vecs>
+	static constexpr decltype(auto) apply(F && f, Vecs &&... vecs) {
 		return std::forward<F>(f)(std::forward<Vecs>(vecs)...);
 	}
 };

@@ -62,9 +62,9 @@ struct solve_info {
 	float rhs_norm;
 
 	bool success() {
-		return (status == stop_reason::converged_atol)
-			|| (status == stop_reason::converged_rtol)
-			|| (status == stop_reason::converged_user);
+		return (status == stop_reason::converged_atol) ||
+		       (status == stop_reason::converged_rtol) ||
+		       (status == stop_reason::converged_user);
 	}
 };
 

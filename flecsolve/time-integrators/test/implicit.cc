@@ -39,7 +39,9 @@ struct rate {
 	}
 
 	template<class V>
-	bool is_valid(const V&) { return true; }
+	bool is_valid(const V &) {
+		return true;
+	}
 
 	static constexpr auto input_var = variable<anon_var::anonymous>;
 	static constexpr auto output_var = variable<anon_var::anonymous>;
@@ -59,7 +61,7 @@ struct rate_solver {
 	solve_info apply(const D & b, R & x) const {
 		auto rhs = b.min().get();
 		const auto & op = F.get();
-		auto sol = rhs / (1. - op.get_rate()*op.get_scaling());
+		auto sol = rhs / (1. - op.get_rate() * op.get_scaling());
 		x.set_scalar(sol);
 
 		solve_info info;
@@ -83,9 +85,12 @@ int bdftest() {
 		vec::mesh x(msh, xd(msh)), xnew(msh, xnewd(msh));
 
 		rate_solver solver{std::ref(F)};
-		bdf::parameters
-			params2("bdf-2", std::ref(F), bdf::topo_work<>::get(x), std::ref(solver)),
-			params5("bdf-5", std::ref(F), bdf::topo_work<>::get(x), std::ref(solver));
+		bdf::parameters params2(
+			"bdf-2", std::ref(F), bdf::topo_work<>::get(x), std::ref(solver)),
+			params5("bdf-5",
+		            std::ref(F),
+		            bdf::topo_work<>::get(x),
+		            std::ref(solver));
 		read_config("implicit.cfg", params2, params5);
 		bdf::integrator ti2(std::move(params2));
 		bdf::integrator ti5(std::move(params5));
@@ -112,7 +117,6 @@ int bdftest() {
 			                  std::abs(sol - approx),
 			                  ti.get_current_step(),
 			                  ti.num_step_rejects());
-
 		};
 		{
 			auto info = run(ti2);

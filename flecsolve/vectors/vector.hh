@@ -283,7 +283,7 @@ public:
 	}
 
 	template<class F>
-	constexpr decltype(auto) apply(F&& f) {
+	constexpr decltype(auto) apply(F && f) {
 		return std::forward<F>(f)(*this);
 	}
 

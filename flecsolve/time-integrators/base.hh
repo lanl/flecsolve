@@ -27,7 +27,9 @@ struct base {
 
 	bool fixed_dt() const { return params.use_fixed_dt; }
 
-	bool steps_remaining() const { return integrator_step < max_integrator_steps; }
+	bool steps_remaining() const {
+		return integrator_step < max_integrator_steps;
+	}
 
 protected:
 	P params;

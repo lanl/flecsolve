@@ -4,8 +4,7 @@
 namespace flecsolve::time_integrator {
 
 struct operator_interface {
-	operator_interface
-	double scaling;
+	operator_interface double scaling;
 };
 
 }
