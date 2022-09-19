@@ -35,19 +35,18 @@ inline void fill_box_slopex(msh::accessor<ro, ro> vm,
 		[&](const auto, const auto, const auto i) { return i; });
 }
 
+static scalar_t val_in = 3.14;
+static fvm_check<>::test fvm_apply_args{
+	[](auto...) { return val_in + 1.0; }, "fvm_apply_args"};
+static fvm_check<>::test fvm_apply_xargs{
+	[](std::size_t, std::size_t, std::size_t i) { return i; },
+	"fvm_apply_extra_args"};
+
 inline int check_apply_to() {
 	UNIT ("fvm_apply") {
 		// check the apply routine
-		scalar_t val_in = 3.14;
-		static fvm_check<>::test fvm_apply_args{
-			[&](auto...) { return val_in + 1.0; }, "fvm_apply_args"};
-
 		execute<fill_box_increment<msh::cells, msh::x_axis>>(m, xd(m), val_in);
 		EXPECT_EQ((test<fvm_apply_args>(m, xd(m))), 0);
-
-		static fvm_check<>::test fvm_apply_xargs{
-			[](std::size_t, std::size_t, std::size_t i) { return i; },
-			"fvm_apply_extra_args"};
 
 		execute<fill_box_slopex<msh::cells, msh::x_axis>>(m, xd(m));
 		EXPECT_EQ((test<fvm_apply_xargs>(m, xd(m))), 0);
