@@ -44,20 +44,12 @@ if(NOT FORMAT_ONLY)
     add_subdirectory(examples)
   endif()
 
-  include(CMakePackageConfigHelpers)
-  configure_package_config_file(cmake/flecsolveConfig.cmake.in
-	${CMAKE_CURRENT_BINARY_DIR}/flecsolveConfig.cmake
-	INSTALL_DESTINATION lib/cmake/flecsolve
-	)
-  write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/flecsolveConfigVersion.cmake
-	COMPATIBILITY SameMajorVersion
-	)
+  configure_file(${PROJECT_SOURCE_DIR}/config/flecsolveConfig.cmake.in
+	${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/flecsolveConfig.cmake @ONLY)
 
-  install(FILES
-	${CMAKE_CURRENT_BINARY_DIR}/flecsolveConfig.cmake
-	${CMAKE_CURRENT_BINARY_DIR}/flecsolveConfigVersion.cmake
-	DESTINATION lib/cmake/flecsolve
-	)
+  install(
+	FILES ${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/flecsolveConfig.cmake
+	DESTINATION ${CMAKE_INSTALL_PREFIX}/${LIBDIR}/cmake/flecsolve)
 
   summary_header()
   summary_info("CMAKE_BUILD_TYPE" "${CMAKE_BUILD_TYPE}" TRUE)
