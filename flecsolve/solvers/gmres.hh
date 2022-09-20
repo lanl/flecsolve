@@ -30,7 +30,7 @@ struct settings : solver_settings {
 			(label("max-krylov-dim").c_str(), po::value<int>(&max_krylov_dim)->default_value(-1), "maximum krylov dimension")
 			(label("pre-side").c_str(),
 			 po::value<std::string>()->default_value("right")->notifier(
-				 std::bind1st(std::mem_fn(&settings::set_preside), this)), "preconditioner side")
+				 std::bind(std::mem_fn(&settings::set_preside), this, std::placeholders::_1)), "preconditioner side")
 			(label("restart").c_str(), po::value<bool>(&restart)->default_value(false), "should restart");
 		// clang-format on
 		return desc;
