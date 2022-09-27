@@ -68,7 +68,7 @@ struct operator_task<coefficient<constant_coefficient<Vec, Var>, Vec>> {
 	template<class U, class Par>
 	static void launch(const U & u, Par & p) {
 		auto & subu = u.template subset(variable<Var>);
-		flecsi::execute<coef>(subu.data.topo,
+		flecsi::execute<coef>(subu.data.topo(),
 		                      (*(p.faces))[topo_t<Vec>::x_axis],
 		                      (*(p.faces))[topo_t<Vec>::y_axis],
 		                      (*(p.faces))[topo_t<Vec>::z_axis],
@@ -121,7 +121,7 @@ struct operator_task<coefficient<average_coefficient<Vec, Var>, Vec>> {
 	template<class U, class Par>
 	static void launch(const U & u, Par & p) {
 		auto & subu = u.template subset(variable<Var>);
-		flecsi::execute<coef>(subu.data.topo,
+		flecsi::execute<coef>(subu.data.topo(),
 		                      subu.data.ref(),
 		                      (*(p.faces))[topo_t<Vec>::x_axis],
 		                      (*(p.faces))[topo_t<Vec>::y_axis],

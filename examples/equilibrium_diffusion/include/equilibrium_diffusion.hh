@@ -32,9 +32,9 @@ using scalar_t = double;
 
 // define the problem dimensions
 inline flecsi::program_option<std::size_t>
-NX("NX", "The x extents of the mesh.", 1);
+	NX("NX", "The x extents of the mesh.", 1);
 inline flecsi::program_option<std::size_t>
-NY("NY", "The y extents of the mesh.", 1);
+	NY("NY", "The y extents of the mesh.", 1);
 
 // declare the "variable"'s of the "multivector"
 constexpr std::size_t NVAR = 2;
@@ -192,17 +192,19 @@ void field_out(msh::accessor<ro, ro> vm,
 			const scalar_t y = vm.value<msh::y_axis>(j);
 			for (auto i : vm.range<msh::cells, msh::x_axis, msh::all>()) {
 				const scalar_t x = vm.value<msh::x_axis>(i);
-				ofs << I << ": " << i << " " << j << " " << k << " " << x << " " << y << " "
-				   << z << " " << xv[k][j][i] << "\n";
+				ofs << I << ": " << i << " " << j << " " << k << " " << x << " "
+					<< y << " " << z << " " << xv[k][j][i] << "\n";
 			}
 		}
 	}
 }
 
 template<class FieldDefArr, std::size_t... I>
-void fields_out(const FieldDefArr & fd, std::ofstream& of, std::index_sequence<I...>) {
+void fields_out(const FieldDefArr & fd,
+                std::ofstream & of,
+                std::index_sequence<I...>) {
 	using namespace flecsolve;
-	(flecsi::execute<field_out<I>, flecsi::mpi>(m, fd[I](m), of),...);
+	(flecsi::execute<field_out<I>, flecsi::mpi>(m, fd[I](m), of), ...);
 }
 } // namespace detail
 
@@ -214,7 +216,6 @@ void fields_out(FieldDeffArr & fd, std::string filen) {
 	std::ofstream of(ss.str(), std::ofstream::out);
 
 	detail::fields_out(fd, of, std::make_index_sequence<NVAR>{});
-
 }
 
 template<class FieldDefArr>
@@ -316,6 +317,6 @@ inline int driver() {
 
 	fields_out(xd, file_final);
 
-		return 0;
+	return 0;
 }
 } // namespace

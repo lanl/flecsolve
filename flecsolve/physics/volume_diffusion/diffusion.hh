@@ -74,7 +74,7 @@ struct operator_task<diffusion<Vec, Var>> {
 		auto & subu = u.template subset(variable<Var>);
 		auto & subv = v.template subset(variable<Var>);
 
-		auto & m = subu.data.topo;
+		auto & m = subu.data.topo();
 
 		auto su = subu.data.ref();
 		auto sv = subv.data.ref();

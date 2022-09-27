@@ -1,3 +1,14 @@
+set(solvers_HEADERS
+  bicgstab.hh
+  cg.hh
+  gmres.hh
+  krylov_interface.hh
+  nka.hh
+  shell.hh
+  solver_settings.hh
+  traits.hh
+  PARENT_SCOPE)
+
 if(ENABLE_UNIT_TESTS)
   include(FetchContent)
   FetchContent_Declare(494_bus
@@ -19,8 +30,7 @@ add_unit(cg
   ${494_bus_SOURCE_DIR}/494_bus.mtx
   ${chem97ztz_SOURCE_DIR}/Chem97ZtZ.mtx
   test/cg.cfg
-  LIBRARIES
-  FleCSI::linalg
+  LIBRARIES flecsolve
   THREADS 1)
 
 add_unit(cgmulti
@@ -29,8 +39,7 @@ add_unit(cgmulti
   INPUTS
   ${chem97ztz_SOURCE_DIR}/Chem97ZtZ.mtx
   test/cgmulti.cfg
-  LIBRARIES
-  FleCSI::linalg
+  LIBRARIES flecsolve
   THREADS 1)
 
 add_unit(gmres
@@ -39,8 +48,7 @@ add_unit(gmres
   INPUTS
   ${chem97ztz_SOURCE_DIR}/Chem97ZtZ.mtx
   test/gmres.cfg
-  LIBRARIES
-  FleCSI::linalg
+  LIBRARIES flecsolve
   THREADS 1)
 
 add_unit(bicgstab
@@ -50,8 +58,7 @@ add_unit(bicgstab
   ${chem97ztz_SOURCE_DIR}/Chem97ZtZ.mtx
   ${psmigr_3_SOURCE_DIR}/psmigr_3.mtx
   test/bicgstab.cfg
-  LIBRARIES
-  FleCSI::linalg
+  LIBRARIES flecsolve
   THREADS 1)
 
 add_unit(nka
@@ -60,6 +67,5 @@ add_unit(nka
   INPUTS
   ${chem97ztz_SOURCE_DIR}/Chem97ZtZ.mtx
   test/nka.cfg
-  LIBRARIES
-  FleCSI::linalg
+  LIBRARIES flecsolve
   THREADS 1)

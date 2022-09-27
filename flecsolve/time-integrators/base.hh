@@ -10,7 +10,7 @@ struct base {
 	base(P && p)
 		: params(std::move(p)), current_time(params.initial_time),
 		  current_dt(params.initial_dt), old_dt(params.initial_dt),
-		  integrator_step(0) {}
+		  integrator_step(0), max_integrator_steps(params.max_steps) {}
 
 	double get_current_time() const { return current_time; }
 
@@ -27,12 +27,17 @@ struct base {
 
 	bool fixed_dt() const { return params.use_fixed_dt; }
 
+	bool steps_remaining() const {
+		return integrator_step < max_integrator_steps;
+	}
+
 protected:
 	P params;
 	double current_time;
 	double current_dt;
 	double old_dt;
 	int integrator_step;
+	int max_integrator_steps;
 };
 
 template<class P>

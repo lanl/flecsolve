@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.13...3.20)
 
-project(flecsi-linalg VERSION 0.0.1 LANGUAGES CXX C)
+project(flecsolve VERSION 0.0.1 LANGUAGES CXX C)
 
 set(CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 17)
@@ -19,7 +19,6 @@ set(ENABLE_UNIT_TESTS ON)
 set(ENABLE_FLOG ${FleCSI_ENABLE_FLOG})
 set(FLECSI_RUNTIME_MODEL ${FleCSI_RUNTIME_MODEL})
 set(FLECSI_BACKEND ${FleCSI_BACKEND})
-include(flog)
 include(unit)
 
 include(summary)
@@ -30,51 +29,27 @@ include(format)
 
 # option to build examples
 option(FLECSOLVE_BUILD_EXAMPLES "Build the examples" OFF)
+mark_as_advanced(FLECSOLVE_BUILD_EXAMPLES)
 
 if(NOT FORMAT_ONLY)
-  add_library(linalg INTERFACE)
-  add_library(FleCSI::linalg ALIAS linalg)
-  target_link_libraries(linalg INTERFACE FleCSI::FleCSI MPI::MPI_CXX)
+  include(library)
+  add_library_target(flecsolve flecsolve
+	VERSION         ${${PROJECT_NAME}_VERSION}
+	EXPORT_TARGET   flecsolveTargets
+	NAMESPACE       flecsolve
+	LINK_PUBLIC     FleCSI::FleCSI MPI::MPI_CXX)
 
-  target_include_directories(linalg INTERFACE
-	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-	$<INSTALL_INTERFACE:include>)
-
-  add_subdirectory(flecsolve)
   if(FLECSOLVE_BUILD_EXAMPLES)
+    message(STATUS "Adding examples directory")
     add_subdirectory(examples)
   endif()
 
-  install(TARGETS linalg EXPORT flecsi-linalgTargets
-	INCLUDES DESITNATION include)
+  configure_file(${PROJECT_SOURCE_DIR}/config/flecsolveConfig.cmake.in
+	${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/flecsolveConfig.cmake @ONLY)
 
-  install(EXPORT flecsi-linalgTargets
-	FILE flecsi-linalgTargets.cmake
-	NAMESPACE FleCSI::
-	DESTINATION lib/cmake/flecsi-linalg)
-
-  export(TARGETS linalg
-	NAMESPACE FleCSI::
-	FILE flecsi-linalgTargets.cmake)
-
-  install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/flecsolve
-	DESTINATION include
-	FILES_MATCHING PATTERN "*.hh")
-
-  include(CMakePackageConfigHelpers)
-  configure_package_config_file(cmake/flecsi-linalgConfig.cmake.in
-	${CMAKE_CURRENT_BINARY_DIR}/flecsi-linalgConfig.cmake
-	INSTALL_DESTINATION lib/cmake/flecsi-linalg
-	)
-  write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/flecsi-linalgConfigVersion.cmake
-	COMPATIBILITY SameMajorVersion
-	)
-
-  install(FILES
-	${CMAKE_CURRENT_BINARY_DIR}/flecsi-linalgConfig.cmake
-	${CMAKE_CURRENT_BINARY_DIR}/flecsi-linalgConfigVersion.cmake
-	DESTINATION lib/cmake/flecsi-linalg
-	)
+  install(
+	FILES ${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/flecsolveConfig.cmake
+	DESTINATION ${CMAKE_INSTALL_PREFIX}/${LIBDIR}/cmake/flecsolve)
 
   summary_header()
   summary_info("CMAKE_BUILD_TYPE" "${CMAKE_BUILD_TYPE}" TRUE)
@@ -94,6 +69,7 @@ if(NOT FORMAT_ONLY)
   summary_info("FLECSI_BACKEND" "${FleCSI_BACKEND}" TRUE)
   summary_option("ENABLE_FLOG" ${ENABLE_FLOG} "")
   summary_option("ENABLE_UNIT_TESTS" ${ENABLE_UNIT_TESTS} "")
+  summary_option("FLECSOLVE_BUILD_EXAMPLES" ${FLECSOLVE_BUILD_EXAMPLES} "")
   # string(APPEND _summary "\n")
 
   message(STATUS ${_summary})

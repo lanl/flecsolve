@@ -60,6 +60,12 @@ struct solve_info {
 	float res_norm_initial, res_norm_final;
 	float sol_norm_initial, sol_norm_final;
 	float rhs_norm;
+
+	bool success() {
+		return (status == stop_reason::converged_atol) ||
+		       (status == stop_reason::converged_rtol) ||
+		       (status == stop_reason::converged_user);
+	}
 };
 
 template<class Vec,
@@ -74,7 +80,7 @@ struct topo_solver_state {
 
 	static auto get_work(const Vec & rhs) {
 		return make_work(
-			rhs.data.topo, defs, std::make_index_sequence<NumWork>());
+			rhs.data.topo(), defs, std::make_index_sequence<NumWork>());
 	}
 
 protected:

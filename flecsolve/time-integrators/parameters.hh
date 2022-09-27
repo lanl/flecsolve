@@ -43,8 +43,8 @@ struct parameters {
 	double max_dt;
 	double min_dt;
 	double initial_dt;
-	O op;
-	W work;
+	std::decay_t<O> op;
+	std::decay_t<W> work;
 
 protected:
 	std::string prefix;

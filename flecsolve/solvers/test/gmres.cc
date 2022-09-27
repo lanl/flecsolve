@@ -23,7 +23,7 @@ struct diagnostic {
 	diagnostic(const Op & A, const Vec & x0, const Vec & b, double cfact)
 		: iter(0), cfact(cfact), fail_monotonic(false),
 		  fail_convergence(false) {
-		Vec r(x0.data.topo, resdef(x0.data.topo));
+		Vec r(x0.data.topo(), resdef(x0.data.topo()));
 		A.residual(b, x0, r);
 		rnorm0 = r.l2norm().get();
 		rnorm_prev = rnorm0;

@@ -32,7 +32,8 @@ struct operator_task<bc<neumann<Vec, Var>, Axis, Boundary>> {
 	template<class U, class P>
 	static constexpr void launch(const U & u, P & p) {
 		const auto & subu = u.template subset(variable<Var>);
-		flecsi::execute<operate>(subu.data.topo, subu.data.ref(), p.flux_value);
+		flecsi::execute<operate>(
+			subu.data.topo(), subu.data.ref(), p.flux_value);
 	}
 	static constexpr void
 	operate(topo_acc<Vec> m, field_acc<Vec, flecsi::rw> u, scalar_t<Vec> v) {

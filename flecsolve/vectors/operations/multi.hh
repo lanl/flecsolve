@@ -225,27 +225,27 @@ struct multi {
 			}};
 	}
 
-protected:
 	template<std::size_t I, class F, class... Multis>
-	constexpr decltype(auto) apply_aux(F && f, Multis &&... ms) const {
+	static constexpr decltype(auto) apply_aux(F && f, Multis &&... ms) {
 		return std::invoke(std::forward<F>(f),
 		                   std::get<I>(std::forward<Multis>(ms))...);
 	}
 
 	template<class F, std::size_t... Index, class... Multis>
-	constexpr void
-	apply(F && f, std::index_sequence<Index...>, Multis &&... ms) const {
+	static constexpr void
+	apply(F && f, std::index_sequence<Index...>, Multis &&... ms) {
 		(apply_aux<Index>(std::forward<F>(f), std::forward<Multis>(ms)...),
 		 ...);
 	}
 
 	template<class F, std::size_t... Index, class... Multis>
-	constexpr decltype(auto)
-	apply_ret(F && f, std::index_sequence<Index...>, Multis &&... ms) const {
+	static constexpr decltype(auto)
+	apply_ret(F && f, std::index_sequence<Index...>, Multis &&... ms) {
 		return std::make_tuple(apply_aux<Index>(
 			std::forward<F>(f), std::forward<Multis>(ms)...)...);
 	}
 
+protected:
 	using make_is = std::make_index_sequence<num_vecs>;
 };
 

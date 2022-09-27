@@ -19,7 +19,7 @@ struct petsc {
 		execute<tasks::copy<typename Other::util,
 		                    typename Other::topo_acc,
 		                    typename Other::template acc<ro>>,
-		        mpi>(x.topo, z, x.ref());
+		        mpi>(x.topo(), z, x.ref());
 	}
 
 	void zero(vec_data & x) { execute<tasks::set, mpi>(x, 0); }
