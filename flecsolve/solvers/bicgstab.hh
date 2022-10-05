@@ -12,7 +12,9 @@ namespace flecsolve::bicgstab {
 
 static constexpr std::size_t nwork = 8;
 
-using settings = solver_settings;
+struct settings : solver_settings {
+	settings(const char * pre) : solver_settings(pre) {}
+};
 
 template<std::size_t Version = 0>
 using topo_work = topo_work_base<nwork, Version>;
