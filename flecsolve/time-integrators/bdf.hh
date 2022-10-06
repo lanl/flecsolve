@@ -161,25 +161,26 @@ struct parameters_gen : with_label {
 	std::vector<double> problem_scales;
 };
 
-
-template<class Op, class Work, class Solver, bool use_factory> struct parameters{};
+template<class Op, class Work, class Solver, bool use_factory>
+struct parameters {};
 
 template<class Op, class Work, class Solver>
-struct parameters<Op, Work, Solver, false> : parameters_gen, time_integrator::parameters<Op, Work> {
+struct parameters<Op, Work, Solver, false>
+	: parameters_gen, time_integrator::parameters<Op, Work> {
 	using base = time_integrator::parameters<Op, Work>;
 	using base::label;
 
 	template<class O, class W, class S>
 	parameters(const char * pre, O && op, W && work, S && solver)
-		: parameters_gen(pre), base(pre, std::forward<O>(op), std::forward<W>(work)),
+		: parameters_gen(pre),
+		  base(pre, std::forward<O>(op), std::forward<W>(work)),
 		  solver(std::forward<S>(solver)) {}
 
 	template<class D, class R, class S>
 	struct wrapper {
 		wrapper(S & s) : slv(s) {}
-		auto apply(D * d, R * r) {
-			return slv.apply(*d, *r);
-		}
+		auto apply(D * d, R * r) { return slv.apply(*d, *r); }
+
 	protected:
 		S & slv;
 	};
@@ -187,10 +188,12 @@ struct parameters<Op, Work, Solver, false> : parameters_gen, time_integrator::pa
 	template<class D, class R>
 	auto get_solver() {
 		auto & ref = get_solver_ref();
-		return std::make_unique<wrapper<D, R,
-			std::conditional_t<is_reference_wrapper_v<Solver>,
-			                   typename Solver::type,
-			                   Solver>>>(ref);
+		return std::make_unique<
+			wrapper<D,
+		            R,
+		            std::conditional_t<is_reference_wrapper_v<Solver>,
+		                               typename Solver::type,
+		                               Solver>>>(ref);
 	}
 
 	auto & get_solver_ref() {
@@ -213,40 +216,44 @@ protected:
 };
 
 template<class Op, class Work, class Factory>
-struct parameters<Op, Work, Factory, true> : parameters_gen, time_integrator::parameters<Op, Work> {
+struct parameters<Op, Work, Factory, true>
+	: parameters_gen, time_integrator::parameters<Op, Work> {
 	using base = time_integrator::parameters<Op, Work>;
+	using base::get_operator;
 	using base::label;
 	using base::work;
-	using base::get_operator;
 
 	using factory_t = std::decay_t<Factory>;
 
 	template<class O, class W, class F>
 	parameters(const char * pre, O && op, W && work, F && f)
-		: parameters_gen(pre), base(pre, std::forward<O>(op), std::forward<W>(work)),
+		: parameters_gen(pre),
+		  base(pre, std::forward<O>(op), std::forward<W>(work)),
 		  factory(std::forward<F>(f)) {}
 
 	template<class D, class R>
 	std::unique_ptr<typename factory_t::solver> get_solver() {
 		if (!solver) {
-			solver = factory.create(std::get<0>(work),
-			                        std::ref(get_operator()));
+			solver =
+				factory.create(std::get<0>(work), std::ref(get_operator()));
 		}
-		return factory.template wrap<D, R>(solver.get(),
-		                                   std::get<0>(work),
-		                                   std::ref(get_operator()));
+		return factory.template wrap<D, R>(
+			solver.get(), std::get<0>(work), std::ref(get_operator()));
 	}
 
 	auto options() {
 		auto desc = base::options();
-		desc.add_options()
-			(label("solver").c_str(), po::value<std::string>()->required()->notifier(
-				[this](const std::string & name) {
-					factory.set_options_name(name);
-				}), "solver name");
+		desc.add_options()(label("solver").c_str(),
+		                   po::value<std::string>()->required()->notifier(
+							   [this](const std::string & name) {
+								   factory.set_options_name(name);
+							   }),
+		                   "solver name");
 
 		desc.add(factory.options(
-			         std::bind(std::mem_fun(&parameters::create_solver_parameters), this, std::placeholders::_1)));
+			std::bind(std::mem_fun(&parameters::create_solver_parameters),
+		              this,
+		              std::placeholders::_1)));
 
 		auto desc_gen = parameters_gen::options();
 		desc.add(desc_gen);
@@ -256,17 +263,16 @@ struct parameters<Op, Work, Factory, true> : parameters_gen, time_integrator::pa
 
 protected:
 	void create_solver_parameters(const typename factory_t::registry & reg) {
-		factory.create_parameters(reg,
-		                          std::get<0>(work),
-		                          std::ref(get_operator()));
+		factory.create_parameters(
+			reg, std::get<0>(work), std::ref(get_operator()));
 	}
 	factory_t factory;
 	std::unique_ptr<typename factory_t::storage> solver;
 };
 
 template<class O, class W, class S>
-parameters(const char *, O &&, W &&, S &&) -> parameters<O, W, S, !op::is_solver_v<S, std::tuple_element_t<0, W>>>;
-
+parameters(const char *, O &&, W &&, S &&)
+	-> parameters<O, W, S, !op::is_solver_v<S, std::tuple_element_t<0, W>>>;
 
 template<class O, class W, class S, bool use_factory>
 struct integrator : base<parameters<O, W, S, use_factory>> {
@@ -275,7 +281,7 @@ struct integrator : base<parameters<O, W, S, use_factory>> {
 	using base<P>::current_dt;
 	using base<P>::old_dt;
 	using base<P>::current_time;
-	using base<P>::steps_remaining;
+	using base<P>::assert_can_advance;
 	using base<P>::integrator_step;
 
 	integrator(P p)
@@ -292,8 +298,7 @@ struct integrator : base<parameters<O, W, S, use_factory>> {
 	void advance(double dt, bool first_step, Curr & curr, Out & out) {
 		flog_assert(curr != out,
 		            "BDF integrator: curr cannot be the same as out");
-		flog_assert(steps_remaining() && (current_time < params.final_time),
-		            "BDF integrator: already finished integrating");
+		assert_can_advance();
 
 		prev[0].solution.copy(curr);
 		current_dt = dt;
@@ -303,8 +308,10 @@ struct integrator : base<parameters<O, W, S, use_factory>> {
 		auto & rhs = getvec<workvec::rhs>();
 		auto & source = getvec<workvec::source>();
 		auto & sol = getvec<workvec::current_sol>();
-		auto solver = params.template get_solver<std::remove_reference_t<decltype(rhs)>,
-		                                         std::remove_reference_t<decltype(sol)>>();
+		auto solver =
+			params
+				.template get_solver<std::remove_reference_t<decltype(rhs)>,
+		                             std::remove_reference_t<decltype(sol)>>();
 
 		rhs.scale(-1., source);
 		auto info = solver->apply(&rhs, &sol);
@@ -808,7 +815,7 @@ protected:
 		double gamma = current_dt;
 
 		if (first_step) {
-			auto time_op = params.get_operator();
+			auto & time_op = params.get_operator();
 			auto & scratch = getvec<workvec::scratch>();
 			auto & curr_func = getvec<workvec::current_function>();
 			auto & time_deriv = getvec<workvec::time_deriv>();

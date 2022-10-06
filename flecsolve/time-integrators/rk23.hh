@@ -45,11 +45,13 @@ struct integrator : base<parameters<O, W>> {
 	using base<P>::params;
 	using base<P>::current_dt;
 	using base<P>::current_time;
+	using base<P>::assert_can_advance;
 
 	integrator(P p) : base<P>(std::move(p)), total_step_rejects(0) {}
 
 	template<class Curr, class Out>
 	void advance(double dt, Curr & curr, Out & out) {
+		assert_can_advance();
 		current_dt = dt;
 		auto & F = params.get_operator();
 		auto & [k1, k2, k3, k4, z, next] = params.work;

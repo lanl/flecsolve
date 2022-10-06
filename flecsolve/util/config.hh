@@ -7,9 +7,8 @@ namespace flecsolve {
 
 struct with_label {
 	with_label(const char * pre) : prefix(pre) {}
-	void set_prefix(const char * pre) {
-		prefix = pre;
-	}
+	void set_prefix(const char * pre) { prefix = pre; }
+
 protected:
 	std::string prefix;
 	std::string label(const char * suf) { return {prefix + "." + suf}; }
@@ -31,15 +30,20 @@ void read_config(const char * fname, Params &... params) {
 		po::store(parsed, vm);
 		po::notify(vm);
 
-		std::vector<std::string> opts = po::collect_unrecognized(parsed.options, po::exclude_positional);
-		if (prev_opts == opts) done = true;
-		if (depth++ >= depth_limit) done = true;
+		std::vector<std::string> opts =
+			po::collect_unrecognized(parsed.options, po::exclude_positional);
+		if (prev_opts == opts)
+			done = true;
+		if (depth++ >= depth_limit)
+			done = true;
 
 		if (done) {
-			po::parsed_options parsed = po::parse_config_file(fname, desc, false);
+			po::parsed_options parsed =
+				po::parse_config_file(fname, desc, false);
 			po::store(parsed, vm);
 			po::notify(vm);
-		} else {
+		}
+		else {
 			prev_opts = opts;
 		}
 	}
