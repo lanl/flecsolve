@@ -91,7 +91,7 @@ struct krylov {
 	krylov(Params p) : params(std::move(p)) {}
 
 	template<class D, class R>
-	auto apply(const R & b, D & x) {
+	auto apply(const vec::base<R> & b, vec::base<D> & x) {
 		auto & op = params.template get_operator<krylov_oplabel::A>();
 		decltype(auto) bs = subset_input(b, op);
 		decltype(auto) xs = subset_output(x, op);

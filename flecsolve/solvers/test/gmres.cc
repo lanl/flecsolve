@@ -29,7 +29,7 @@ struct diagnostic {
 		rnorm_prev = rnorm0;
 	}
 
-	bool operator()(const Vec &, double rnorm) {
+	bool operator()(const vec::base<Vec> &, double rnorm) {
 		float n = ++iter;
 		auto bnd = std::pow(cfact, n / 2) * rnorm0;
 

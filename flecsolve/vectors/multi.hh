@@ -2,8 +2,10 @@
 #define FLECSI_LINALG_VECTORS_MULTI_H
 
 #include <tuple>
+#include <type_traits>
 
-#include "vector.hh"
+#include "base.hh"
+#include "flecsolve/vectors/variable.hh"
 #include "operations/multi.hh"
 
 namespace flecsolve::vec {
@@ -39,14 +41,10 @@ using multivector_ops = ops::multi<multivector_scalar<Vecs...>,
                                    multivector_data<Vecs...>,
                                    sizeof...(Vecs)>;
 
-template<class... Vecs>
-using multivector_base =
-	vector<multivector_data<Vecs...>, multivector_ops<Vecs...>>;
-
 template<class VarType, class... Vecs>
-struct multi : public multivector_base<Vecs...> {
-	using base = multivector_base<Vecs...>;
-	using base::data;
+struct multi : base<multi<VarType, Vecs...>> {
+	using base_t = base<multi<VarType, Vecs...>>;
+	using base_t::data;
 	static constexpr std::size_t num_components = sizeof...(Vecs);
 
 	template<
@@ -55,7 +53,7 @@ struct multi : public multivector_base<Vecs...> {
 			(... && std::is_same_v<typename std::remove_reference_t<VT>::var_t,
 	                               VarType>)>>
 	multi(VT &&... vs)
-		: base{multivector_data<Vecs...>{std::forward<VT>(vs)...}} {}
+		: base_t{multivector_data<Vecs...>{std::forward<VT>(vs)...}} {}
 
 	template<std::size_t I>
 	constexpr auto & get() & {
@@ -97,17 +95,17 @@ struct multi : public multivector_base<Vecs...> {
 	}
 
 	template<VarType var>
-	constexpr decltype(auto) subset(variable_t<var>) const {
+	constexpr decltype(auto) subset_impl(variable_t<var>) const {
 		return getvar<var>();
 	}
 
 	template<VarType var>
-	constexpr decltype(auto) subset(variable_t<var>) {
+	constexpr decltype(auto) subset_impl(variable_t<var>) {
 		return getvar<var>();
 	}
 
 	template<VarType... vars>
-	constexpr decltype(auto) subset(multivariable_t<vars...>) const {
+	constexpr decltype(auto) subset_impl(multivariable_t<vars...>) const {
 		if constexpr (sizeof...(vars) == 1) {
 			return getvar<vars...>();
 		}
@@ -118,7 +116,7 @@ struct multi : public multivector_base<Vecs...> {
 	}
 
 	template<VarType... vars>
-	constexpr decltype(auto) subset(multivariable_t<vars...>) {
+	constexpr decltype(auto) subset_impl(multivariable_t<vars...>) {
 		if constexpr (sizeof...(vars) == 1) {
 			return getvar<vars...>();
 		}
@@ -129,7 +127,7 @@ struct multi : public multivector_base<Vecs...> {
 	}
 
 	template<class F>
-	constexpr decltype(auto) apply(F && f) {
+	constexpr decltype(auto) apply_impl(F && f) {
 		return std::apply(std::forward<F>(f), data);
 	}
 
@@ -154,6 +152,17 @@ bool operator!=(const multi<VarType, V0...> & v0,
 	return v0.data != v1.data;
 }
 
+}
+
+namespace flecsolve {
+template<class VarType, class... Vecs>
+struct traits<vec::multi<VarType, Vecs...>> {
+	// static constexpr auto var =
+	// multivariable<std::remove_reference_t<Vecs>::var.value...>;
+	static constexpr auto var = variable<anon_var::anonymous>;
+	using data_t = vec::multivector_data<Vecs...>;
+	using ops_t = vec::multivector_ops<Vecs...>;
+};
 }
 
 namespace std {

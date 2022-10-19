@@ -29,7 +29,7 @@ struct diagnostic {
 		e_prev = e_0;
 	}
 
-	bool operator()(const Vec & x, double) {
+	bool operator()(const vec::base<Vec> & x, double) {
 		A.apply(x, Ax);
 		auto nrm = x.dot(Ax).get();
 		auto e_a = std::sqrt(nrm);

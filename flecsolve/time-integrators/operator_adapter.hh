@@ -3,6 +3,8 @@
 
 #include <utility>
 
+#include "flecsolve/vectors/base.hh"
+
 namespace flecsolve::time_integrator {
 
 template<class Op>
@@ -12,13 +14,15 @@ struct operator_adapter {
 		: op(std::forward<Args>(args)...), gamma{1.} {}
 
 	template<class D, class R>
-	void residual(const D & b, const R & x, R & r) const {
+	void residual(const vec::base<D> & b,
+	              const vec::base<R> & x,
+	              vec::base<R> & r) const {
 		apply(x, r);
 		r.subtract(b, r);
 	}
 
 	template<class D, class R>
-	void apply(const D & x, R & y) const {
+	void apply(const vec::base<D> & x, vec::base<R> & y) const {
 		// f(x^{n+1})
 		apply_rhs(x, y);
 		// y = x^{n+1} - scaling * f(x^{n+1})
@@ -26,12 +30,12 @@ struct operator_adapter {
 	}
 
 	template<class D, class R>
-	void apply_rhs(const D & x, R & y) const {
+	void apply_rhs(const vec::base<D> & x, vec::base<R> & y) const {
 		op.apply(x, y);
 	}
 
 	template<class V>
-	bool is_valid(const V &) {
+	bool is_valid(const vec::base<V> &) {
 		return true;
 	}
 
