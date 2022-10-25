@@ -7,6 +7,7 @@ set(solvers_HEADERS
   shell.hh
   solver_settings.hh
   traits.hh
+  factory.hh
   PARENT_SCOPE)
 
 if(ENABLE_UNIT_TESTS)

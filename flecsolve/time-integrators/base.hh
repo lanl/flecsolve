@@ -3,6 +3,8 @@
 
 #include <utility>
 
+#include "flecsi/flog.hh"
+
 namespace flecsolve::time_integrator {
 
 template<class P>
@@ -32,6 +34,11 @@ struct base {
 	}
 
 protected:
+	void assert_can_advance() {
+		flog_assert(steps_remaining() && (current_time < params.final_time),
+		            "Time integrator: already finished integrating");
+	}
+
 	P params;
 	double current_time;
 	double current_dt;

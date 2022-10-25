@@ -1,15 +1,20 @@
 #ifndef FLECSI_LINALG_TIME_INTEGRATOR_BDF_H
 #define FLECSI_LINALG_TIME_INTEGRATOR_BDF_H
 
+#include <functional>
 #include <limits>
+#include <type_traits>
 
 #include "flecsi/flog.hh"
 #include "flecsi/util/array_ref.hh"
 
+#include "flecsolve/util/config.hh"
 #include "flecsolve/vectors/util.hh"
 #include "flecsolve/solvers/solver_settings.hh"
 #include "flecsolve/time-integrators/parameters.hh"
 #include "flecsolve/time-integrators/base.hh"
+
+#include "flecsolve/solvers/factory.hh"
 
 namespace flecsolve::time_integrator::bdf {
 
@@ -52,25 +57,14 @@ std::istream & operator>>(std::istream &, method &);
 std::istream & operator>>(std::istream &, controller &);
 std::istream & operator>>(std::istream &, error_scaling &);
 
-template<class Op, class Work, class Solver>
-struct parameters : time_integrator::parameters<Op, Work> {
-	using base = time_integrator::parameters<Op, Work>;
-	using base::label;
+namespace po = boost::program_options;
 
-	template<class O, class W, class S>
-	parameters(const char * pre, O && op, W && work, S && solver)
-		: base(pre, std::forward<O>(op), std::forward<W>(work)),
-		  solver(std::forward<S>(solver)) {}
+struct parameters_gen : with_label {
 
-	auto & get_solver() {
-		if constexpr (is_reference_wrapper_v<Solver>)
-			return solver.get();
-		else
-			return solver;
-	}
+	parameters_gen(const char * pre) : with_label(pre) {}
 
 	auto options() {
-		auto desc = base::options();
+		po::options_description desc;
 		// clang-format off
 		desc.add_options()
 			(label("use-predictor").c_str(), po::value<bool>(&use_predictor)->default_value(true), "use a predictor")
@@ -98,6 +92,7 @@ struct parameters : time_integrator::parameters<Op, Work> {
 			(label("combine-timestep-estimators").c_str(), po::value<bool>(&combine_timestep_estimators)->default_value(false), "Combine timestep estimators")
 			(label("problem-scales").c_str(), po::value<std::vector<double>>(&problem_scales)->multitoken(), "Fixed scaling for problem");
 		// clang-format on
+
 		return desc;
 	}
 
@@ -164,21 +159,129 @@ struct parameters : time_integrator::parameters<Op, Work> {
 	bdf::error_scaling time_error_scaling;
 	double time_rtol, time_atol;
 	std::vector<double> problem_scales;
+};
+
+template<class Op, class Work, class Solver, bool use_factory>
+struct parameters {};
+
+template<class Op, class Work, class Solver>
+struct parameters<Op, Work, Solver, false>
+	: parameters_gen, time_integrator::parameters<Op, Work> {
+	using base = time_integrator::parameters<Op, Work>;
+	using base::label;
+
+	template<class O, class W, class S>
+	parameters(const char * pre, O && op, W && work, S && solver)
+		: parameters_gen(pre),
+		  base(pre, std::forward<O>(op), std::forward<W>(work)),
+		  solver(std::forward<S>(solver)) {}
+
+	template<class D, class R, class S>
+	struct wrapper {
+		wrapper(S & s) : slv(s) {}
+		auto apply(D * d, R * r) { return slv.apply(*d, *r); }
+
+	protected:
+		S & slv;
+	};
+
+	template<class D, class R>
+	auto get_solver() {
+		auto & ref = get_solver_ref();
+		return std::make_unique<
+			wrapper<D,
+		            R,
+		            std::conditional_t<is_reference_wrapper_v<Solver>,
+		                               typename Solver::type,
+		                               Solver>>>(ref);
+	}
+
+	auto & get_solver_ref() {
+		if constexpr (is_reference_wrapper_v<Solver>)
+			return solver.get();
+		else
+			return solver;
+	}
+
+	auto options() {
+		auto desc = base::options();
+		auto desc_gen = parameters_gen::options();
+		desc.add(desc_gen);
+
+		return desc;
+	}
 
 protected:
 	std::decay_t<Solver> solver;
 };
-template<class O, class W, class S>
-parameters(const char *, O &&, W &&, S &&) -> parameters<O, W, S>;
+
+template<class Op, class Work, class Factory>
+struct parameters<Op, Work, Factory, true>
+	: parameters_gen, time_integrator::parameters<Op, Work> {
+	using base = time_integrator::parameters<Op, Work>;
+	using base::get_operator;
+	using base::label;
+	using base::work;
+
+	using factory_t = std::decay_t<Factory>;
+
+	template<class O, class W, class F>
+	parameters(const char * pre, O && op, W && work, F && f)
+		: parameters_gen(pre),
+		  base(pre, std::forward<O>(op), std::forward<W>(work)),
+		  factory(std::forward<F>(f)) {}
+
+	template<class D, class R>
+	std::unique_ptr<typename factory_t::solver> get_solver() {
+		if (!solver) {
+			solver =
+				factory.create(std::get<0>(work), std::ref(get_operator()));
+		}
+		return factory.template wrap<D, R>(
+			solver.get(), std::get<0>(work), std::ref(get_operator()));
+	}
+
+	auto options() {
+		auto desc = base::options();
+		desc.add_options()(label("solver").c_str(),
+		                   po::value<std::string>()->required()->notifier(
+							   [this](const std::string & name) {
+								   factory.set_options_name(name);
+							   }),
+		                   "solver name");
+
+		desc.add(factory.options(
+			std::bind(std::mem_fun(&parameters::create_solver_parameters),
+		              this,
+		              std::placeholders::_1)));
+
+		auto desc_gen = parameters_gen::options();
+		desc.add(desc_gen);
+
+		return desc;
+	}
+
+protected:
+	void create_solver_parameters(const typename factory_t::registry & reg) {
+		factory.create_parameters(
+			reg, std::get<0>(work), std::ref(get_operator()));
+	}
+	factory_t factory;
+	std::unique_ptr<typename factory_t::storage> solver;
+};
 
 template<class O, class W, class S>
-struct integrator : base<parameters<O, W, S>> {
-	using P = parameters<O, W, S>;
+parameters(const char *, O &&, W &&, S &&)
+	-> parameters<O, W, S, !op::is_solver_v<S, std::tuple_element_t<0, W>>>;
+
+template<class O, class W, class S, bool use_factory>
+struct integrator : base<parameters<O, W, S, use_factory>> {
+	using P = parameters<O, W, S, use_factory>;
 	using base<P>::params;
 	using base<P>::current_dt;
 	using base<P>::old_dt;
 	using base<P>::current_time;
-	using base<P>::steps_remaining;
+	using base<P>::assert_can_advance;
 	using base<P>::integrator_step;
 
 	integrator(P p)
@@ -195,21 +298,23 @@ struct integrator : base<parameters<O, W, S>> {
 	void advance(double dt, bool first_step, Curr & curr, Out & out) {
 		flog_assert(curr != out,
 		            "BDF integrator: curr cannot be the same as out");
-		flog_assert(steps_remaining() && (current_time < params.final_time),
-		            "BDF integrator: already finished integrating");
+		assert_can_advance();
 
 		prev[0].solution.copy(curr);
 		current_dt = dt;
 
 		set_initial_guess(first_step, current_time, current_dt, old_dt);
 
-		auto & solver = params.get_solver();
 		auto & rhs = getvec<workvec::rhs>();
 		auto & source = getvec<workvec::source>();
 		auto & sol = getvec<workvec::current_sol>();
+		auto solver =
+			params
+				.template get_solver<std::remove_reference_t<decltype(rhs)>,
+		                             std::remove_reference_t<decltype(sol)>>();
 
 		rhs.scale(-1., source);
-		auto info = solver.apply(rhs, sol);
+		auto info = solver->apply(&rhs, &sol);
 		solver_success = info.success();
 		out.copy(sol);
 	}
@@ -710,7 +815,7 @@ protected:
 		double gamma = current_dt;
 
 		if (first_step) {
-			auto time_op = params.get_operator();
+			auto & time_op = params.get_operator();
 			auto & scratch = getvec<workvec::scratch>();
 			auto & curr_func = getvec<workvec::current_function>();
 			auto & time_deriv = getvec<workvec::time_deriv>();
@@ -997,11 +1102,11 @@ protected:
 
 	int total_steprejects;
 };
-template<class O, class W, class S>
-integrator(parameters<O, W, S>) -> integrator<O, W, S>;
+template<class O, class W, class S, bool B>
+integrator(parameters<O, W, S, B>) -> integrator<O, W, S, B>;
 
-template<class O, class W, class S>
-struct integrator<O, W, S>::history {
+template<class O, class W, class S, bool B>
+struct integrator<O, W, S, B>::history {
 	struct vec_arr {
 		using size_type = std::size_t;
 		using vec_t = typename std::remove_reference_t<W>::value_type;
