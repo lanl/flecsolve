@@ -5,7 +5,6 @@
 #include <flecsi/execution.hh>
 
 #include "solver_settings.hh"
-#include "shell.hh"
 #include "krylov_interface.hh"
 
 namespace flecsolve::bicgstab {

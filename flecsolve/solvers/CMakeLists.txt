@@ -4,7 +4,6 @@ set(solvers_HEADERS
   gmres.hh
   krylov_interface.hh
   nka.hh
-  shell.hh
   solver_settings.hh
   traits.hh
   factory.hh

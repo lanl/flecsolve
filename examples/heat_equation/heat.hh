@@ -1,6 +1,8 @@
 #ifndef FLECSOLVE_EXAMPLES_HEAT_HEAT_H
 #define FLECSOLVE_EXAMPLES_HEAT_HEAT_H
 
+#include "flecsolve/operators/base.hh"
+
 #include "control.hh"
 #include "mesh.hh"
 
@@ -98,7 +100,7 @@ inline void laplace(mesh::accessor<ro> m,
 
 }
 
-struct heat_op {
+struct heat_op : flecsolve::op::base<heat_op> {
 
 	heat_op(double d) : diffusivity(d) {}
 
@@ -109,11 +111,6 @@ struct heat_op {
 	}
 
 	double diffusivity;
-
-	static constexpr auto input_var =
-		flecsolve::variable<flecsolve::anon_var::anonymous>;
-	static constexpr auto output_var =
-		flecsolve::variable<flecsolve::anon_var::anonymous>;
 };
 
 }

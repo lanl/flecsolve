@@ -5,7 +5,6 @@
 #include <flecsi/execution.hh>
 
 #include "krylov_interface.hh"
-#include "shell.hh"
 #include "solver_settings.hh"
 
 namespace flecsolve::cg {

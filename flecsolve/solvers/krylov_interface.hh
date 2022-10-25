@@ -1,12 +1,13 @@
-#ifndef FLECSI_LINALG_OP_KRYLOV_INTERFACE_H
-#define FLECSI_LINALG_OP_KRYLOV_INTERFACE_H
+#ifndef FLECSOLVE_SOLVERS_KRYLOV_INTERFACE_H
+#define FLECSOLVE_SOLVERS_KRYLOV_INTERFACE_H
 
 #include <tuple>
 #include <memory>
 
 #include "flecsolve/util/traits.hh"
-#include "traits.hh"
-#include "shell.hh"
+#include "flecsolve/operators/traits.hh"
+#include "flecsolve/operators/shell.hh"
+#include "flecsolve/solvers/traits.hh"
 
 namespace flecsolve {
 namespace op {
@@ -56,17 +57,17 @@ struct krylov_parameters_base {
 
 template<class SP, class SW, class... Ops>
 struct krylov_parameters
-	: krylov_parameters_base<
-		  typename traits<std::decay_t<SP>>::template solver_type<SW>,
-		  Ops...> {
+	: krylov_parameters_base<typename flecsolve::traits<
+								 std::decay_t<SP>>::template solver_type<SW>,
+                             Ops...> {
 	using solver_type =
-		typename traits<std::decay_t<SP>>::template solver_type<SW>;
-	using base = krylov_parameters_base<solver_type, Ops...>;
-	using base::solver;
+		typename flecsolve::traits<std::decay_t<SP>>::template solver_type<SW>;
+	using base_t = krylov_parameters_base<solver_type, Ops...>;
+	using base_t::solver;
 
 	template<class P, class W, class... O>
 	krylov_parameters(P && sp, W && sw, O &&... ops)
-		: base(std::forward<O>(ops)...), solver_settings(std::forward<P>(sp)),
+		: base_t(std::forward<O>(ops)...), solver_settings(std::forward<P>(sp)),
 		  solver_work(std::forward<W>(sw)) {}
 
 	auto & get_solver() {
@@ -87,11 +88,11 @@ template<class SP, class SW, class... Ops>
 krylov_parameters(SP &&, SW &&, Ops &&...) -> krylov_parameters<SP, SW, Ops...>;
 
 template<class Params>
-struct krylov {
+struct krylov : op::base<krylov<Params>> {
 	krylov(Params p) : params(std::move(p)) {}
 
 	template<class D, class R>
-	auto apply(const vec::base<R> & b, vec::base<D> & x) {
+	auto apply(const vec::base<D> & b, vec::base<R> & x) {
 		auto & op = params.template get_operator<krylov_oplabel::A>();
 		decltype(auto) bs = subset_input(b, op);
 		decltype(auto) xs = subset_output(x, op);
@@ -133,9 +134,6 @@ struct krylov {
 	}
 
 	Params params;
-
-	static constexpr auto input_var = variable<anon_var::anonymous>;
-	static constexpr auto output_var = variable<anon_var::anonymous>;
 };
 template<class P>
 krylov(P) -> krylov<P>;
