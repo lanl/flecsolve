@@ -9,6 +9,7 @@
 #include "flecsolve/physics/common/operator_utils.hh"
 #include "flecsi/util/constant.hh"
 #include "flecsolve/vectors/variable.hh"
+#include "flecsolve/operators/base.hh"
 
 namespace flecsolve {
 namespace physics {
@@ -44,7 +45,9 @@ struct OpExpr;
  * for a more powerful domain-specific language.
  */
 template<auto... vars, class... Ps, int... Is>
-struct OpExpr<multivariable_t<vars...>, std::tuple<Ps...>, has<Is...>> {
+struct OpExpr<multivariable_t<vars...>, std::tuple<Ps...>, has<Is...>>
+	: op::base<
+		  OpExpr<multivariable_t<vars...>, std::tuple<Ps...>, has<Is...>>> {
 	std::tuple<Ps...> ops;
 
 	OpExpr(Ps... ps) : ops(std::make_tuple(ps...)) {}
@@ -56,7 +59,7 @@ struct OpExpr<multivariable_t<vars...>, std::tuple<Ps...>, has<Is...>> {
 	}
 
 	template<class F, class U, class V>
-	constexpr void residual(const F & f, const U & u, V & v) const {
+	constexpr void residual_impl(const F & f, const U & u, V & v) const {
 		this->apply(u, v);
 		v.subtract(f, v);
 	}
@@ -92,7 +95,7 @@ struct OpExpr<multivariable_t<vars...>, std::tuple<Ps...>, has<Is...>> {
 	}
 
 	template<auto CPH, class VPH>
-	constexpr decltype(auto) get_parameters(VPH & v) const {
+	constexpr decltype(auto) get_parameters_impl(VPH & v) const {
 		return std::apply(
 			[&](const auto &... a) {
 				return std::make_tuple(a.template get_parameters<CPH>(v)...);
@@ -109,9 +112,6 @@ struct OpExpr<multivariable_t<vars...>, std::tuple<Ps...>, has<Is...>> {
 		ss << "]";
 		return ss.str();
 	}
-
-	static constexpr auto input_var = multivariable<vars...>;
-	static constexpr auto output_var = multivariable<vars...>;
 };
 
 template<auto... vars, class... Ps>
@@ -119,5 +119,15 @@ inline constexpr auto op_expr(multivariable_t<vars...>, Ps... ps) {
 	return OpExpr<multivariable_t<vars...>, std::tuple<Ps...>>(ps...);
 }
 
+}
+
+namespace op {
+template<auto... vars, class... Ps, int... Is>
+struct traits<physics::OpExpr<multivariable_t<vars...>,
+                              std::tuple<Ps...>,
+                              physics::has<Is...>>> {
+	static constexpr auto input_var = multivariable<vars...>;
+	static constexpr auto output_var = multivariable<vars...>;
+};
 }
 }

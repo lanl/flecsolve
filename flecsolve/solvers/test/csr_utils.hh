@@ -5,6 +5,7 @@
 
 #include "flecsolve/vectors/variable.hh"
 #include "flecsolve/vectors/base.hh"
+#include "flecsolve/operators/base.hh"
 
 #include "test_mesh.hh"
 
@@ -182,7 +183,9 @@ void spmv(const CSR & mat,
 }
 
 template<class CSR>
-struct csr_op {
+struct csr_op : op::base<csr_op<CSR>> {
+
+	csr_op(CSR && m) : mat(std::forward<CSR>(m)) {}
 
 	template<class D, class R>
 	void apply(const vec::base<D> & x, vec::base<R> & y) const {
@@ -190,31 +193,9 @@ struct csr_op {
 			mat, x.data.topo(), x.data.ref(), y.data.ref());
 	}
 
-	template<class D, class R>
-	void residual(const vec::base<D> & b,
-	              const vec::base<R> & x,
-	              vec::base<R> & r) const {
-		apply(x, r);
-		r.subtract(b, r);
-	}
-
-	template<auto tag, class T>
-	auto get_parameters(const T &) const {
-		return nullptr;
-	}
-
-	auto & get_operator() { return *this; }
-	const auto & get_operator() const { return *this; }
-
-	template<class T>
-	void reset(const T &) const {}
-
 	CSR mat;
-
-	static constexpr auto input_var = variable<anon_var::anonymous>;
-	static constexpr auto output_var = variable<anon_var::anonymous>;
 };
 template<class CSR>
-csr_op(CSR) -> csr_op<CSR>;
+csr_op(CSR &&) -> csr_op<CSR>;
 
 }

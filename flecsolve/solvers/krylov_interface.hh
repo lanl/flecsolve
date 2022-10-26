@@ -18,7 +18,9 @@ template<class solver_type, class... Ops>
 struct krylov_parameters_base {
 
 	template<class... O>
-	krylov_parameters_base(O &&... o) : ops(std::forward<O>(o)...) {}
+	krylov_parameters_base(O &&... o) : ops(std::forward<O>(o)...) {
+		assert_operators(std::make_index_sequence<sizeof...(Ops)>());
+	}
 
 	auto & get_solver() { return *solver; }
 
@@ -53,6 +55,15 @@ struct krylov_parameters_base {
 
 	std::shared_ptr<solver_type> solver;
 	std::tuple<std::decay_t<Ops>...> ops;
+
+protected:
+	template<std::size_t... I>
+	void assert_operators(std::index_sequence<I...>) {
+		// operator and preconditioner types must be operators
+		static_assert(
+			(... &&
+		     (I > 1 || is_operator_v<std::tuple_element_t<I, decltype(ops)>>)));
+	}
 };
 
 template<class SP, class SW, class... Ops>

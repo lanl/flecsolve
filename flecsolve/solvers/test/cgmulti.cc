@@ -7,6 +7,7 @@
 
 #include "flecsolve/vectors/mesh.hh"
 #include "flecsolve/vectors/multi.hh"
+#include "flecsolve/operators/base.hh"
 #include "flecsolve/solvers/cg.hh"
 #include "flecsolve/util/config.hh"
 
@@ -23,7 +24,7 @@ enum class vars { var1, var2 };
 const std::array<realf::definition<testmesh, testmesh::cells>, 2> xmd, bmd;
 
 template<auto var, class Op>
-struct test_op {
+struct test_op : op::base<test_op<var, Op>> {
 	template<auto V>
 	test_op(variable_t<V>, const Op & op) : op(op) {}
 
@@ -32,21 +33,19 @@ struct test_op {
 		op.apply(x, y);
 	}
 
-	template<class domain_vec, class range_vec>
-	void
-	residual(const domain_vec & b, const range_vec & x, range_vec & r) const {
-		apply(x, r);
-		r.subtract(b, r);
-	}
-
-	static constexpr auto input_var = variable<var>;
-	static constexpr auto output_var = variable<var>;
-
 protected:
 	const Op & op;
 };
 template<auto V, class Op>
 test_op(variable_t<V>, const Op &) -> test_op<V, Op>;
+
+namespace op {
+template<auto var, class Op>
+struct traits<test_op<var, Op>> {
+	static constexpr auto input_var = variable<var>;
+	static constexpr auto output_var = variable<var>;
+};
+}
 
 int multicg() {
 	UNIT () {

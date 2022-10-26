@@ -29,7 +29,7 @@ struct is_solver<std::reference_wrapper<T>,
 					 solve_info>>::type> : std::true_type {};
 
 template<class T, class V>
-constexpr bool is_solver_v = is_solver<T, V>::value;
+inline constexpr bool is_solver_v = is_solver<T, V>::value;
 
 }
 #endif
