@@ -51,8 +51,10 @@ struct base {
 
 	auto & get_operator() { return derived().get_operator_impl(); }
 	const auto & get_operator() const { return derived().get_operator_impl(); }
-	exact_type & get_operator_impl() { return *this; }
-	const exact_type & get_operator_impl() const { return *this; }
+	exact_type & get_operator_impl() { return static_cast<Derived &>(*this); }
+	const exact_type & get_operator_impl() const {
+		return static_cast<const Derived &>(*this);
+	}
 
 	template<op::label tag, class T>
 	auto get_parameters(const T & t) const {

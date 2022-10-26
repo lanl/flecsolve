@@ -10,6 +10,7 @@
 #include "flecsolve/solvers/cg.hh"
 #include "flecsolve/solvers/gmres.hh"
 #include "flecsolve/solvers/bicgstab.hh"
+#include "flecsolve/solvers/nka.hh"
 
 namespace flecsolve {
 
@@ -94,7 +95,7 @@ protected:
 };
 
 struct krylov_factory : solver_factory<krylov_factory> {
-	enum class registry { cg, gmres, bicgstab };
+	enum class registry { cg, gmres, bicgstab, nka };
 
 	template<registry v>
 	struct con_types {};
@@ -117,6 +118,11 @@ struct krylov_factory : solver_factory<krylov_factory> {
 		using workgen = bicgstab::topo_work<>;
 	};
 
+	template<>
+	struct con_types<registry::nka> {
+		using settings = nka::settings;
+		using workgen = nka::topo_work<>;
+	};
 	void set_solver_type(registry reg) { solver_type = reg; }
 
 	template<class V, class... Args>
@@ -135,6 +141,11 @@ struct krylov_factory : solver_factory<krylov_factory> {
 				}
 				case registry::bicgstab: {
 					parameters = make_params<con_types<registry::bicgstab>>(
+						v, std::forward<Args>(args)...);
+					break;
+				}
+				case registry::nka: {
+					parameters = make_params<con_types<registry::nka>>(
 						v, std::forward<Args>(args)...);
 				}
 			}
@@ -160,6 +171,11 @@ struct krylov_factory : solver_factory<krylov_factory> {
 			case registry::bicgstab: {
 				ret = make_storage<con_types<registry::bicgstab>>(
 					v, std::forward<Args>(args)...);
+				break;
+			}
+			case registry::nka: {
+				ret = make_storage<con_types<registry::nka>>(
+					v, std::forward<Args>(args)...);
 			}
 		}
 
@@ -183,6 +199,11 @@ struct krylov_factory : solver_factory<krylov_factory> {
 			}
 			case registry::bicgstab: {
 				ret = make_wrapper<con_types<registry::bicgstab>, D, R>(
+					store, v, std::forward<Args>(args)...);
+				break;
+			}
+			case registry::nka: {
+				ret = make_wrapper<con_types<registry::nka>, D, R>(
 					store, v, std::forward<Args>(args)...);
 			}
 		}
@@ -264,6 +285,8 @@ inline std::istream & operator>>(std::istream & in,
 		reg = krylov_factory::registry::gmres;
 	else if (tok == "bicgstab")
 		reg = krylov_factory::registry::bicgstab;
+	else if (tok == "nka")
+		reg = krylov_factory::registry::nka;
 	else
 		in.setstate(std::ios_base::failbit);
 
