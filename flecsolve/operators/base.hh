@@ -11,6 +11,14 @@ struct base {
 	using exact_type = Derived;
 	static constexpr auto input_var = traits<Derived>::input_var;
 	static constexpr auto output_var = traits<Derived>::output_var;
+	using params_type = typename traits<Derived>::parameters;
+
+	template<class T>
+	base(T && t) : params(std::forward<T>(t)) {}
+
+	template<class T = params_type,
+	         class = std::enable_if_t<std::is_null_pointer_v<T>>>
+	base() {}
 
 	exact_type & derived() { return static_cast<Derived &>(*this); }
 
@@ -65,6 +73,9 @@ struct base {
 	auto get_parameters_impl(const T &) const {
 		return nullptr;
 	}
+
+protected:
+	params_type params;
 };
 
 template<class T, class = void>

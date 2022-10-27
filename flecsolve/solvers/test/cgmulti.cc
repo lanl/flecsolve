@@ -44,6 +44,7 @@ template<auto var, class Op>
 struct traits<test_op<var, Op>> {
 	static constexpr auto input_var = variable<var>;
 	static constexpr auto output_var = variable<var>;
+	using parameters = std::nullptr_t;
 };
 }
 

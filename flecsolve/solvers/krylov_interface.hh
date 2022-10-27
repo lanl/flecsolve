@@ -100,7 +100,9 @@ krylov_parameters(SP &&, SW &&, Ops &&...) -> krylov_parameters<SP, SW, Ops...>;
 
 template<class Params>
 struct krylov : op::base<krylov<Params>> {
-	krylov(Params p) : params(std::move(p)) {}
+	using op::base<krylov<Params>>::params;
+
+	krylov(Params p) : op::base<krylov<Params>>(std::move(p)) {}
 
 	template<class D, class R>
 	auto apply(const vec::base<D> & b, vec::base<R> & x) {
@@ -143,11 +145,16 @@ struct krylov : op::base<krylov<Params>> {
 	const auto & get_operator() const {
 		return params.template get_operator<krylov_oplabel::A>();
 	}
-
-	Params params;
 };
 template<class P>
 krylov(P) -> krylov<P>;
+
+template<class P>
+struct traits<krylov<P>> {
+	using parameters = P;
+	static constexpr auto input_var = variable<anon_var::anonymous>;
+	static constexpr auto output_var = variable<anon_var::anonymous>;
+};
 
 template<class Params, class... Ops>
 auto rebind(krylov<Params> & kr, Ops &&... ops) {

@@ -48,14 +48,16 @@ template<auto... vars, class... Ps, int... Is>
 struct OpExpr<multivariable_t<vars...>, std::tuple<Ps...>, has<Is...>>
 	: op::base<
 		  OpExpr<multivariable_t<vars...>, std::tuple<Ps...>, has<Is...>>> {
-	std::tuple<Ps...> ops;
+	using base_t = op::base<
+		OpExpr<multivariable_t<vars...>, std::tuple<Ps...>, has<Is...>>>;
+	using base_t::params;
 
-	OpExpr(Ps... ps) : ops(std::make_tuple(ps...)) {}
+	OpExpr(Ps... ps) : base_t(std::make_tuple(ps...)) {}
 
 	/// these are place-holder `apply()`s, and in the tree are the nodes
 	template<class U, class V>
 	constexpr void apply(const U & u, V & v) const {
-		std::apply([&](const auto &... a) { (a.apply(u, v), ...); }, ops);
+		std::apply([&](const auto &... a) { (a.apply(u, v), ...); }, params);
 	}
 
 	template<class F, class U, class V>
@@ -76,7 +78,7 @@ struct OpExpr<multivariable_t<vars...>, std::tuple<Ps...>, has<Is...>>
 	// TODO: this feels a little brutish, maybe isn't efficient either
 	constexpr decltype(auto) flat() const {
 		return std::tuple_cat(std::apply(
-			[&](auto... a) { return std::tuple_cat(a.flat()...); }, ops));
+			[&](auto... a) { return std::tuple_cat(a.flat()...); }, params));
 	}
 
 	template<class... Pars>
@@ -108,7 +110,7 @@ struct OpExpr<multivariable_t<vars...>, std::tuple<Ps...>, has<Is...>>
 		ss << "[";
 		std::apply(
 			[&](const auto &... a) { ((ss << a.to_string() << " "), ...); },
-			ops);
+			params);
 		ss << "]";
 		return ss.str();
 	}
@@ -128,6 +130,7 @@ struct traits<physics::OpExpr<multivariable_t<vars...>,
                               physics::has<Is...>>> {
 	static constexpr auto input_var = multivariable<vars...>;
 	static constexpr auto output_var = multivariable<vars...>;
+	using parameters = std::tuple<Ps...>;
 };
 }
 }

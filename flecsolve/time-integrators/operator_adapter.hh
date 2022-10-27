@@ -48,6 +48,7 @@ template<class Op>
 struct traits<time_integrator::operator_adapter<Op>> {
 	static constexpr auto input_var = Op::input_var;
 	static constexpr auto output_var = Op::output_var;
+	using parameters = std::nullptr_t;
 };
 
 }
