@@ -100,15 +100,17 @@ krylov_parameters(SP &&, SW &&, Ops &&...) -> krylov_parameters<SP, SW, Ops...>;
 
 template<class Params>
 struct krylov : op::base<krylov<Params>> {
-	using op::base<krylov<Params>>::params;
+	using base_t = op::base<krylov<Params>>;
+	using base_t::input_var;
+	using base_t::output_var;
+	using base_t::params;
 
 	krylov(Params p) : op::base<krylov<Params>>(std::move(p)) {}
 
 	template<class D, class R>
 	auto apply(const vec::base<D> & b, vec::base<R> & x) {
-		auto & op = params.template get_operator<krylov_oplabel::A>();
-		decltype(auto) bs = subset_input(b, op);
-		decltype(auto) xs = subset_output(x, op);
+		decltype(auto) bs = b.subset(input_var);
+		decltype(auto) xs = x.subset(output_var);
 
 		flog_assert(xs != bs, "Input and output vectors must be distinct");
 
@@ -116,20 +118,9 @@ struct krylov : op::base<krylov<Params>> {
 		decltype(auto) diag =
 			params.template get_operator<krylov_oplabel::diag>();
 		auto & precond = params.template get_operator<krylov_oplabel::P>();
+		auto & op = params.template get_operator<krylov_oplabel::A>();
 
 		return solver.apply(op, bs, xs, precond, diag);
-	}
-
-	template<class T, class O>
-	static decltype(auto) subset_input(const T & x, const O &) {
-		static_assert(op::has_input_variable_v<O>);
-		return x.subset(O::input_var);
-	}
-
-	template<class T, class O>
-	static decltype(auto) subset_output(T & x, const O &) {
-		static_assert(op::has_output_variable_v<O>);
-		return x.subset(O::output_var);
 	}
 
 	template<class T>
@@ -151,9 +142,26 @@ krylov(P) -> krylov<P>;
 
 template<class P>
 struct traits<krylov<P>> {
+private:
+	template<class T>
+	struct op_vars {
+		static constexpr auto input_var = traits<T>::input_var;
+		static constexpr auto output_var = traits<T>::output_var;
+	};
+
+	template<class T>
+	struct op_vars<std::reference_wrapper<T>> {
+		static constexpr auto input_var = op_vars<T>::input_var;
+		static constexpr auto output_var = op_vars<T>::output_var;
+	};
+
+public:
 	using parameters = P;
-	static constexpr auto input_var = variable<anon_var::anonymous>;
-	static constexpr auto output_var = variable<anon_var::anonymous>;
+	// krylov operators inherit variables from the operator they invert.
+	using vars =
+		op_vars<std::tuple_element_t<0, decltype(std::declval<P>().ops)>>;
+	static constexpr auto input_var = vars::input_var;
+	static constexpr auto output_var = vars::output_var;
 };
 
 template<class Params, class... Ops>
