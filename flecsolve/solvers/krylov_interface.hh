@@ -19,6 +19,10 @@ struct krylov_parameters_base {
 
 	template<class... O>
 	krylov_parameters_base(O &&... o) : ops(std::forward<O>(o)...) {
+		// assert correct number of operators are provided
+		static_assert(sizeof...(O) >= 1 &&
+		              sizeof...(O) <= krylov_oplabel::nops);
+		// assert both operator and preconditioner inherit from op::base
 		assert_operators(std::make_index_sequence<sizeof...(Ops)>());
 	}
 
