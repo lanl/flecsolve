@@ -66,13 +66,10 @@ struct integrator : base<parameters<O, W, S, use_factory>> {
 		auto & rhs = getvec<workvec::rhs>();
 		auto & source = getvec<workvec::source>();
 		auto & sol = getvec<workvec::current_sol>();
-		auto solver =
-			params
-				.template get_solver<std::remove_reference_t<decltype(rhs)>,
-		                             std::remove_reference_t<decltype(sol)>>();
+		decltype(auto) solver = params.get_solver();
 
 		rhs.scale(-1., source);
-		auto info = solver->apply(&rhs, &sol);
+		auto info = solver.apply(rhs, sol);
 		solver_success = info.success();
 		out.copy(sol);
 	}

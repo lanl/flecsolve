@@ -150,27 +150,7 @@ struct parameters<Op, Work, Solver, false>
 		  base(pre, std::forward<O>(op), std::forward<W>(work)),
 		  solver(std::forward<S>(solver)) {}
 
-	template<class D, class R, class S>
-	struct wrapper {
-		wrapper(S & s) : slv(s) {}
-		auto apply(D * d, R * r) { return slv.apply(*d, *r); }
-
-	protected:
-		S & slv;
-	};
-
-	template<class D, class R>
-	auto get_solver() {
-		auto & ref = get_solver_ref();
-		return std::make_unique<
-			wrapper<D,
-		            R,
-		            std::conditional_t<is_reference_wrapper_v<Solver>,
-		                               typename Solver::type,
-		                               Solver>>>(ref);
-	}
-
-	auto & get_solver_ref() {
+	auto & get_solver() {
 		if constexpr (is_reference_wrapper_v<Solver>)
 			return solver.get();
 		else
@@ -205,14 +185,13 @@ struct parameters<Op, Work, Factory, true>
 		  base(pre, std::forward<O>(op), std::forward<W>(work)),
 		  factory(std::forward<F>(f)) {}
 
-	template<class D, class R>
-	std::unique_ptr<typename factory_t::solver> get_solver() {
-		if (!solver) {
-			solver =
-				factory.create(std::get<0>(work), std::ref(get_operator()));
-		}
-		return factory.template wrap<D, R>(
-			solver.get(), std::get<0>(work), std::ref(get_operator()));
+	auto get_solver() {
+		if (!factory.has_solver())
+			factory.create(std::get<0>(work), std::ref(get_operator()));
+		return op::shell([=](auto & x, auto & y) {
+			return factory.solve(
+				x, y, std::get<0>(work), std::ref(get_operator()));
+		});
 	}
 
 	auto options() {
@@ -241,7 +220,6 @@ protected:
 			reg, std::get<0>(work), std::ref(get_operator()));
 	}
 	factory_t factory;
-	std::unique_ptr<typename factory_t::storage> solver;
 };
 
 template<class O, class W, class S>

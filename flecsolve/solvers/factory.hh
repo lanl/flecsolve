@@ -22,10 +22,6 @@ struct with_solver_erasure {
 
 		virtual po::options_description options() = 0;
 	};
-	struct solver {
-		virtual ~solver() {}
-		virtual solve_info apply(std::any x, std::any y) = 0;
-	};
 	struct storage {
 		virtual ~storage() {}
 	};
@@ -62,6 +58,7 @@ struct solver_factory : with_solver_erasure, with_label {
 	}
 
 	std::shared_ptr<solver_parameters> get_parameters() { return parameters; }
+	bool has_solver() const { return solver_storage != nullptr; }
 
 protected:
 	template<class T>
@@ -78,20 +75,9 @@ protected:
 		storage_wrapper(T && t) : target(std::move(t)) {}
 		T target;
 	};
-	template<class D, class R, class S>
-	struct solver_wrapper : solver {
-		solver_wrapper(S & s) : slv(s) {}
-
-		solve_info apply(std::any x, std::any y) override {
-			return slv.apply(*(std::any_cast<D *>(x)),
-			                 *(std::any_cast<R *>(y)));
-		}
-
-	protected:
-		S & slv;
-	};
 
 	std::shared_ptr<solver_parameters> parameters;
+	std::shared_ptr<storage> solver_storage;
 };
 
 struct krylov_factory : solver_factory<krylov_factory> {
@@ -153,62 +139,59 @@ struct krylov_factory : solver_factory<krylov_factory> {
 	}
 
 	template<class V, class... Args>
-	std::unique_ptr<storage> create(V & v, Args &&... args) {
-		std::unique_ptr<storage> ret;
+	void create(V & v, Args &&... args) {
 		assert(parameters);
 
-		switch (solver_type) {
-			case registry::cg: {
-				ret = make_storage<con_types<registry::cg>>(
-					v, std::forward<Args>(args)...);
-				break;
-			}
-			case registry::gmres: {
-				ret = make_storage<con_types<registry::gmres>>(
-					v, std::forward<Args>(args)...);
-				break;
-			}
-			case registry::bicgstab: {
-				ret = make_storage<con_types<registry::bicgstab>>(
-					v, std::forward<Args>(args)...);
-				break;
-			}
-			case registry::nka: {
-				ret = make_storage<con_types<registry::nka>>(
-					v, std::forward<Args>(args)...);
+		if (!solver_storage) {
+			switch (solver_type) {
+				case registry::cg: {
+					make_storage<con_types<registry::cg>>(
+						v, std::forward<Args>(args)...);
+					break;
+				}
+				case registry::gmres: {
+					make_storage<con_types<registry::gmres>>(
+						v, std::forward<Args>(args)...);
+					break;
+				}
+				case registry::bicgstab: {
+					make_storage<con_types<registry::bicgstab>>(
+						v, std::forward<Args>(args)...);
+					break;
+				}
+				case registry::nka: {
+					make_storage<con_types<registry::nka>>(
+						v, std::forward<Args>(args)...);
+				}
 			}
 		}
-
-		return ret;
 	}
 
-	template<class D, class R, class V, class... Args>
-	std::unique_ptr<solver> wrap(storage * store, V & v, Args &&... args) {
-		std::unique_ptr<solver> ret;
+	template<class V, class D, class R, class... Args>
+	decltype(auto) solve(D & x, R & y, V & v, Args &&... args) {
+		assert(solver_storage);
 
 		switch (solver_type) {
 			case registry::cg: {
-				ret = make_wrapper<con_types<registry::cg>, D, R>(
-					store, v, std::forward<Args>(args)...);
+				return solve_impl<con_types<registry::cg>>(
+					x, y, v, std::forward<Args>(args)...);
 				break;
 			}
 			case registry::gmres: {
-				ret = make_wrapper<con_types<registry::gmres>, D, R>(
-					store, v, std::forward<Args>(args)...);
+				return solve_impl<con_types<registry::gmres>>(
+					x, y, v, std::forward<Args>(args)...);
 				break;
 			}
 			case registry::bicgstab: {
-				ret = make_wrapper<con_types<registry::bicgstab>, D, R>(
-					store, v, std::forward<Args>(args)...);
+				return solve_impl<con_types<registry::bicgstab>>(
+					x, y, v, std::forward<Args>(args)...);
 				break;
 			}
 			case registry::nka: {
-				ret = make_wrapper<con_types<registry::nka>, D, R>(
-					store, v, std::forward<Args>(args)...);
+				return solve_impl<con_types<registry::nka>>(
+					x, y, v, std::forward<Args>(args)...);
 			}
 		}
-
-		return ret;
 	}
 
 protected:
@@ -223,7 +206,7 @@ protected:
 	}
 
 	template<class ctypes, class V, class... Args>
-	auto make_storage(V & v, Args &&... args) {
+	void make_storage(V & v, Args &&... args) {
 		auto * params =
 			dynamic_cast<solver_param_wrapper<decltype(op::krylov_parameters(
 				typename ctypes::settings(""),
@@ -248,11 +231,12 @@ protected:
 		assert(new_params1);
 		op::krylov slv(new_params1->target);
 
-		return std::make_unique<storage_wrapper<decltype(slv)>>(std::move(slv));
+		solver_storage =
+			std::make_shared<storage_wrapper<decltype(slv)>>(std::move(slv));
 	}
 
 	template<class ctypes, class D, class R, class V, class... Args>
-	auto make_wrapper(storage * store, V & v, Args &&... args) {
+	decltype(auto) solve_impl(D & x, R & y, V & v, Args &&... args) {
 		auto * params =
 			dynamic_cast<solver_param_wrapper<decltype(op::krylov_parameters(
 				typename ctypes::settings(""),
@@ -261,14 +245,11 @@ protected:
 		assert(params);
 
 		auto * slv = dynamic_cast<
-			storage_wrapper<decltype(op::krylov(params->target))> *>(store);
+			storage_wrapper<decltype(op::krylov(params->target))> *>(
+			solver_storage.get());
 		assert(slv);
 
-		return std::make_unique<solver_wrapper<
-			D,
-			R,
-			typename std::remove_reference_t<decltype(*slv)>::type>>(
-			slv->target);
+		return slv->target.apply(x, y);
 	}
 
 	registry solver_type;
@@ -372,8 +353,7 @@ struct factory_union : solver_factory<factory_union<Facts...>> {
 	}
 
 	template<class V, class... Args>
-	std::unique_ptr<storage> create(V & v, Args &&... args) {
-		std::unique_ptr<storage> ret;
+	void create(V & v, Args &&... args) {
 		std::visit(
 			[&](auto reg_value) {
 				std::apply(
@@ -386,8 +366,7 @@ struct factory_union : solver_factory<factory_union<Facts...>> {
 												  typename std::decay_t<
 													  decltype(fact)>::
 													  registry>) {
-									ret = fact.create(
-										v, std::forward<Args>(args)...);
+									fact.create(v, std::forward<Args>(args)...);
 								}
 							}(facts),
 							...);
@@ -395,14 +374,10 @@ struct factory_union : solver_factory<factory_union<Facts...>> {
 					members);
 			},
 			solver_type.value);
-
-		return ret;
 	}
 
 	template<class D, class R, class V, class... Args>
-	std::unique_ptr<solver> wrap(storage * store, V & v, Args &&... args) {
-		std::unique_ptr<solver> ret;
-
+	decltype(auto) solve(D & x, R & y, V & v, Args &&... args) {
 		std::visit(
 			[&](auto reg_value) {
 				std::apply(
@@ -415,8 +390,8 @@ struct factory_union : solver_factory<factory_union<Facts...>> {
 												  typename std::decay_t<
 													  decltype(fact)>::
 													  registry>) {
-									ret = fact.template wrap<D, R>(
-										store, v, std::forward<Args>(args)...);
+									return fact.solve(
+										x, y, v, std::forward<Args>(args)...);
 								}
 							}(facts),
 							...);
@@ -424,8 +399,6 @@ struct factory_union : solver_factory<factory_union<Facts...>> {
 					members);
 			},
 			solver_type.value);
-
-		return ret;
 	}
 
 protected:

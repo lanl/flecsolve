@@ -13,8 +13,8 @@ struct shell : base<shell<F>> {
 	constexpr shell(F f) : f(std::move(f)) {}
 
 	template<class domain_vec, class range_vec>
-	constexpr void apply(const domain_vec & x, range_vec & y) const {
-		f(x, y);
+	constexpr decltype(auto) apply(const domain_vec & x, range_vec & y) const {
+		return f(x, y);
 	}
 
 protected:
