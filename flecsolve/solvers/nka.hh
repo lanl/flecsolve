@@ -4,7 +4,7 @@
 #include <flecsi/flog.hh>
 #include <flecsi/util/array_ref.hh>
 
-#include "krylov_interface.hh"
+#include "krylov_operator.hh"
 #include "solver_settings.hh"
 
 namespace flecsolve::nka {
@@ -53,9 +53,9 @@ template<std::size_t dim_bound = 10, std::size_t version = 0>
 using topo_work = topo_work_base<nwork + 2 * (dim_bound + 1), version>;
 
 template<class Workspace>
-struct solver : krylov_interface<Workspace, solver> {
+struct solver : krylov_interface<Workspace> {
 	using settings_type = settings;
-	using iface = krylov_interface<Workspace, solver>;
+	using iface = krylov_interface<Workspace>;
 	using real = typename iface::real;
 	using iface::work;
 

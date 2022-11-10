@@ -17,7 +17,7 @@
 #include "flecsolve/physics/expressions/operator_expression.hh"
 #include "flecsolve/physics/volume_diffusion/diffusion.hh"
 #include "flecsolve/physics/volume_diffusion/coefficient.hh"
-#include "flecsolve/solvers/krylov_interface.hh"
+#include "flecsolve/solvers/krylov_operator.hh"
 #include "flecsolve/solvers/cg.hh"
 #include "flecsolve/solvers/solver_settings.hh"
 

@@ -5,7 +5,7 @@
 #include "flecsi/util/unit/types.hh"
 
 #include "flecsolve/util/config.hh"
-#include "flecsolve/solvers/krylov_interface.hh"
+#include "flecsolve/solvers/krylov_operator.hh"
 #include "flecsolve/vectors/mesh.hh"
 #include "flecsolve/solvers/cg.hh"
 #include "flecsolve/solvers/nka.hh"

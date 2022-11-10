@@ -9,7 +9,7 @@
 #include <functional>
 
 #include "solver_settings.hh"
-#include "krylov_interface.hh"
+#include "krylov_operator.hh"
 
 namespace flecsolve::gmres {
 
@@ -67,9 +67,9 @@ template<std::size_t Version = 0>
 using topo_work = topo_work_base<nwork, Version>;
 
 template<class Workspace>
-struct solver : krylov_interface<Workspace, solver> {
+struct solver : krylov_interface<Workspace> {
 	using settings_type = settings;
-	using iface = krylov_interface<Workspace, solver>;
+	using iface = krylov_interface<Workspace>;
 	using real = typename iface::real;
 	using iface::work;
 

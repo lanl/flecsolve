@@ -2,7 +2,8 @@ set(solvers_HEADERS
   bicgstab.hh
   cg.hh
   gmres.hh
-  krylov_interface.hh
+  krylov_operator.hh
+  krylov_parameters.hh
   nka.hh
   solver_settings.hh
   traits.hh
