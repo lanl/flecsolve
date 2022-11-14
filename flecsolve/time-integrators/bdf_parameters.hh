@@ -203,11 +203,11 @@ struct parameters<Op, Work, Factory, true>
 							   }),
 		                   "solver name");
 
-		desc.add(factory.options(
-			std::bind(std::mem_fun(&parameters::create_solver_parameters),
-		              this,
-		              std::placeholders::_1)));
-
+		desc.add(
+			factory.options([this](const typename factory_t::registry & reg) {
+				factory.create_parameters(
+					reg, std::get<0>(work), std::ref(get_operator()));
+			}));
 		auto desc_gen = parameters_gen::options();
 		desc.add(desc_gen);
 
@@ -215,10 +215,6 @@ struct parameters<Op, Work, Factory, true>
 	}
 
 protected:
-	void create_solver_parameters(const typename factory_t::registry & reg) {
-		factory.create_parameters(
-			reg, std::get<0>(work), std::ref(get_operator()));
-	}
 	factory_t factory;
 };
 
