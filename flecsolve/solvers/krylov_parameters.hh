@@ -24,20 +24,15 @@ namespace flecsolve::op {
 
 enum krylov_oplabel : std::size_t { A, P, diag, nops };
 
-template<bool precond_is_factory, class solver_type, class... Ops>
-struct krylov_parameters_base {};
-
 template<class solver_type, class... Ops>
-struct krylov_parameters_base<false, solver_type, Ops...> {
+struct krylov_parameters_gen {
 
 	template<class... O>
-	krylov_parameters_base(std::string, std::function<void(void)>, O &&... o)
-		: ops(std::forward<O>(o)...) {
-		// assert correct number of operators are provided
-		static_assert(sizeof...(O) >= 1 &&
-		              sizeof...(O) <= krylov_oplabel::nops);
-		// assert both operator and preconditioner inherit from op::base
-		assert_operators(std::make_index_sequence<sizeof...(Ops)>());
+	krylov_parameters_gen(O &&... o) : ops(std::forward<O>(o)...) {}
+
+	template<class T>
+	static bool default_diagnostic(const T &, double) {
+		return false;
 	}
 
 	auto & get_solver() { return *solver; }
@@ -66,9 +61,28 @@ struct krylov_parameters_base<false, solver_type, Ops...> {
 		}
 	}
 
-	template<class T>
-	static bool default_diagnostic(const T &, double) {
-		return false;
+	std::shared_ptr<solver_type> solver;
+
+protected:
+	std::tuple<std::decay_t<Ops>...> ops;
+};
+
+template<bool precond_is_factory, class solver_type, class... Ops>
+struct krylov_parameters_base {};
+
+template<class solver_type, class... Ops>
+struct krylov_parameters_base<false, solver_type, Ops...>
+	: krylov_parameters_gen<solver_type, Ops...> {
+	using base_t = krylov_parameters_gen<solver_type, Ops...>;
+	using base_t::ops;
+
+	template<class... O>
+	krylov_parameters_base(O &&... o) : base_t(std::forward<O>(o)...) {
+		// assert correct number of operators are provided
+		static_assert(sizeof...(O) >= 1 &&
+		              sizeof...(O) <= krylov_oplabel::nops);
+		// assert both operator and preconditioner inherit from op::base
+		assert_operators(std::make_index_sequence<sizeof...(Ops)>());
 	}
 
 	auto options() {
@@ -76,9 +90,6 @@ struct krylov_parameters_base<false, solver_type, Ops...> {
 		po::options_description desc;
 		return desc;
 	}
-
-	std::shared_ptr<solver_type> solver;
-	std::tuple<std::decay_t<Ops>...> ops;
 
 protected:
 	template<std::size_t... I>
@@ -91,62 +102,48 @@ protected:
 };
 
 template<class solver_type, class... Ops>
-struct krylov_parameters_base<true, solver_type, Ops...> : with_label {
+struct krylov_parameters_base<true, solver_type, Ops...>
+	: with_label, krylov_parameters_gen<solver_type, Ops...> {
+
+	using base_t = krylov_parameters_gen<solver_type, Ops...>;
+	using base_t::ops;
+	using base_t::solver;
 
 	template<class... O>
 	krylov_parameters_base(std::string pre,
 	                       std::function<void(void)> callback,
 	                       O &&... o)
-		: with_label(pre.c_str()), ops(std::forward<O>(o)...),
+		: with_label(pre.c_str()), base_t(std::forward<O>(o)...),
 		  create_solver(callback) {
 		// assert correct number of operators are provided
 		static_assert(sizeof...(O) >= 2 &&
 		              sizeof...(O) <= krylov_oplabel::nops);
+		// assert A is an operator
 		static_assert(is_operator_v<std::tuple_element_t<0, decltype(ops)>>);
-	}
-
-	auto & get_solver() { return *solver; }
-
-	template<krylov_oplabel lb>
-	auto & get_operator_ref() {
-		if constexpr (is_reference_wrapper_v<
-						  std::tuple_element_t<lb, decltype(ops)>>)
-			return std::get<lb>(ops).get();
-		else
-			return std::get<lb>(ops);
 	}
 
 	template<krylov_oplabel lb>
 	decltype(auto) get_operator() {
-		if constexpr (lb > 1 && lb >= sizeof...(Ops)) {
-			// get default
-			static_assert(lb == krylov_oplabel::diag);
-			return [](const auto &, double) { return false; };
-		}
-		else {
-			return get_operator_ref<lb>();
-		}
+		return base_t::template get_operator<lb>();
 	}
 
 	template<>
 	decltype(auto) get_operator<krylov_oplabel::P>() {
 		auto & factory = std::get<krylov_oplabel::P>(ops);
 		if (!factory.has_solver()) {
-			factory.create(get_workvec(*solver),
-			               std::ref(get_operator_ref<krylov_oplabel::A>()));
+			factory.create(
+				get_workvec(*solver),
+				std::ref(
+					base_t::template get_operator_ref<krylov_oplabel::A>()));
 		}
 		return op::shell([&factory, this](auto & x, auto & y) {
 			return factory.solve(
 				x,
 				y,
 				get_workvec(*solver),
-				std::ref(get_operator_ref<krylov_oplabel::A>()));
+				std::ref(
+					base_t::template get_operator_ref<krylov_oplabel::A>()));
 		});
-	}
-
-	template<class T>
-	static bool default_diagnostic(const T &, double) {
-		return false;
 	}
 
 	auto options() {
@@ -159,23 +156,20 @@ struct krylov_parameters_base<true, solver_type, Ops...> : with_label {
 								   factory.set_options_name(name);
 							   }),
 		                   "preconditioner name");
-		desc.add(factory.options(
-			[&factory,
-		     this](const typename std::decay_t<decltype(factory)>::registry &
-		               reg) {
-				if (!solver)
-					create_solver();
-				factory.create_parameters(
-					reg,
-					get_workvec(*solver),
-					std::ref(get_operator_ref<krylov_oplabel::A>()));
-			}));
+		desc.add(factory.options([&factory,
+		                          this](const typename std::decay_t<
+										decltype(factory)>::registry & reg) {
+			if (!solver)
+				create_solver();
+			factory.create_parameters(
+				reg,
+				get_workvec(*solver),
+				std::ref(
+					base_t::template get_operator_ref<krylov_oplabel::A>()));
+		}));
 
 		return desc;
 	}
-
-	std::shared_ptr<solver_type> solver;
-	std::tuple<std::decay_t<Ops>...> ops;
 
 protected:
 	template<class Work>
@@ -212,12 +206,23 @@ struct krylov_parameters
 		krylov_parameters_base<precond_is_factory, solver_type, Ops...>;
 	using base_t::solver;
 
-	template<class P, class W, class... O>
+	template<class P,
+	         class W,
+	         class... O,
+	         std::enable_if_t<detail::precond_is_factory_v<O...>, bool> = true>
 	krylov_parameters(P && sp, W && sw, O &&... ops)
 		: base_t(sp.get_prefix(),
 	             std::bind(&krylov_parameters::create_solver, this),
 	             std::forward<O>(ops)...),
 		  solver_settings(std::forward<P>(sp)),
+		  solver_work(std::forward<W>(sw)) {}
+
+	template<class P,
+	         class W,
+	         class... O,
+	         std::enable_if_t<!detail::precond_is_factory_v<O...>, bool> = true>
+	krylov_parameters(P && sp, W && sw, O &&... ops)
+		: base_t(std::forward<O>(ops)...), solver_settings(std::forward<P>(sp)),
 		  solver_work(std::forward<W>(sw)) {}
 
 	auto & get_solver() {
