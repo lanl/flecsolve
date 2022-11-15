@@ -28,7 +28,8 @@ struct krylov : op::base<krylov<Params>> {
 		auto & solver = params.get_solver();
 		decltype(auto) diag =
 			params.template get_operator<krylov_oplabel::diag>();
-		auto & precond = params.template get_operator<krylov_oplabel::P>();
+		decltype(auto) precond =
+			params.template get_operator<krylov_oplabel::P>();
 		auto & op = params.template get_operator<krylov_oplabel::A>();
 
 		return solver.apply(op, bs, xs, precond, diag);
@@ -77,21 +78,14 @@ public:
 
 template<class Params, class... Ops>
 auto rebind(krylov<Params> & kr, Ops &&... ops) {
-	krylov_parameters_base<typename Params::solver_type, Ops...> new_params(
-		std::forward<Ops>(ops)...);
+	static_assert(!detail::precond_is_factory_v<Ops...>);
+	krylov_parameters_base<false, typename Params::solver_type, Ops...>
+		new_params(
+			"", []() {}, std::forward<Ops>(ops)...);
 	new_params.solver = kr.params.solver;
 	return krylov(std::move(new_params));
 }
 
 }
-
-template<class Workspace>
-struct krylov_interface {
-	using workvec_t = typename std::remove_reference_t<Workspace>::value_type;
-	using real = typename workvec_t::real;
-
-	Workspace work;
-};
-
 }
 #endif

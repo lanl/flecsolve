@@ -82,17 +82,17 @@ template<class T, class = void>
 struct is_operator : std::false_type {};
 
 template<class T>
-struct is_operator<T,
-                   typename std::enable_if_t<
-					   std::is_base_of_v<base<std::remove_reference_t<T>>,
-                                         std::remove_reference_t<T>>>>
+struct is_operator<
+	T,
+	typename std::enable_if_t<
+		std::is_base_of_v<base<std::decay_t<T>>, std::decay_t<T>>>>
 	: std::true_type {};
 
 template<class T>
-struct is_operator<std::reference_wrapper<T>,
-                   typename std::enable_if_t<
-					   std::is_base_of_v<base<std::remove_reference_t<T>>,
-                                         std::remove_reference_t<T>>>>
+struct is_operator<
+	std::reference_wrapper<T>,
+	typename std::enable_if_t<
+		std::is_base_of_v<base<std::decay_t<T>>, std::decay_t<T>>>>
 	: std::true_type {};
 
 template<class T>

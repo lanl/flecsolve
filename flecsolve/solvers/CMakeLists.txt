@@ -73,5 +73,6 @@ flecsi_add_test(nka
   INPUTS
   ${chem97ztz_SOURCE_DIR}/Chem97ZtZ.mtx
   test/nka.cfg
+  test/nka-factory.cfg
   LIBRARIES flecsolve
   PROCS 1)

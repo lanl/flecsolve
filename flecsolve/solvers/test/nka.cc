@@ -9,6 +9,7 @@
 #include "flecsolve/vectors/mesh.hh"
 #include "flecsolve/solvers/cg.hh"
 #include "flecsolve/solvers/nka.hh"
+#include "flecsolve/solvers/factory.hh"
 
 #include "csr_utils.hh"
 
@@ -26,22 +27,39 @@ int nkatest() {
 
 		csr_op A{std::move(mat)};
 		vec::mesh x(msh, xd(msh)), b(msh, bd(msh));
-		b.set_scalar(1.);
-		x.set_scalar(3.);
+		{
+			b.set_scalar(1.);
+			x.set_scalar(3.);
 
-		cg::settings pre_settings("preconditioner");
-		nka::settings nnl_settings("solver");
-		read_config("nka.cfg", pre_settings, nnl_settings);
+			cg::settings pre_settings("preconditioner");
+			nka::settings nnl_settings("solver");
+			read_config("nka.cfg", pre_settings, nnl_settings);
 
-		op::krylov P(op::krylov_parameters(
-			pre_settings, cg::topo_work<>::get(b), std::ref(A)));
+			op::krylov P(op::krylov_parameters(
+				pre_settings, cg::topo_work<>::get(b), std::ref(A)));
 
-		op::krylov slv(op::krylov_parameters(nnl_settings,
-		                                     nka::topo_work<5>::get(b),
-		                                     std::ref(A),
-		                                     std::move(P)));
-		auto info = slv.apply(b, x);
-		EXPECT_EQ(info.iters, 17);
+			op::krylov slv(op::krylov_parameters(nnl_settings,
+			                                     nka::topo_work<5>::get(b),
+			                                     std::ref(A),
+			                                     std::move(P)));
+			auto info = slv.apply(b, x);
+			EXPECT_EQ(info.iters, 17);
+		}
+		{
+			b.set_scalar(1.);
+			x.set_scalar(3.);
+
+			op::krylov_parameters params(nka::settings("nnl-solver"),
+			                             nka::topo_work<5>::get(b),
+			                             std::ref(A),
+			                             krylov_factory());
+			read_config("nka-factory.cfg", params);
+
+			op::krylov slv(std::move(params));
+
+			auto info = slv.apply(b, x);
+			EXPECT_EQ(info.iters, 17);
+		}
 	};
 
 	return 0;

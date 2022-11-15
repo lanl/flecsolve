@@ -32,6 +32,8 @@ struct solver_settings {
 	float atol;
 	bool use_zero_guess;
 
+	const std::string & get_prefix() const { return prefix; }
+
 protected:
 	std::string prefix;
 	std::string label(const char * suf) { return {prefix + "." + suf}; }
