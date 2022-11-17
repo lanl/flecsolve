@@ -13,26 +13,26 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 endif()
 
 find_package(FleCSI REQUIRED)
-find_package(FleCSICMake REQUIRED)
 
 set(ENABLE_UNIT_TESTS ON)
 set(ENABLE_FLOG ${FleCSI_ENABLE_FLOG})
 set(FLECSI_RUNTIME_MODEL ${FleCSI_RUNTIME_MODEL})
 set(FLECSI_BACKEND ${FleCSI_BACKEND})
-include(unit)
+include(FleCSI/unit)
 
-include(summary)
+include(FleCSI/summary)
 set(ClangFormat_VERSION "8" CACHE STRING "Set the required version
   (major[.minor[.patch]]) of clang-format")
 mark_as_advanced(ClangFormat_VERSION)
-include(format)
+include(FleCSI/format)
 
 # option to build examples
 option(FLECSOLVE_BUILD_EXAMPLES "Build the examples" OFF)
 mark_as_advanced(FLECSOLVE_BUILD_EXAMPLES)
 
 if(NOT FORMAT_ONLY)
-  include(library)
+  include(FleCSI/library)
+  add_library(flecsolve)
   add_library_target(flecsolve flecsolve
 	VERSION         ${${PROJECT_NAME}_VERSION}
 	EXPORT_TARGET   flecsolveTargets
@@ -51,30 +51,30 @@ if(NOT FORMAT_ONLY)
 	FILES ${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/flecsolveConfig.cmake
 	DESTINATION ${CMAKE_INSTALL_PREFIX}/${LIBDIR}/cmake/flecsolve)
 
-  summary_header()
-  summary_info("CMAKE_BUILD_TYPE" "${CMAKE_BUILD_TYPE}" TRUE)
-  summary_info("CMAKE_INSTALL_PREFIX" "${CMAKE_INSTALL_PREFIX}" TRUE)
+  flecsi_summary_header()
+  flecsi_summary_info("CMAKE_BUILD_TYPE" "${CMAKE_BUILD_TYPE}" TRUE)
+  flecsi_summary_info("CMAKE_INSTALL_PREFIX" "${CMAKE_INSTALL_PREFIX}" TRUE)
   string(APPEND _summary "\n")
-  summary_info("CMAKE_CXX_COMPILER" "${CMAKE_CXX_COMPILER}" TRUE)
-  summary_info("CMAKE_CXX_COMPILER_VERSION"
+  flecsi_summary_info("CMAKE_CXX_COMPILER" "${CMAKE_CXX_COMPILER}" TRUE)
+  flecsi_summary_info("CMAKE_CXX_COMPILER_VERSION"
     "${CMAKE_CXX_COMPILER_VERSION}" TRUE)
-  summary_info("CMAKE_CXX_FLAGS" "${CMAKE_CXX_FLAGS}" TRUE)
-  summary_info("CMAKE_C_COMPILER" "${CMAKE_C_COMPILER}" TRUE)
-  summary_info("CMAKE_C_COMPILER_VERSION" "${CMAKE_C_COMPILER_VERSION}" TRUE)
-  summary_info("CMAKE_C_FLAGS" "${CMAKE_C_FLAGS}" TRUE)
+  flecsi_summary_info("CMAKE_CXX_FLAGS" "${CMAKE_CXX_FLAGS}" TRUE)
+  flecsi_summary_info("CMAKE_C_COMPILER" "${CMAKE_C_COMPILER}" TRUE)
+  flecsi_summary_info("CMAKE_C_COMPILER_VERSION" "${CMAKE_C_COMPILER_VERSION}" TRUE)
+  flecsi_summary_info("CMAKE_C_FLAGS" "${CMAKE_C_FLAGS}" TRUE)
   if(ClangFormat_FOUND)
-    summary_info("ClangFormat_EXECUTABLE" "${ClangFormat_EXECUTABLE}" TRUE)
+    flecsi_summary_info("ClangFormat_EXECUTABLE" "${ClangFormat_EXECUTABLE}" TRUE)
   endif()
   string(APPEND _summary "\n")
-  summary_info("FLECSI_BACKEND" "${FleCSI_BACKEND}" TRUE)
-  summary_option("ENABLE_FLOG" ${ENABLE_FLOG} "")
-  summary_option("ENABLE_UNIT_TESTS" ${ENABLE_UNIT_TESTS} "")
-  summary_option("FLECSOLVE_BUILD_EXAMPLES" ${FLECSOLVE_BUILD_EXAMPLES} "")
+  flecsi_summary_info("FLECSI_BACKEND" "${FleCSI_BACKEND}" TRUE)
+  flecsi_summary_option("ENABLE_FLOG" ${ENABLE_FLOG} "")
+  flecsi_summary_option("ENABLE_UNIT_TESTS" ${ENABLE_UNIT_TESTS} "")
+  flecsi_summary_option("FLECSOLVE_BUILD_EXAMPLES" ${FLECSOLVE_BUILD_EXAMPLES} "")
   # string(APPEND _summary "\n")
 
   message(STATUS ${_summary})
 else()
-  summary_header()
-  summary_option("FORMAT_ONLY" ${FORMAT_ONLY} "")
+  flecsi_summary_header()
+  flecsi_summary_option("FORMAT_ONLY" ${FORMAT_ONLY} "")
   message(STATUS ${_summary})
 endif()

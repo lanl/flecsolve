@@ -10,6 +10,11 @@ set(solvers_HEADERS
   factory.hh
   PARENT_SCOPE)
 
+# Avoid warning about DOWNLOAD_EXTRACT_TIMESTAMP in CMake 3.24:
+if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
+	cmake_policy(SET CMP0135 NEW)
+endif()
+
 if(ENABLE_UNIT_TESTS)
   include(FetchContent)
   FetchContent_Declare(494_bus
@@ -24,7 +29,7 @@ if(ENABLE_UNIT_TESTS)
   FetchContent_MakeAvailable(494_bus Chem97ZtZ psmigr_3)
 endif()
 
-add_unit(cg
+flecsi_add_test(cg
   SOURCES
   test/cg.cc
   INPUTS
@@ -34,7 +39,7 @@ add_unit(cg
   LIBRARIES flecsolve
   THREADS 1)
 
-add_unit(cgmulti
+flecsi_add_test(cgmulti
   SOURCES
   test/cgmulti.cc
   INPUTS
@@ -43,7 +48,7 @@ add_unit(cgmulti
   LIBRARIES flecsolve
   THREADS 1)
 
-add_unit(gmres
+flecsi_add_test(gmres
   SOURCES
   test/gmres.cc
   INPUTS
@@ -52,7 +57,7 @@ add_unit(gmres
   LIBRARIES flecsolve
   THREADS 1)
 
-add_unit(bicgstab
+flecsi_add_test(bicgstab
   SOURCES
   test/bicgstab.cc
   INPUTS
@@ -62,7 +67,7 @@ add_unit(bicgstab
   LIBRARIES flecsolve
   THREADS 1)
 
-add_unit(nka
+flecsi_add_test(nka
   SOURCES
   test/nka.cc
   INPUTS

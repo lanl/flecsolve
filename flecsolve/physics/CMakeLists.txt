@@ -15,7 +15,7 @@ set(physics_HEADERS
   volume_diffusion/coefficient.hh
   PARENT_SCOPE)
 
-add_unit(fvm_mesh_test
+flecsi_add_test(fvm_mesh_test
   SOURCES
     test/fvm_mesh.cc
   LIBRARIES
@@ -24,7 +24,7 @@ add_unit(fvm_mesh_test
     1
   )
 
-add_unit(boundary_test
+flecsi_add_test(boundary_test
   SOURCES
   test/boundaries.cc
   LIBRARIES flecsolve
@@ -32,7 +32,7 @@ add_unit(boundary_test
     1
   )
 
-add_unit(fvm_coeff_test
+flecsi_add_test(fvm_coeff_test
 SOURCES
   test/fvm_coeff.cc
 LIBRARIES
@@ -41,7 +41,7 @@ THREADS
   1
 )
 
-add_unit(fvm_diffusion_test
+flecsi_add_test(fvm_diffusion_test
 SOURCES
   test/fvm_diffusion.cc
 LIBRARIES
