@@ -193,6 +193,23 @@ struct csr_op : op::base<csr_op<CSR>> {
 			mat, x.data.topo(), x.data.ref(), y.data.ref());
 	}
 
+	auto Dinv() {
+		csr<> out{mat.nrows, mat.nrows};
+
+		for (std::size_t i = 0; i < mat.nrows; i++) {
+			for (std::size_t off = mat.rowptr[i]; off < mat.rowptr[i + 1];
+			     off++) {
+				if (mat.colind[off] == i) {
+					out.values[i] = 1.0 / mat.values[off];
+					out.colind[i] = i;
+				}
+			}
+			out.rowptr[i + 1] = i + 1;
+		}
+
+		return csr_op{std::move(out)};
+	}
+
 	CSR mat;
 };
 template<class CSR>

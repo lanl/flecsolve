@@ -51,26 +51,9 @@ struct diagnostic {
 	static inline const realf::definition<testmesh, testmesh::cells> resdef;
 };
 
-static csr<> get_idiag(const csr<> & in) {
-	csr<> out{in.nrows, in.nrows};
-
-	for (std::size_t i = 0; i < in.nrows; i++) {
-		for (std::size_t off = in.rowptr[i]; off < in.rowptr[i + 1]; off++) {
-			if (in.colind[off] == i) {
-				out.values[i] = 1.0 / in.values[off];
-				out.colind[i] = i;
-			}
-		}
-		out.rowptr[i + 1] = i + 1;
-	}
-
-	return out;
-}
-
 int gmres_test() {
 	UNIT () {
 		auto mat = read_mm("Chem97ZtZ.mtx");
-		auto idiag = get_idiag(mat);
 
 		double cond = 2.472189e+02;
 		double cfact = (cond * cond - 1) / (cond * cond);
@@ -78,7 +61,7 @@ int gmres_test() {
 		auto & msh = mshs[0];
 		init_mesh(mat.nrows, msh, colorings[0]);
 		csr_op A{std::move(mat)};
-		csr_op Dinv{std::move(idiag)};
+		auto Dinv = A.Dinv();
 
 		vec::mesh x(msh, xd(msh)), b(msh, bd(msh));
 		b.set_random(0);

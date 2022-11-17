@@ -45,6 +45,7 @@ struct solver_factory : with_solver_erasure, with_label {
 				po::value<typename P::registry>()->required()->notifier(
 					[f, this](const typename P::registry & reg) {
 						static_cast<P &>(*this).set_solver_type(reg);
+						static_cast<P &>(*this).create_parameters(reg);
 						f(reg);
 					}),
 				"solver type");
@@ -55,6 +56,10 @@ struct solver_factory : with_solver_erasure, with_label {
 		}
 
 		return desc;
+	}
+
+	auto options() {
+		return options([](const auto &) {});
 	}
 
 	std::shared_ptr<solver_parameters> get_parameters() { return parameters; }
@@ -80,8 +85,26 @@ protected:
 	std::shared_ptr<storage> solver_storage;
 };
 
-struct krylov_factory : solver_factory<krylov_factory> {
-	enum class registry { cg, gmres, bicgstab, nka };
+enum class krylov_registry { cg, gmres, bicgstab, nka };
+template<class... Ops>
+struct krylov_factory : solver_factory<krylov_factory<Ops...>> {
+
+	using base = solver_factory<krylov_factory<Ops...>>;
+	using storage = typename base::storage;
+	using solver_parameters = typename base::solver_parameters;
+
+	template<class T>
+	using solver_param_wrapper =
+		typename base::template solver_param_wrapper<T>;
+	template<class T>
+	using storage_wrapper = typename base::template storage_wrapper<T>;
+	using base::label;
+	using base::parameters;
+	using base::solver_storage;
+
+	using registry = krylov_registry;
+
+	krylov_factory(Ops &&... o) : ops{std::forward<Ops>(o)...} {}
 
 	template<registry v>
 	struct con_types {};
@@ -111,141 +134,137 @@ struct krylov_factory : solver_factory<krylov_factory> {
 	};
 	void set_solver_type(registry reg) { solver_type = reg; }
 
-	template<class V, class... Args>
-	void create_parameters(registry reg, V & v, Args &&... args) {
+	void create_parameters(registry reg) {
 		if (!parameters) {
 			switch (reg) {
 				case registry::cg: {
-					parameters = make_params<con_types<registry::cg>>(
-						v, std::forward<Args>(args)...);
+					parameters = make_params<con_types<registry::cg>>();
 					break;
 				}
 				case registry::gmres: {
-					parameters = make_params<con_types<registry::gmres>>(
-						v, std::forward<Args>(args)...);
+					parameters = make_params<con_types<registry::gmres>>();
 					break;
 				}
 				case registry::bicgstab: {
-					parameters = make_params<con_types<registry::bicgstab>>(
-						v, std::forward<Args>(args)...);
+					parameters = make_params<con_types<registry::bicgstab>>();
 					break;
 				}
 				case registry::nka: {
-					parameters = make_params<con_types<registry::nka>>(
-						v, std::forward<Args>(args)...);
+					parameters = make_params<con_types<registry::nka>>();
 				}
 			}
 		}
 	}
 
-	template<class V, class... Args>
-	void create(V & v, Args &&... args) {
+	template<class V, class Op>
+	void create(vec::base<V> & v, op::base<Op> & A) {
 		assert(parameters);
 
 		if (!solver_storage) {
 			switch (solver_type) {
 				case registry::cg: {
 					make_storage<con_types<registry::cg>>(
-						v, std::forward<Args>(args)...);
+						v.derived(), make_is(), A.derived());
 					break;
 				}
 				case registry::gmres: {
 					make_storage<con_types<registry::gmres>>(
-						v, std::forward<Args>(args)...);
+						v.derived(), make_is(), A.derived());
 					break;
 				}
 				case registry::bicgstab: {
 					make_storage<con_types<registry::bicgstab>>(
-						v, std::forward<Args>(args)...);
+						v.derived(), make_is(), A.derived());
 					break;
 				}
 				case registry::nka: {
 					make_storage<con_types<registry::nka>>(
-						v, std::forward<Args>(args)...);
+						v.derived(), make_is(), A.derived());
 				}
 			}
 		}
 	}
 
-	template<class V, class D, class R, class... Args>
-	decltype(auto) solve(D & x, R & y, V & v, Args &&... args) {
+	template<class V, class D, class R, class Op>
+	decltype(auto) solve(const vec::base<D> & x,
+	                     vec::base<R> & y,
+	                     vec::base<V> & v,
+	                     op::base<Op> & A) {
 		assert(solver_storage);
 
 		switch (solver_type) {
 			case registry::cg: {
-				return solve_impl<con_types<registry::cg>>(
-					x, y, v, std::forward<Args>(args)...);
+				return solve_impl<con_types<registry::cg>>(x.derived(),
+				                                           y.derived(),
+				                                           v.derived(),
+				                                           make_is(),
+				                                           A.derived());
 				break;
 			}
 			case registry::gmres: {
-				return solve_impl<con_types<registry::gmres>>(
-					x, y, v, std::forward<Args>(args)...);
+				return solve_impl<con_types<registry::gmres>>(x.derived(),
+				                                              y.derived(),
+				                                              v.derived(),
+				                                              make_is(),
+				                                              A.derived());
 				break;
 			}
 			case registry::bicgstab: {
-				return solve_impl<con_types<registry::bicgstab>>(
-					x, y, v, std::forward<Args>(args)...);
+				return solve_impl<con_types<registry::bicgstab>>(x.derived(),
+				                                                 y.derived(),
+				                                                 v.derived(),
+				                                                 make_is(),
+				                                                 A.derived());
 				break;
 			}
 			case registry::nka: {
-				return solve_impl<con_types<registry::nka>>(
-					x, y, v, std::forward<Args>(args)...);
+				return solve_impl<con_types<registry::nka>>(x.derived(),
+				                                            y.derived(),
+				                                            v.derived(),
+				                                            make_is(),
+				                                            A.derived());
 			}
 		}
 	}
 
 protected:
-	template<class ctypes, class V, class... Args>
-	auto make_params(V & v, Args &&... args) {
-		op::krylov_parameters params(
-			typename ctypes::settings(label("parameters").c_str()),
-			ctypes::workgen::get(v),
-			std::forward<Args>(args)...);
+	template<class ctypes>
+	auto make_params() {
+		typename ctypes::settings params(label("parameters").c_str());
 		return std::make_shared<solver_param_wrapper<decltype(params)>>(
 			std::move(params));
 	}
 
-	template<class ctypes, class V, class... Args>
-	void make_storage(V & v, Args &&... args) {
+	template<class ctypes, class V, std::size_t... I, class Op>
+	void make_storage(V & v, std::index_sequence<I...>, Op & A) {
 		auto * params =
-			dynamic_cast<solver_param_wrapper<decltype(op::krylov_parameters(
-				typename ctypes::settings(""),
-				ctypes::workgen::get(v),
-				std::forward<Args>(args)...))> *>(parameters.get());
+			dynamic_cast<solver_param_wrapper<typename ctypes::settings> *>(
+				parameters.get());
 		assert(params);
 
-		// rebind operators in case they were moved
-		auto & old_params = params->target;
-		op::krylov_parameters new_params(std::move(old_params.solver_settings),
-		                                 ctypes::workgen::get(v),
-		                                 std::forward<Args>(args)...);
-		parameters =
-			std::make_shared<solver_param_wrapper<decltype(new_params)>>(
-				std::move(new_params));
-
-		auto * new_params1 =
-			dynamic_cast<solver_param_wrapper<decltype(op::krylov_parameters(
-				typename ctypes::settings(""),
-				ctypes::workgen::get(v),
-				std::forward<Args>(args)...))> *>(parameters.get());
-		assert(new_params1);
-		op::krylov slv(new_params1->target);
-
+		op::krylov slv(
+			op::krylov_parameters(params->target,
+		                          ctypes::workgen::get(v),
+		                          std::ref(A),
+		                          std::forward<Ops>(std::get<I>(ops))...));
 		solver_storage =
 			std::make_shared<storage_wrapper<decltype(slv)>>(std::move(slv));
 	}
 
-	template<class ctypes, class D, class R, class V, class... Args>
-	decltype(auto) solve_impl(D & x, R & y, V & v, Args &&... args) {
-		auto * params =
-			dynamic_cast<solver_param_wrapper<decltype(op::krylov_parameters(
-				typename ctypes::settings(""),
-				ctypes::workgen::get(v),
-				std::forward<Args>(args)...))> *>(parameters.get());
-		assert(params);
-
-		auto * slv = dynamic_cast<
-			storage_wrapper<decltype(op::krylov(params->target))> *>(
+	template<class ctypes,
+	         class D,
+	         class R,
+	         class V,
+	         std::size_t... I,
+	         class Op>
+	decltype(auto)
+	solve_impl(D & x, R & y, V & v, std::index_sequence<I...>, Op & A) {
+		typename ctypes::settings settings("");
+		auto * slv = dynamic_cast<storage_wrapper<decltype(op::krylov(
+			op::krylov_parameters(settings,
+		                          ctypes::workgen::get(v),
+		                          std::ref(A),
+		                          std::forward<Ops>(std::get<I>(ops))...)))> *>(
 			solver_storage.get());
 		assert(slv);
 
@@ -253,21 +272,24 @@ protected:
 	}
 
 	registry solver_type;
+	std::tuple<std::decay_t<Ops>...> ops;
+	using make_is = std::make_index_sequence<sizeof...(Ops)>;
 };
+template<class... O>
+krylov_factory(O &&...) -> krylov_factory<O...>;
 
-inline std::istream & operator>>(std::istream & in,
-                                 krylov_factory::registry & reg) {
+inline std::istream & operator>>(std::istream & in, krylov_registry & reg) {
 	std::string tok;
 	in >> tok;
 
 	if (tok == "cg")
-		reg = krylov_factory::registry::cg;
+		reg = krylov_registry::cg;
 	else if (tok == "gmres")
-		reg = krylov_factory::registry::gmres;
+		reg = krylov_registry::gmres;
 	else if (tok == "bicgstab")
-		reg = krylov_factory::registry::bicgstab;
+		reg = krylov_registry::bicgstab;
 	else if (tok == "nka")
-		reg = krylov_factory::registry::nka;
+		reg = krylov_registry::nka;
 	else
 		in.setstate(std::ios_base::failbit);
 

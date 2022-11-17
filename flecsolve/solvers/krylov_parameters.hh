@@ -133,16 +133,14 @@ struct krylov_parameters_base<true, solver_type, Ops...>
 		if (!factory.has_solver()) {
 			factory.create(
 				get_workvec(*solver),
-				std::ref(
-					base_t::template get_operator_ref<krylov_oplabel::A>()));
+				base_t::template get_operator_ref<krylov_oplabel::A>());
 		}
 		return op::shell([&factory, this](auto & x, auto & y) {
 			return factory.solve(
 				x,
 				y,
 				get_workvec(*solver),
-				std::ref(
-					base_t::template get_operator_ref<krylov_oplabel::A>()));
+				base_t::template get_operator_ref<krylov_oplabel::A>());
 		});
 	}
 
@@ -156,16 +154,9 @@ struct krylov_parameters_base<true, solver_type, Ops...>
 								   factory.set_options_name(name);
 							   }),
 		                   "preconditioner name");
-		desc.add(factory.options([&factory,
-		                          this](const typename std::decay_t<
-										decltype(factory)>::registry & reg) {
+		desc.add(factory.options([this](const auto &) {
 			if (!solver)
 				create_solver();
-			factory.create_parameters(
-				reg,
-				get_workvec(*solver),
-				std::ref(
-					base_t::template get_operator_ref<krylov_oplabel::A>()));
 		}));
 
 		return desc;

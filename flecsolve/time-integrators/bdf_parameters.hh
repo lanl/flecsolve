@@ -187,10 +187,9 @@ struct parameters<Op, Work, Factory, true>
 
 	auto get_solver() {
 		if (!factory.has_solver())
-			factory.create(std::get<0>(work), std::ref(get_operator()));
+			factory.create(std::get<0>(work), get_operator());
 		return op::shell([=](auto & x, auto & y) {
-			return factory.solve(
-				x, y, std::get<0>(work), std::ref(get_operator()));
+			return factory.solve(x, y, std::get<0>(work), get_operator());
 		});
 	}
 
@@ -203,11 +202,7 @@ struct parameters<Op, Work, Factory, true>
 							   }),
 		                   "solver name");
 
-		desc.add(
-			factory.options([this](const typename factory_t::registry & reg) {
-				factory.create_parameters(
-					reg, std::get<0>(work), std::ref(get_operator()));
-			}));
+		desc.add(factory.options());
 		auto desc_gen = parameters_gen::options();
 		desc.add(desc_gen);
 
