@@ -45,7 +45,6 @@ struct solver_factory : with_solver_erasure, with_label {
 				po::value<typename P::registry>()->required()->notifier(
 					[f, this](const typename P::registry & reg) {
 						static_cast<P &>(*this).set_solver_type(reg);
-						static_cast<P &>(*this).create_parameters(reg);
 						f(reg);
 					}),
 				"solver type");
@@ -134,23 +133,24 @@ struct krylov_factory : solver_factory<krylov_factory<Ops...>> {
 	};
 	void set_solver_type(registry reg) { solver_type = reg; }
 
-	void create_parameters(registry reg) {
+	template<class V, class Op>
+	void create_parameters(vec::base<V> & v, op::base<Op> & A) {
 		if (!parameters) {
-			switch (reg) {
+			switch (solver_type) {
 				case registry::cg: {
-					parameters = make_params<con_types<registry::cg>>();
+					parameters = make_params<con_types<registry::cg>>(v.derived(), make_is(), A.derived());
 					break;
 				}
 				case registry::gmres: {
-					parameters = make_params<con_types<registry::gmres>>();
+					parameters = make_params<con_types<registry::gmres>>(v.derived(), make_is(), A.derived());
 					break;
 				}
 				case registry::bicgstab: {
-					parameters = make_params<con_types<registry::bicgstab>>();
+					parameters = make_params<con_types<registry::bicgstab>>(v.derived(), make_is(), A.derived());
 					break;
 				}
 				case registry::nka: {
-					parameters = make_params<con_types<registry::nka>>();
+					parameters = make_params<con_types<registry::nka>>(v.derived(), make_is(), A.derived());
 				}
 			}
 		}
@@ -228,44 +228,42 @@ struct krylov_factory : solver_factory<krylov_factory<Ops...>> {
 	}
 
 protected:
-	template<class ctypes>
-	auto make_params() {
-		typename ctypes::settings params(label("parameters").c_str());
+	template<class ctypes, class V, std::size_t ... I, class Op>
+	auto make_params(V & v, std::index_sequence<I...>, Op & A) {
+		op::krylov_parameters params(
+			typename ctypes::settings(label("parameters").c_str()),
+			ctypes::workgen::get(v),
+			std::ref(A), std::ref(std::get<I>(ops))...);
 		return std::make_shared<solver_param_wrapper<decltype(params)>>(
 			std::move(params));
 	}
 
 	template<class ctypes, class V, std::size_t... I, class Op>
 	void make_storage(V & v, std::index_sequence<I...>, Op & A) {
-		auto * params =
-			dynamic_cast<solver_param_wrapper<typename ctypes::settings> *>(
-				parameters.get());
+		auto * params = dynamic_cast<solver_param_wrapper<
+			decltype(op::krylov_parameters(
+				         typename ctypes::settings(""),
+				         ctypes::workgen::get(v),
+				         std::ref(A), std::ref(std::get<I>(ops))...))>*>(parameters.get());
 		assert(params);
-
-		op::krylov slv(
-			op::krylov_parameters(params->target,
-		                          ctypes::workgen::get(v),
-		                          std::ref(A),
-		                          std::forward<Ops>(std::get<I>(ops))...));
-		solver_storage =
-			std::make_shared<storage_wrapper<decltype(slv)>>(std::move(slv));
+		// re-seat A and ops in case it/this moved.
+		params->target.template set_operator<op::krylov_oplabel::A>(std::ref(A));
+		(params->target.template set_operator<static_cast<op::krylov_oplabel>(I + 1)>(
+			std::ref(std::get<I>(ops))), ...);
+		op::krylov slv(std::move(params->target));
+		params = nullptr;
+		solver_storage = std::make_shared<storage_wrapper<decltype(slv)>>(std::move(slv));
 	}
 
-	template<class ctypes,
-	         class D,
-	         class R,
-	         class V,
-	         std::size_t... I,
-	         class Op>
-	decltype(auto)
-	solve_impl(D & x, R & y, V & v, std::index_sequence<I...>, Op & A) {
-		typename ctypes::settings settings("");
-		auto * slv = dynamic_cast<storage_wrapper<decltype(op::krylov(
-			op::krylov_parameters(settings,
-		                          ctypes::workgen::get(v),
-		                          std::ref(A),
-		                          std::forward<Ops>(std::get<I>(ops))...)))> *>(
-			solver_storage.get());
+
+	template<class ctypes, class D, class R, class V, std::size_t ... I, class Op>
+	decltype(auto) solve_impl(D & x, R & y, V & v, std::index_sequence<I...>, Op & A) {
+		auto * slv = dynamic_cast<
+			storage_wrapper<decltype(op::krylov(op::krylov_parameters(
+		typename ctypes::settings(""),
+				                                    ctypes::workgen::get(v),
+				                                    std::ref(A),
+			std::ref(std::get<I>(ops))...)))>*>(solver_storage.get());
 		assert(slv);
 
 		return slv->target.apply(x, y);
