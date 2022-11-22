@@ -203,8 +203,7 @@ struct parameters<Op, Work, Factory, true>
 		                   "solver name");
 
 		desc.add(factory.options([this](const auto &) {
-			factory.create_parameters(
-				std::get<0>(work), get_operator());
+			factory.create_parameters(std::get<0>(work), get_operator());
 		}));
 		auto desc_gen = parameters_gen::options();
 		desc.add(desc_gen);

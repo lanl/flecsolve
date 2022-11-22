@@ -138,19 +138,23 @@ struct krylov_factory : solver_factory<krylov_factory<Ops...>> {
 		if (!parameters) {
 			switch (solver_type) {
 				case registry::cg: {
-					parameters = make_params<con_types<registry::cg>>(v.derived(), make_is(), A.derived());
+					parameters = make_params<con_types<registry::cg>>(
+						v.derived(), make_is(), A.derived());
 					break;
 				}
 				case registry::gmres: {
-					parameters = make_params<con_types<registry::gmres>>(v.derived(), make_is(), A.derived());
+					parameters = make_params<con_types<registry::gmres>>(
+						v.derived(), make_is(), A.derived());
 					break;
 				}
 				case registry::bicgstab: {
-					parameters = make_params<con_types<registry::bicgstab>>(v.derived(), make_is(), A.derived());
+					parameters = make_params<con_types<registry::bicgstab>>(
+						v.derived(), make_is(), A.derived());
 					break;
 				}
 				case registry::nka: {
-					parameters = make_params<con_types<registry::nka>>(v.derived(), make_is(), A.derived());
+					parameters = make_params<con_types<registry::nka>>(
+						v.derived(), make_is(), A.derived());
 				}
 			}
 		}
@@ -228,42 +232,53 @@ struct krylov_factory : solver_factory<krylov_factory<Ops...>> {
 	}
 
 protected:
-	template<class ctypes, class V, std::size_t ... I, class Op>
+	template<class ctypes, class V, std::size_t... I, class Op>
 	auto make_params(V & v, std::index_sequence<I...>, Op & A) {
 		op::krylov_parameters params(
 			typename ctypes::settings(label("parameters").c_str()),
 			ctypes::workgen::get(v),
-			std::ref(A), std::ref(std::get<I>(ops))...);
+			std::ref(A),
+			std::ref(std::get<I>(ops))...);
 		return std::make_shared<solver_param_wrapper<decltype(params)>>(
 			std::move(params));
 	}
 
 	template<class ctypes, class V, std::size_t... I, class Op>
 	void make_storage(V & v, std::index_sequence<I...>, Op & A) {
-		auto * params = dynamic_cast<solver_param_wrapper<
-			decltype(op::krylov_parameters(
-				         typename ctypes::settings(""),
-				         ctypes::workgen::get(v),
-				         std::ref(A), std::ref(std::get<I>(ops))...))>*>(parameters.get());
+		auto * params =
+			dynamic_cast<solver_param_wrapper<decltype(op::krylov_parameters(
+				typename ctypes::settings(""),
+				ctypes::workgen::get(v),
+				std::ref(A),
+				std::ref(std::get<I>(ops))...))> *>(parameters.get());
 		assert(params);
 		// re-seat A and ops in case it/this moved.
-		params->target.template set_operator<op::krylov_oplabel::A>(std::ref(A));
-		(params->target.template set_operator<static_cast<op::krylov_oplabel>(I + 1)>(
-			std::ref(std::get<I>(ops))), ...);
+		params->target.template set_operator<op::krylov_oplabel::A>(
+			std::ref(A));
+		(params->target
+		     .template set_operator<static_cast<op::krylov_oplabel>(I + 1)>(
+				 std::ref(std::get<I>(ops))),
+		 ...);
 		op::krylov slv(std::move(params->target));
 		params = nullptr;
-		solver_storage = std::make_shared<storage_wrapper<decltype(slv)>>(std::move(slv));
+		solver_storage =
+			std::make_shared<storage_wrapper<decltype(slv)>>(std::move(slv));
 	}
 
-
-	template<class ctypes, class D, class R, class V, std::size_t ... I, class Op>
-	decltype(auto) solve_impl(D & x, R & y, V & v, std::index_sequence<I...>, Op & A) {
-		auto * slv = dynamic_cast<
-			storage_wrapper<decltype(op::krylov(op::krylov_parameters(
-		typename ctypes::settings(""),
-				                                    ctypes::workgen::get(v),
-				                                    std::ref(A),
-			std::ref(std::get<I>(ops))...)))>*>(solver_storage.get());
+	template<class ctypes,
+	         class D,
+	         class R,
+	         class V,
+	         std::size_t... I,
+	         class Op>
+	decltype(auto)
+	solve_impl(D & x, R & y, V & v, std::index_sequence<I...>, Op & A) {
+		auto * slv = dynamic_cast<storage_wrapper<decltype(op::krylov(
+			op::krylov_parameters(typename ctypes::settings(""),
+		                          ctypes::workgen::get(v),
+		                          std::ref(A),
+		                          std::ref(std::get<I>(ops))...)))> *>(
+			solver_storage.get());
 		assert(slv);
 
 		return slv->target.apply(x, y);
@@ -331,9 +346,9 @@ template<class... Facts>
 struct factory_union : solver_factory<factory_union<Facts...>> {
 	using base = solver_factory<factory_union<Facts...>>;
 	using registry = detail::union_registry<typename Facts::registry...>;
-	using storage = typename base::storage;
-	using solver = typename base::solver;
 	using base::parameters;
+
+	factory_union(Facts &&... facts) : members(std::forward<Facts>(facts)...) {}
 
 	void set_options_name(const std::string & name) {
 		base::set_prefix(name.c_str());
@@ -344,8 +359,8 @@ struct factory_union : solver_factory<factory_union<Facts...>> {
 
 	void set_solver_type(registry reg) { solver_type.value = reg.value; }
 
-	template<class V, class... Args>
-	void create_parameters(registry reg, V & v, Args &&... args) {
+	template<class V, class Op>
+	void create_parameters(vec::base<V> & v, op::base<Op> & A) {
 		std::visit(
 			[&](auto reg_value) {
 				std::apply(
@@ -358,35 +373,10 @@ struct factory_union : solver_factory<factory_union<Facts...>> {
 												  typename std::decay_t<
 													  decltype(fact)>::
 													  registry>) {
-									fact.create_parameters(
-										reg_value,
-										v,
-										std::forward<Args>(args)...);
+									fact.set_solver_type(reg_value);
+									fact.create_parameters(v.derived(),
+						                                   A.derived());
 									parameters = fact.get_parameters();
-								}
-							}(facts),
-							...);
-					},
-					members);
-			},
-			reg.value);
-	}
-
-	template<class V, class... Args>
-	void create(V & v, Args &&... args) {
-		std::visit(
-			[&](auto reg_value) {
-				std::apply(
-					[&](auto &... facts) {
-						(
-							[&](auto & fact) {
-								using RT = std::decay_t<decltype(reg_value)>;
-								if constexpr (std::is_same_v<
-												  RT,
-												  typename std::decay_t<
-													  decltype(fact)>::
-													  registry>) {
-									fact.create(v, std::forward<Args>(args)...);
 								}
 							}(facts),
 							...);
@@ -396,8 +386,8 @@ struct factory_union : solver_factory<factory_union<Facts...>> {
 			solver_type.value);
 	}
 
-	template<class D, class R, class V, class... Args>
-	decltype(auto) solve(D & x, R & y, V & v, Args &&... args) {
+	template<class V, class Op>
+	void create(vec::base<V> & v, op::base<Op> & A) {
 		std::visit(
 			[&](auto reg_value) {
 				std::apply(
@@ -410,8 +400,37 @@ struct factory_union : solver_factory<factory_union<Facts...>> {
 												  typename std::decay_t<
 													  decltype(fact)>::
 													  registry>) {
-									return fact.solve(
-										x, y, v, std::forward<Args>(args)...);
+									fact.create(v.derived(), A.derived());
+								}
+							}(facts),
+							...);
+					},
+					members);
+			},
+			solver_type.value);
+	}
+
+	template<class D, class R, class V, class Op>
+	decltype(auto) solve(const vec::base<D> & x,
+	                     vec::base<R> & y,
+	                     vec::base<V> & v,
+	                     op::base<Op> & A) {
+		std::visit(
+			[&](auto reg_value) {
+				std::apply(
+					[&](auto &... facts) {
+						(
+							[&](auto & fact) {
+								using RT = std::decay_t<decltype(reg_value)>;
+								if constexpr (std::is_same_v<
+												  RT,
+												  typename std::decay_t<
+													  decltype(fact)>::
+													  registry>) {
+									return fact.solve(x.derived(),
+						                              y.derived(),
+						                              v.derived(),
+						                              A.derived());
 								}
 							}(facts),
 							...);
@@ -423,8 +442,10 @@ struct factory_union : solver_factory<factory_union<Facts...>> {
 
 protected:
 	registry solver_type;
-	std::tuple<Facts...> members;
+	std::tuple<std::decay_t<Facts>...> members;
 };
+template<class... F>
+factory_union(F &&...) -> factory_union<F...>;
 
 }
 

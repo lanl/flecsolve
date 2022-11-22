@@ -82,7 +82,8 @@ auto rebind(krylov<Params> & kr, Ops &&... ops) {
 	krylov_parameters_base<false,
 	                       typename Params::solver_type,
 	                       std::nullptr_t,
-	                       Ops...> new_params(std::forward<Ops>(ops)...);
+	                       Ops...>
+	new_params(std::forward<Ops>(ops)...);
 	new_params.solver = kr.params.solver;
 	return krylov(std::move(new_params));
 }
