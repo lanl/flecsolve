@@ -25,59 +25,60 @@ if(ENABLE_UNIT_TESTS)
 endif()
 
 include(FleCSI/summary)
-set(ClangFormat_VERSION "8" CACHE STRING "Set the required version
-  (major[.minor[.patch]]) of clang-format")
-mark_as_advanced(ClangFormat_VERSION)
-include(FleCSI/format)
+option(ENABLE_FORMAT "Enable format target" OFF)
+mark_as_advanced(ENABLE_FORMAT)
+
+if(ENABLE_FORMAT)
+  include(FleCSI/format)
+
+  set(ClangFormat_VERSION "13.0.1" CACHE STRING
+      "Set the required version (major[.minor[.patch]]) of clang-format")
+  mark_as_advanced(ClangFormat_VERSION)
+
+  flecsi_add_format_target(${PROJECT_NAME} ${PROJECT_SOURCE_DIR} "${ClangFormat_VERSION}")
+endif()
 
 # option to build examples
 option(FLECSOLVE_BUILD_EXAMPLES "Build the examples" OFF)
 
-if(NOT FORMAT_ONLY)
-  include(FleCSI/library)
-  add_library(flecsolve)
-  add_library_target(flecsolve flecsolve
-	VERSION         ${${PROJECT_NAME}_VERSION}
-	EXPORT_TARGET   flecsolveTargets
-	NAMESPACE       flecsolve
-	LINK_PUBLIC     FleCSI::FleCSI MPI::MPI_CXX)
+include(FleCSI/library)
+add_library(flecsolve)
+add_library_target(flecsolve flecsolve
+  VERSION         ${${PROJECT_NAME}_VERSION}
+  EXPORT_TARGET   flecsolveTargets
+  NAMESPACE       flecsolve
+  LINK_PUBLIC     FleCSI::FleCSI MPI::MPI_CXX)
 
-  if(FLECSOLVE_BUILD_EXAMPLES)
-    message(STATUS "Adding examples directory")
-    add_subdirectory(examples)
-  endif()
-
-  configure_file(${PROJECT_SOURCE_DIR}/config/flecsolveConfig.cmake.in
-	${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/flecsolveConfig.cmake @ONLY)
-
-  install(
-	FILES ${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/flecsolveConfig.cmake
-	DESTINATION ${CMAKE_INSTALL_PREFIX}/${LIBDIR}/cmake/flecsolve)
-
-  flecsi_summary_header()
-  flecsi_summary_info("CMAKE_BUILD_TYPE" "${CMAKE_BUILD_TYPE}" TRUE)
-  flecsi_summary_info("CMAKE_INSTALL_PREFIX" "${CMAKE_INSTALL_PREFIX}" TRUE)
-  string(APPEND _summary "\n")
-  flecsi_summary_info("CMAKE_CXX_COMPILER" "${CMAKE_CXX_COMPILER}" TRUE)
-  flecsi_summary_info("CMAKE_CXX_COMPILER_VERSION"
-    "${CMAKE_CXX_COMPILER_VERSION}" TRUE)
-  flecsi_summary_info("CMAKE_CXX_FLAGS" "${CMAKE_CXX_FLAGS}" TRUE)
-  flecsi_summary_info("CMAKE_C_COMPILER" "${CMAKE_C_COMPILER}" TRUE)
-  flecsi_summary_info("CMAKE_C_COMPILER_VERSION" "${CMAKE_C_COMPILER_VERSION}" TRUE)
-  flecsi_summary_info("CMAKE_C_FLAGS" "${CMAKE_C_FLAGS}" TRUE)
-  if(ClangFormat_FOUND)
-    flecsi_summary_info("ClangFormat_EXECUTABLE" "${ClangFormat_EXECUTABLE}" TRUE)
-  endif()
-  string(APPEND _summary "\n")
-  flecsi_summary_info("FLECSI_BACKEND" "${FleCSI_BACKEND}" TRUE)
-  flecsi_summary_option("ENABLE_FLOG" ${ENABLE_FLOG} "")
-  flecsi_summary_option("ENABLE_UNIT_TESTS" ${ENABLE_UNIT_TESTS} "")
-  flecsi_summary_option("FLECSOLVE_BUILD_EXAMPLES" ${FLECSOLVE_BUILD_EXAMPLES} "")
-  # string(APPEND _summary "\n")
-
-  message(STATUS ${_summary})
-else()
-  flecsi_summary_header()
-  flecsi_summary_option("FORMAT_ONLY" ${FORMAT_ONLY} "")
-  message(STATUS ${_summary})
+if(FLECSOLVE_BUILD_EXAMPLES)
+  message(STATUS "Adding examples directory")
+  add_subdirectory(examples)
 endif()
+
+configure_file(${PROJECT_SOURCE_DIR}/config/flecsolveConfig.cmake.in
+  ${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/flecsolveConfig.cmake @ONLY)
+
+install(
+  FILES ${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/flecsolveConfig.cmake
+  DESTINATION ${CMAKE_INSTALL_PREFIX}/${LIBDIR}/cmake/flecsolve)
+
+flecsi_summary_header()
+flecsi_summary_info("CMAKE_BUILD_TYPE" "${CMAKE_BUILD_TYPE}" TRUE)
+flecsi_summary_info("CMAKE_INSTALL_PREFIX" "${CMAKE_INSTALL_PREFIX}" TRUE)
+string(APPEND _summary "\n")
+flecsi_summary_info("CMAKE_CXX_COMPILER" "${CMAKE_CXX_COMPILER}" TRUE)
+flecsi_summary_info("CMAKE_CXX_COMPILER_VERSION"
+  "${CMAKE_CXX_COMPILER_VERSION}" TRUE)
+flecsi_summary_info("CMAKE_CXX_FLAGS" "${CMAKE_CXX_FLAGS}" TRUE)
+flecsi_summary_info("CMAKE_C_COMPILER" "${CMAKE_C_COMPILER}" TRUE)
+flecsi_summary_info("CMAKE_C_COMPILER_VERSION" "${CMAKE_C_COMPILER_VERSION}" TRUE)
+flecsi_summary_info("CMAKE_C_FLAGS" "${CMAKE_C_FLAGS}" TRUE)
+if(ENABLE_FORMAT AND TARGET ClangFormat::ClangFormat)
+  flecsi_summary_info("ClangFormat_EXECUTABLE" "${ClangFormat_EXECUTABLE}" TRUE)
+endif()
+string(APPEND _summary "\n")
+flecsi_summary_info("FLECSI_BACKEND" "${FleCSI_BACKEND}" TRUE)
+flecsi_summary_option("ENABLE_FLOG" ${ENABLE_FLOG} "")
+flecsi_summary_option("ENABLE_UNIT_TESTS" ${ENABLE_UNIT_TESTS} "")
+flecsi_summary_option("FLECSOLVE_BUILD_EXAMPLES" ${FLECSOLVE_BUILD_EXAMPLES} "")
+
+message(STATUS ${_summary})

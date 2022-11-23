@@ -36,8 +36,8 @@ inline void fill_box_slopex(msh::accessor<ro, ro> vm,
 }
 
 static scalar_t val_in = 3.14;
-static fvm_check<>::test fvm_apply_args{
-	[](auto...) { return val_in + 1.0; }, "fvm_apply_args"};
+static fvm_check<>::test fvm_apply_args{[](auto...) { return val_in + 1.0; },
+                                        "fvm_apply_args"};
 static fvm_check<>::test fvm_apply_xargs{
 	[](std::size_t, std::size_t, std::size_t i) { return i; },
 	"fvm_apply_extra_args"};

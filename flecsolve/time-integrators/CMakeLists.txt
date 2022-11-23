@@ -16,7 +16,7 @@ flecsi_add_test(explicit
   INPUTS
   test/explicit.cfg
   LIBRARIES flecsolve
-  THREADS 1)
+  PROCS 1)
 
 flecsi_add_test(implicit
   SOURCES
@@ -24,4 +24,4 @@ flecsi_add_test(implicit
   INPUTS
   test/implicit.cfg
   LIBRARIES flecsolve
-  THREADS 1)
+  PROCS 1)

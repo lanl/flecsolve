@@ -33,9 +33,8 @@ enum class vars { pressure, temperature, density };
 
 void init_mesh() {
 	std::vector<std::size_t> extents{32};
-	auto colors = testmesh::distribute(flecsi::processes(), extents);
-	coloring.allocate(colors, extents);
 
+	coloring.allocate(flecsi::processes(), extents);
 	msh.allocate(coloring.get());
 }
 

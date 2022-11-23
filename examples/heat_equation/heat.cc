@@ -35,9 +35,7 @@ void init_mesh(control_policy & cp) {
 
 	std::vector<std::size_t> axis_extents{x_extents.value(), y_extents.value()};
 
-	auto axis_colors = mesh::distribute(flecsi::processes(), axis_extents);
-
-	coloring.allocate(axis_colors, axis_extents);
+	coloring.allocate(flecsi::processes(), axis_extents);
 
 	mesh::grect geometry;
 	geometry[0][0] = 0.0;

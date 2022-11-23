@@ -89,8 +89,7 @@ std::array<vec_fld<msh::faces>, NVAR> diff_coeffd{};
 
 void init_mesh() {
 	std::vector<std::size_t> extents{{NX.value(), NY.value(), 1}};
-	auto colors = msh::distribute(processes(), extents);
-	coloring.allocate(colors, extents);
+	coloring.allocate(processes(), extents);
 
 	msh::gbox geometry;
 	geometry[msh::x_axis][0] = 0.0;

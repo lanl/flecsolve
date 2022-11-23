@@ -20,7 +20,7 @@ flecsi_add_test(fvm_mesh_test
     test/fvm_mesh.cc
   LIBRARIES
     flecsolve
-  THREADS
+  PROCS
     1
   )
 
@@ -28,7 +28,7 @@ flecsi_add_test(boundary_test
   SOURCES
   test/boundaries.cc
   LIBRARIES flecsolve
-  THREADS
+  PROCS
     1
   )
 
@@ -37,7 +37,7 @@ SOURCES
   test/fvm_coeff.cc
 LIBRARIES
   flecsolve
-THREADS
+PROCS
   1
 )
 
@@ -46,6 +46,6 @@ SOURCES
   test/fvm_diffusion.cc
 LIBRARIES
   flecsolve
-THREADS
+PROCS
   1
 )

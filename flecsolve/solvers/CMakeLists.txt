@@ -37,7 +37,7 @@ flecsi_add_test(cg
   ${chem97ztz_SOURCE_DIR}/Chem97ZtZ.mtx
   test/cg.cfg
   LIBRARIES flecsolve
-  THREADS 1)
+  PROCS 1)
 
 flecsi_add_test(cgmulti
   SOURCES
@@ -46,7 +46,7 @@ flecsi_add_test(cgmulti
   ${chem97ztz_SOURCE_DIR}/Chem97ZtZ.mtx
   test/cgmulti.cfg
   LIBRARIES flecsolve
-  THREADS 1)
+  PROCS 1)
 
 flecsi_add_test(gmres
   SOURCES
@@ -55,7 +55,7 @@ flecsi_add_test(gmres
   ${chem97ztz_SOURCE_DIR}/Chem97ZtZ.mtx
   test/gmres.cfg
   LIBRARIES flecsolve
-  THREADS 1)
+  PROCS 1)
 
 flecsi_add_test(bicgstab
   SOURCES
@@ -65,7 +65,7 @@ flecsi_add_test(bicgstab
   ${psmigr_3_SOURCE_DIR}/psmigr_3.mtx
   test/bicgstab.cfg
   LIBRARIES flecsolve
-  THREADS 1)
+  PROCS 1)
 
 flecsi_add_test(nka
   SOURCES
@@ -74,4 +74,4 @@ flecsi_add_test(nka
   ${chem97ztz_SOURCE_DIR}/Chem97ZtZ.mtx
   test/nka.cfg
   LIBRARIES flecsolve
-  THREADS 1)
+  PROCS 1)

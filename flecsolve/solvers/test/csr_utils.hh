@@ -18,8 +18,7 @@ using flecsi::wo;
 inline void
 init_mesh(std::size_t nrows, testmesh::slot & msh, testmesh::cslot & coloring) {
 	std::vector<std::size_t> extents{nrows};
-	auto colors = testmesh::distribute(flecsi::processes(), extents);
-	coloring.allocate(colors, extents);
+	coloring.allocate(flecsi::processes(), extents);
 	msh.allocate(coloring.get());
 }
 

@@ -37,8 +37,7 @@ make_faces_ref(const util::key_array<fld<msh::faces>, msh::axes> & fs) {
 
 inline void init_mesh(const std::vector<std::size_t> & extents) {
 
-	auto colors = msh::distribute(processes(), extents);
-	coloring.allocate(colors, extents);
+	coloring.allocate(flecsi::processes(), extents);
 
 	msh::gbox geometry;
 	geometry[msh::x_axis][0] = 0.0;
