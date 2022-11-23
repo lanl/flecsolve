@@ -14,11 +14,15 @@ endif()
 
 find_package(FleCSI REQUIRED)
 
-set(ENABLE_UNIT_TESTS ON)
+option(ENABLE_UNIT_TESTS "Enable the Unit tests" On)
 set(ENABLE_FLOG ${FleCSI_ENABLE_FLOG})
 set(FLECSI_RUNTIME_MODEL ${FleCSI_RUNTIME_MODEL})
 set(FLECSI_BACKEND ${FleCSI_BACKEND})
 include(FleCSI/unit)
+
+if(ENABLE_UNIT_TESTS)
+  flecsi_enable_testing()
+endif()
 
 include(FleCSI/summary)
 set(ClangFormat_VERSION "8" CACHE STRING "Set the required version
@@ -28,7 +32,6 @@ include(FleCSI/format)
 
 # option to build examples
 option(FLECSOLVE_BUILD_EXAMPLES "Build the examples" OFF)
-mark_as_advanced(FLECSOLVE_BUILD_EXAMPLES)
 
 if(NOT FORMAT_ONLY)
   include(FleCSI/library)
