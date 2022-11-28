@@ -323,7 +323,7 @@ struct fvm_narray
 	template<auto... Axis>
 	static flecsi::util::key_array<double, axes>
 	geom(fvm_narray::accessor<flecsi::rw> sm, const gbox & g, has<Axis...>) {
-		return {set_delta<Axis>(sm, g)...};
+		return {{set_delta<Axis>(sm, g)...}};
 	}
 
 	static void set_geometry(fvm_narray::accessor<flecsi::rw> sm,
