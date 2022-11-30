@@ -130,24 +130,22 @@ struct krylov_parameters_base<true, solver_type, Derived, Ops...>
 
 	template<krylov_oplabel lb>
 	decltype(auto) get_operator() {
-		return base_t::template get_operator<lb>();
-	}
-
-	template<>
-	decltype(auto) get_operator<krylov_oplabel::P>() {
-		auto & factory = base_t::template get_operator_ref<krylov_oplabel::P>();
-		if (!factory.has_solver()) {
-			factory.create(
-				get_workvec(*solver),
-				base_t::template get_operator_ref<krylov_oplabel::A>());
-		}
-		return op::shell([&factory, this](auto & x, auto & y) {
-			return factory.solve(
-				x,
-				y,
-				get_workvec(*solver),
-				base_t::template get_operator_ref<krylov_oplabel::A>());
-		});
+		if constexpr (lb == krylov_oplabel::P) {
+			auto & factory = base_t::template get_operator_ref<krylov_oplabel::P>();
+			if (!factory.has_solver()) {
+				factory.create(
+					get_workvec(*solver),
+					base_t::template get_operator_ref<krylov_oplabel::A>());
+			}
+			return op::shell([&factory, this](auto & x, auto & y) {
+				return factory.solve(
+					x,
+					y,
+					get_workvec(*solver),
+					base_t::template get_operator_ref<krylov_oplabel::A>());
+			});
+		} else
+			return base_t::template get_operator<lb>();
 	}
 
 	auto options() {

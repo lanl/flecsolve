@@ -85,6 +85,32 @@ protected:
 };
 
 enum class krylov_registry { cg, gmres, bicgstab, nka };
+template<krylov_registry v>
+struct krylov_con_types  {};
+template<>
+struct krylov_con_types<krylov_registry::cg> {
+	using settings = cg::settings;
+	using workgen = cg::topo_work<>;
+};
+
+template<>
+struct krylov_con_types<krylov_registry::gmres> {
+	using settings = gmres::settings;
+	using workgen = gmres::topo_work<>;
+};
+
+template<>
+struct krylov_con_types<krylov_registry::bicgstab> {
+	using settings = bicgstab::settings;
+	using workgen = bicgstab::topo_work<>;
+};
+
+template<>
+struct krylov_con_types<krylov_registry::nka> {
+	using settings = nka::settings;
+	using workgen = nka::topo_work<>;
+};
+
 template<class... Ops>
 struct krylov_factory : solver_factory<krylov_factory<Ops...>> {
 
@@ -105,32 +131,6 @@ struct krylov_factory : solver_factory<krylov_factory<Ops...>> {
 
 	krylov_factory(Ops &&... o) : ops{std::forward<Ops>(o)...} {}
 
-	template<registry v>
-	struct con_types {};
-
-	template<>
-	struct con_types<registry::cg> {
-		using settings = cg::settings;
-		using workgen = cg::topo_work<>;
-	};
-
-	template<>
-	struct con_types<registry::gmres> {
-		using settings = gmres::settings;
-		using workgen = gmres::topo_work<>;
-	};
-
-	template<>
-	struct con_types<registry::bicgstab> {
-		using settings = bicgstab::settings;
-		using workgen = bicgstab::topo_work<>;
-	};
-
-	template<>
-	struct con_types<registry::nka> {
-		using settings = nka::settings;
-		using workgen = nka::topo_work<>;
-	};
 	void set_solver_type(registry reg) { solver_type = reg; }
 
 	template<class V, class Op>
@@ -138,22 +138,22 @@ struct krylov_factory : solver_factory<krylov_factory<Ops...>> {
 		if (!parameters) {
 			switch (solver_type) {
 				case registry::cg: {
-					parameters = make_params<con_types<registry::cg>>(
+					parameters = make_params<krylov_con_types<registry::cg>>(
 						v.derived(), make_is(), A.derived());
 					break;
 				}
 				case registry::gmres: {
-					parameters = make_params<con_types<registry::gmres>>(
+					parameters = make_params<krylov_con_types<registry::gmres>>(
 						v.derived(), make_is(), A.derived());
 					break;
 				}
 				case registry::bicgstab: {
-					parameters = make_params<con_types<registry::bicgstab>>(
+					parameters = make_params<krylov_con_types<registry::bicgstab>>(
 						v.derived(), make_is(), A.derived());
 					break;
 				}
 				case registry::nka: {
-					parameters = make_params<con_types<registry::nka>>(
+					parameters = make_params<krylov_con_types<registry::nka>>(
 						v.derived(), make_is(), A.derived());
 				}
 			}
@@ -167,22 +167,22 @@ struct krylov_factory : solver_factory<krylov_factory<Ops...>> {
 		if (!solver_storage) {
 			switch (solver_type) {
 				case registry::cg: {
-					make_storage<con_types<registry::cg>>(
+					make_storage<krylov_con_types<registry::cg>>(
 						v.derived(), make_is(), A.derived());
 					break;
 				}
 				case registry::gmres: {
-					make_storage<con_types<registry::gmres>>(
+					make_storage<krylov_con_types<registry::gmres>>(
 						v.derived(), make_is(), A.derived());
 					break;
 				}
 				case registry::bicgstab: {
-					make_storage<con_types<registry::bicgstab>>(
+					make_storage<krylov_con_types<registry::bicgstab>>(
 						v.derived(), make_is(), A.derived());
 					break;
 				}
 				case registry::nka: {
-					make_storage<con_types<registry::nka>>(
+					make_storage<krylov_con_types<registry::nka>>(
 						v.derived(), make_is(), A.derived());
 				}
 			}
@@ -198,7 +198,7 @@ struct krylov_factory : solver_factory<krylov_factory<Ops...>> {
 
 		switch (solver_type) {
 			case registry::cg: {
-				return solve_impl<con_types<registry::cg>>(x.derived(),
+				return solve_impl<krylov_con_types<registry::cg>>(x.derived(),
 				                                           y.derived(),
 				                                           v.derived(),
 				                                           make_is(),
@@ -206,7 +206,7 @@ struct krylov_factory : solver_factory<krylov_factory<Ops...>> {
 				break;
 			}
 			case registry::gmres: {
-				return solve_impl<con_types<registry::gmres>>(x.derived(),
+				return solve_impl<krylov_con_types<registry::gmres>>(x.derived(),
 				                                              y.derived(),
 				                                              v.derived(),
 				                                              make_is(),
@@ -214,7 +214,7 @@ struct krylov_factory : solver_factory<krylov_factory<Ops...>> {
 				break;
 			}
 			case registry::bicgstab: {
-				return solve_impl<con_types<registry::bicgstab>>(x.derived(),
+				return solve_impl<krylov_con_types<registry::bicgstab>>(x.derived(),
 				                                                 y.derived(),
 				                                                 v.derived(),
 				                                                 make_is(),
@@ -222,7 +222,7 @@ struct krylov_factory : solver_factory<krylov_factory<Ops...>> {
 				break;
 			}
 			case registry::nka: {
-				return solve_impl<con_types<registry::nka>>(x.derived(),
+				return solve_impl<krylov_con_types<registry::nka>>(x.derived(),
 				                                            y.derived(),
 				                                            v.derived(),
 				                                            make_is(),
