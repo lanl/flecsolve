@@ -86,7 +86,7 @@ protected:
 
 enum class krylov_registry { cg, gmres, bicgstab, nka };
 template<krylov_registry v>
-struct krylov_con_types  {};
+struct krylov_con_types {};
 template<>
 struct krylov_con_types<krylov_registry::cg> {
 	using settings = cg::settings;
@@ -148,8 +148,9 @@ struct krylov_factory : solver_factory<krylov_factory<Ops...>> {
 					break;
 				}
 				case registry::bicgstab: {
-					parameters = make_params<krylov_con_types<registry::bicgstab>>(
-						v.derived(), make_is(), A.derived());
+					parameters =
+						make_params<krylov_con_types<registry::bicgstab>>(
+							v.derived(), make_is(), A.derived());
 					break;
 				}
 				case registry::nka: {
@@ -199,34 +200,36 @@ struct krylov_factory : solver_factory<krylov_factory<Ops...>> {
 		switch (solver_type) {
 			case registry::cg: {
 				return solve_impl<krylov_con_types<registry::cg>>(x.derived(),
-				                                           y.derived(),
-				                                           v.derived(),
-				                                           make_is(),
-				                                           A.derived());
+				                                                  y.derived(),
+				                                                  v.derived(),
+				                                                  make_is(),
+				                                                  A.derived());
 				break;
 			}
 			case registry::gmres: {
-				return solve_impl<krylov_con_types<registry::gmres>>(x.derived(),
-				                                              y.derived(),
-				                                              v.derived(),
-				                                              make_is(),
-				                                              A.derived());
+				return solve_impl<krylov_con_types<registry::gmres>>(
+					x.derived(),
+					y.derived(),
+					v.derived(),
+					make_is(),
+					A.derived());
 				break;
 			}
 			case registry::bicgstab: {
-				return solve_impl<krylov_con_types<registry::bicgstab>>(x.derived(),
-				                                                 y.derived(),
-				                                                 v.derived(),
-				                                                 make_is(),
-				                                                 A.derived());
+				return solve_impl<krylov_con_types<registry::bicgstab>>(
+					x.derived(),
+					y.derived(),
+					v.derived(),
+					make_is(),
+					A.derived());
 				break;
 			}
-			case registry::nka: {
+			default: { // case registry::nka: {
 				return solve_impl<krylov_con_types<registry::nka>>(x.derived(),
-				                                            y.derived(),
-				                                            v.derived(),
-				                                            make_is(),
-				                                            A.derived());
+				                                                   y.derived(),
+				                                                   v.derived(),
+				                                                   make_is(),
+				                                                   A.derived());
 			}
 		}
 	}
@@ -362,11 +365,11 @@ struct factory_union : solver_factory<factory_union<Facts...>> {
 	template<class V, class Op>
 	void create_parameters(vec::base<V> & v, op::base<Op> & A) {
 		std::visit(
-			[&](auto reg_value) {
+			[&, this](auto reg_value) {
 				std::apply(
-					[&](auto &... facts) {
+					[&, this](auto &... facts) {
 						(
-							[&](auto & fact) {
+							[&, this](auto & fact) {
 								using RT = std::decay_t<decltype(reg_value)>;
 								if constexpr (std::is_same_v<
 												  RT,
@@ -376,7 +379,7 @@ struct factory_union : solver_factory<factory_union<Facts...>> {
 									fact.set_solver_type(reg_value);
 									fact.create_parameters(v.derived(),
 						                                   A.derived());
-									parameters = fact.get_parameters();
+									this->parameters = fact.get_parameters();
 								}
 							}(facts),
 							...);
