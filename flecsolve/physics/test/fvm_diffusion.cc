@@ -87,7 +87,7 @@ make_volume_operator(const Vec &, scalar_t beta, scalar_t alpha) {
 		flecsolve::multivariable<Vec::var.value>, constant_coeff, voldiff);
 }
 
-static fvm_check<>::test zero_flux{[](auto...) { return 0.0; }, "flux is zero"};
+static fvm_check zero_flux{[](auto...) { return 0.0; }, "flux is zero"};
 
 static inline int source_only(msh::accessor<ro, ro> m,
                               field<scalar_t>::accessor<ro, na> xa,

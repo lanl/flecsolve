@@ -120,36 +120,46 @@ inline void slope_field(msh::accessor<ro, ro> vm,
 template<auto x>
 using fconstant = std::integral_constant<std::decay_t<decltype(x)>, x>;
 
-template<class A = fconstant<msh::x_axis>,
-         class S = fconstant<msh::cells>,
-         class D = fconstant<msh::logical>>
+template<class F, class T, class A, class S, class D>
 struct fvm_check {
-	template<class F, class T>
-	struct test {
-		F f;
-		T name;
-		int operator()(msh::accessor<ro, ro> vm,
-		               field<double>::accessor<ro, na> x) {
-			UNIT (name) {
-				auto xv = vm.mdspan<S::value>(x);
-				auto [kk, jj, ii] =
-					vm.full_range<S::value, A::value, D::value>();
+	F f;
+	T name;
+	fvm_check(F && fun,
+	          T && t,
+	          A = fconstant<msh::x_axis>{},
+	          S = fconstant<msh::cells>{},
+	          D = fconstant<msh::logical>{})
+		: f(std::forward<F>(fun)), name(std::forward<T>(t)) {}
 
-				for (auto k : kk) {
-					for (auto j : jj) {
-						for (auto i : ii) {
-							EXPECT_LT(std::abs(f(k, j, i) - xv[k][j][i]),
-							          DEFAULT_TOL);
-						}
+	int operator()(msh::accessor<ro, ro> vm,
+	               field<double>::accessor<ro, na> x) {
+		UNIT (name) {
+			auto xv = vm.mdspan<S::value>(x);
+			auto [kk, jj, ii] = vm.full_range<S::value, A::value, D::value>();
+
+			for (auto k : kk) {
+				for (auto j : jj) {
+					for (auto i : ii) {
+						EXPECT_LT(std::abs(f(k, j, i) - xv[k][j][i]),
+						          DEFAULT_TOL);
 					}
 				}
-			};
-		}
-	};
-
-	template<class F, class T>
-	test(F &&, T &&) -> test<F, T>;
+			}
+		};
+	}
 };
+
+template<class F,
+         class T,
+         msh::axis A = msh::x_axis,
+         msh::index_space S = msh::cells,
+         msh::domain D = msh::logical>
+fvm_check(F &&,
+          T &&,
+          fconstant<A> = fconstant<A>{},
+          fconstant<S> = fconstant<S>{},
+          fconstant<D> = fconstant<D>{})
+	-> fvm_check<F, T, fconstant<A>, fconstant<S>, fconstant<D>>;
 
 } // namespace physics_testing
 } // namespace flecsolve
