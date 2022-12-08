@@ -26,9 +26,11 @@ struct mesh : flecsi::topo::specialization<flecsi::topo::narray, mesh> {
 	enum boundary { low, high };
 
 	using coord = base::coord;
+	using gcoord = base::gcoord;
 	using colors = base::colors;
 	using hypercube = base::hypercube;
-	using coloring_definition = base::coloring_definition;
+	using axis_definition = base::axis_definition;
+	using index_definition = base::index_definition;
 
 	struct meta_data {
 		double xdelta;
@@ -67,22 +69,26 @@ struct mesh : flecsi::topo::specialization<flecsi::topo::narray, mesh> {
 			else if constexpr (DM == logical) {
 				return B::template size<index_space::vertices,
 				                        A,
-				                        B::domain::logical>();
+				                        base::domain::logical>();
 			}
 			else if (DM == all) {
-				return B::
-					template size<index_space::vertices, A, B::domain::all>();
+				return B::template size<index_space::vertices,
+				                        A,
+				                        base::domain::all>();
 			}
 			else if (DM == global) {
 				return B::template size<index_space::vertices,
 				                        A,
-				                        B::domain::global>();
+				                        base::domain::global>();
 			}
 		}
 
 		template<axis A>
 		FLECSI_INLINE_TARGET std::size_t global_id(std::size_t i) const {
-			return B::template global_id<index_space::vertices, A>(i);
+			return i - B::template logical<mesh::vertices, A, 0>() +
+			       B::template offset<mesh::vertices,
+			                          A,
+			                          base::domain::global>();
 		}
 
 		template<axis A, domain DM = interior>
@@ -103,11 +109,12 @@ struct mesh : flecsi::topo::specialization<flecsi::topo::narray, mesh> {
 			else if constexpr (DM == logical) {
 				return B::template range<index_space::vertices,
 				                         A,
-				                         B::domain::logical>();
+				                         base::domain::logical>();
 			}
 			else if (DM == all) {
-				return B::
-					template range<index_space::vertices, A, B::domain::all>();
+				return B::template range<index_space::vertices,
+				                         A,
+				                         base::domain::all>();
 			}
 		}
 
@@ -119,20 +126,18 @@ struct mesh : flecsi::topo::specialization<flecsi::topo::narray, mesh> {
 
 		template<axis A>
 		double value(std::size_t i) {
-			return (A == x_axis ? xdelta() : ydelta()) *
-			       (B::template offset<index_space::vertices,
-			                           A,
-			                           B::domain::global>() +
-			        i);
+			return (A == x_axis ? xdelta() : ydelta()) * global_id<A>(i);
 		}
 
 		template<axis A, boundary BD>
 		bool is_boundary(std::size_t i) {
 
-			auto const loff = B::
-				template offset<index_space::vertices, A, B::domain::logical>();
-			auto const lsize = B::
-				template size<index_space::vertices, A, B::domain::logical>();
+			auto const loff = B::template offset<index_space::vertices,
+			                                     A,
+			                                     base::domain::logical>();
+			auto const lsize = B::template size<index_space::vertices,
+			                                    A,
+			                                    base::domain::logical>();
 			const bool l = B::template is_low<index_space::vertices, A>();
 			const bool h = B::template is_high<index_space::vertices, A>();
 
@@ -194,29 +199,18 @@ struct mesh : flecsi::topo::specialization<flecsi::topo::narray, mesh> {
 		}
 	};
 
-	static auto distribute(std::size_t np, std::vector<std::size_t> indices) {
-		return flecsi::topo::narray_utils::distribute(np, indices);
-	}
+	static coloring color(std::size_t num_colors, gcoord axis_extents) {
+		index_definition idef;
+		idef.axes =
+			flecsi::topo::narray_utils::make_axes(num_colors, axis_extents);
+		for (auto & a : idef.axes) {
+			a.hdepth = 1;
+		}
 
-	static coloring color(colors axis_colors, coord axis_extents) {
-		coord hdepths{1, 1};
-		coord bdepths{0, 0};
-		std::vector<bool> periodic{false, false};
-		coloring_definition cd{
-			axis_colors, axis_extents, hdepths, bdepths, periodic};
-
-		auto [nc, ne, pcs, partitions] =
-			flecsi::topo::narray_utils::color(cd, MPI_COMM_WORLD);
-
-		flog_assert(nc == flecsi::processes(),
+		flog_assert(idef.colors() == flecsi::processes(),
 		            "current implementation is restricted to 1-to-1 mapping");
 
-		coloring c;
-		c.comm = MPI_COMM_WORLD;
-		c.colors = nc;
-		c.idx_colorings.emplace_back(std::move(pcs));
-		c.partitions.emplace_back(std::move(partitions));
-		return c;
+		return {MPI_COMM_WORLD, {idef}};
 	}
 
 	using grect = std::array<std::array<double, 2>, 2>;

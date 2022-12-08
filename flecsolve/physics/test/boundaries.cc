@@ -115,10 +115,10 @@ template<class Vec>
 constexpr auto make_bcs(const Vec &) {
 	using namespace flecsolve::physics;
 	auto bndry_xlo =
-		bc<dirichlet<Vec>, msh::x_axis, msh::boundary_low>::create({-1.0});
+		bc<dirichlet<Vec>, msh::x_axis, msh::boundary_low>::create({{-1.0}});
 
 	auto bndry_xhi =
-		bc<dirichlet<Vec>, msh::x_axis, msh::boundary_high>::create({1.0});
+		bc<dirichlet<Vec>, msh::x_axis, msh::boundary_high>::create({{1.0}});
 
 	auto bndry_ylo =
 		bc<neumann<Vec>, msh::y_axis, msh::boundary_low>::create({});

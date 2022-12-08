@@ -138,9 +138,11 @@ struct fvm_narray
 	using axes = has<x_axis, y_axis, z_axis>;
 
 	using coord = base::coord;
+	using gcoord = base::gcoord;
 	using colors = base::colors;
 	using hypercube = base::hypercube;
-	using coloring_definition = base::coloring_definition;
+	using axis_definition = base::axis_definition;
+	using index_definition = base::index_definition;
 
 	static constexpr std::size_t dimension = 3;
 
@@ -163,26 +165,26 @@ struct fvm_narray
 		template<domain DM>
 		static constexpr decltype(auto) NAD() {
 			if constexpr (DM == logical)
-				return B::domain::logical;
+				return base::domain::logical;
 			else if (DM == extended)
-				return B::domain::extended;
+				return base::domain::extended;
 			else if (DM == all)
-				return B::domain::all;
+				return base::domain::all;
 			else if (DM == boundary_low)
-				return B::domain::boundary_low;
+				return base::domain::boundary_low;
 			else if (DM == boundary_high)
-				return B::domain::boundary_high;
+				return base::domain::boundary_high;
 			else if (DM == ghost_low)
-				return B::domain::ghost_low;
+				return base::domain::ghost_low;
 			else if (DM == ghost_high)
-				return B::domain::ghost_high;
+				return base::domain::ghost_high;
 			else if (DM == global)
-				return B::domain::global;
+				return base::domain::global;
 		}
 
 		template<index_space IS, axis A>
 		std::size_t extents() const {
-			return B::template extents<IS, A>();
+			return B::template extent<IS, A>();
 		}
 		template<index_space IS, axis A, domain DM = logical>
 		std::size_t size() const {
@@ -221,7 +223,8 @@ struct fvm_narray
 
 		template<axis A, index_space IS = cells>
 		std::size_t global_id(std::size_t i) const {
-			return B::template global_id<IS, A>(i);
+			return i - B::template logical<IS, A, 0>() +
+			       B::template offset<IS, A, base::domain::global>();
 		}
 
 		template<axis A>
@@ -256,11 +259,12 @@ struct fvm_narray
 
 		template<axis A>
 		double value(std::size_t i) {
-			return (dx<A>() * (static_cast<double>(
-								  global_id<A>(i) +
-								  B::template size<index_space::cells,
-			                                       A,
-			                                       B::domain::ghost_low>())));
+			return (dx<A>() *
+			        (static_cast<double>(
+						global_id<A>(i) +
+						B::template size<index_space::cells,
+			                             A,
+			                             base::domain::ghost_low>())));
 		}
 
 		double volume() { return product(axes()); }
@@ -278,32 +282,32 @@ struct fvm_narray
 
 	}; // interface
 
-	static auto distribute(std::size_t np, std::vector<std::size_t> indices) {
-		return flecsi::topo::narray_utils::distribute(np, indices);
-	}
+	static coloring color(std::size_t num_colors, gcoord axis_extents) {
+		index_definition idef;
+		idef.axes =
+			flecsi::topo::narray_utils::make_axes(num_colors, axis_extents);
+		for (auto & a : idef.axes) {
+			a.hdepth = 1;
+			a.bdepth = 1;
+		}
 
-	static coloring color(colors axis_colors, coord axis_extents) {
-		coord hdepths{1, 1, 1}; //(dimension, 1);
-		coord bdepths{1, 1, 1}; //(dimension, 1);
-		std::vector<bool> periodic{false, false, false}; //(dimension, false);
-		std::vector<bool> aux_ex{true, true, true}; //(dimension, true);
-		coloring_definition cd{
-			axis_colors, axis_extents, hdepths, bdepths, periodic};
+		flog_assert(idef.colors() == flecsi::processes(),
+		            "current implementation is restricted to 1-to-1 mapping");
 
-		auto [nc, ne, pcs, partitions] =
-			flecsi::topo::narray_utils::color(cd, MPI_COMM_WORLD);
+		index_definition idef_faces;
+		idef_faces.axes =
+			flecsi::topo::narray_utils::make_axes(num_colors, axis_extents);
 
-		auto [fcs, fpartitions] = flecsi::topo::narray_utils::color_auxiliary(
-			nc, pcs, aux_ex, MPI_COMM_WORLD);
+		for (auto & a : idef_faces.axes) {
+			a.hdepth = 1;
+			a.bdepth = 1;
+			a.auxiliary = true;
+		}
 
-		coloring c;
-		c.comm = MPI_COMM_WORLD;
-		c.colors = nc;
-		c.idx_colorings.emplace_back(std::move(pcs));
-		c.partitions.emplace_back(std::move(partitions));
-		c.idx_colorings.emplace_back(std::move(fcs));
-		c.partitions.emplace_back(std::move(fpartitions));
-		return c;
+		flog_assert(idef_faces.colors() == flecsi::processes(),
+		            "current implementation is restricted to 1-to-1 mapping");
+
+		return {MPI_COMM_WORLD, {idef, idef_faces}};
 	}
 	using gbox = flecsi::util::key_array<std::array<double, 2>, axes>;
 
@@ -319,7 +323,7 @@ struct fvm_narray
 	template<auto... Axis>
 	static flecsi::util::key_array<double, axes>
 	geom(fvm_narray::accessor<flecsi::rw> sm, const gbox & g, has<Axis...>) {
-		return {set_delta<Axis>(sm, g)...};
+		return {{set_delta<Axis>(sm, g)...}};
 	}
 
 	static void set_geometry(fvm_narray::accessor<flecsi::rw> sm,

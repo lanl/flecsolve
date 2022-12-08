@@ -14,21 +14,21 @@ set(vectors_SOURCES
   util.cc
   PARENT_SCOPE)
 
-add_unit(flecsi_vector
+flecsi_add_test(flecsi_vector
   SOURCES
   test/flecsi_vector.cc
   LIBRARIES flecsolve
-  THREADS 4)
+  PROCS 4)
 
-add_unit(flecsi_multivector
+flecsi_add_test(flecsi_multivector
   SOURCES
   test/flecsi_multivector.cc
   LIBRARIES flecsolve
-  THREADS 4)
+  PROCS 4)
 
 if (USE_PETSC)
-add_unit(petsc_interop
+flecsi_add_test(petsc_interop
   SOURCES
   test/petsc.cc
-  THREADS 4)
+  PROCS 4)
 endif()

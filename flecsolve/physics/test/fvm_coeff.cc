@@ -39,12 +39,12 @@ constexpr auto make_bcs(const Vec &) {
 	using namespace flecsolve::physics;
 
 	return std::make_tuple(
-		bc<dirichlet<Vec>, msh::x_axis, msh::boundary_low>::create({1.0}),
-		bc<dirichlet<Vec>, msh::x_axis, msh::boundary_high>::create({1.0}),
-		bc<dirichlet<Vec>, msh::y_axis, msh::boundary_low>::create({1.0}),
-		bc<dirichlet<Vec>, msh::y_axis, msh::boundary_high>::create({1.0}),
-		bc<dirichlet<Vec>, msh::z_axis, msh::boundary_low>::create({1.0}),
-		bc<dirichlet<Vec>, msh::z_axis, msh::boundary_high>::create({1.0}));
+		bc<dirichlet<Vec>, msh::x_axis, msh::boundary_low>::create({{1.0}}),
+		bc<dirichlet<Vec>, msh::x_axis, msh::boundary_high>::create({{1.0}}),
+		bc<dirichlet<Vec>, msh::y_axis, msh::boundary_low>::create({{1.0}}),
+		bc<dirichlet<Vec>, msh::y_axis, msh::boundary_high>::create({{1.0}}),
+		bc<dirichlet<Vec>, msh::z_axis, msh::boundary_low>::create({{1.0}}),
+		bc<dirichlet<Vec>, msh::z_axis, msh::boundary_high>::create({{1.0}}));
 }
 
 static fvm_check<fconstant<msh::x_axis>, fconstant<msh::faces>>::test

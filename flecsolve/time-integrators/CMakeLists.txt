@@ -10,18 +10,18 @@ set(time-integrators_SOURCES
   bdf.cc
   PARENT_SCOPE)
 
-add_unit(explicit
+flecsi_add_test(explicit
   SOURCES
   test/explicit.cc
   INPUTS
   test/explicit.cfg
   LIBRARIES flecsolve
-  THREADS 1)
+  PROCS 1)
 
-add_unit(implicit
+flecsi_add_test(implicit
   SOURCES
   test/implicit.cc
   INPUTS
   test/implicit.cfg
   LIBRARIES flecsolve
-  THREADS 1)
+  PROCS 1)

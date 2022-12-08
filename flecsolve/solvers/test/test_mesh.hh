@@ -10,9 +10,11 @@ struct testmesh : flecsi::topo::specialization<flecsi::topo::narray, testmesh> {
 	using axes = has<x_axis>;
 	enum boundary { low, high };
 	using coord = base::coord;
+	using gcoord = base::gcoord;
 	using colors = base::colors;
 	using hypercube = base::hypercube;
-	using coloring_definition = base::coloring_definition;
+	using axis_definition = base::axis_definition;
+	using index_definition = base::index_definition;
 
 	struct meta_data {};
 
@@ -54,26 +56,18 @@ struct testmesh : flecsi::topo::specialization<flecsi::topo::narray, testmesh> {
 		}
 	};
 
-	static auto distribute(std::size_t np, std::vector<std::size_t> indices) {
-		return flecsi::topo::narray_utils::distribute(np, indices);
-	}
+	static coloring color(std::size_t num_colors, gcoord axis_extents) {
+		index_definition idef;
+		idef.axes =
+			flecsi::topo::narray_utils::make_axes(num_colors, axis_extents);
+		for (auto & a : idef.axes) {
+			a.hdepth = 1;
+		}
 
-	static coloring color(colors axis_colors, coord axis_extents) {
-		coord hdepths{1};
-		coord bdepths{0};
-		std::vector<bool> periodic{false};
-		coloring_definition cd{
-			axis_colors, axis_extents, hdepths, bdepths, periodic};
+		flog_assert(idef.colors() == flecsi::processes(),
+		            "current implementation is restricted to 1-to-1 mapping");
 
-		auto [nc, ne, pcs, partitions] =
-			flecsi::topo::narray_utils::color(cd, MPI_COMM_WORLD);
-
-		coloring c;
-		c.comm = MPI_COMM_WORLD;
-		c.colors = nc;
-		c.idx_colorings.emplace_back(std::move(pcs));
-		c.partitions.emplace_back(std::move(partitions));
-		return c;
+		return {MPI_COMM_WORLD, {idef}};
 	}
 
 	static void initialize(flecsi::data::topology_slot<testmesh> &,

@@ -4,6 +4,5 @@ if(NOT TARGET flecsolve AND NOT flecsolve_BINARY_DIR)
   include("${CMAKE_CURRENT_LIST_DIR}/flecsolveTargets.cmake")
 endif()
 
-find_package(LANLCMakeModules REQUIRED)
 find_package(FleCSI REQUIRED)
 

@@ -34,10 +34,8 @@ struct mesh : vector<data::mesh<Topo, Space, Scalar>,
 };
 
 template<auto V, class Slot, class Ref>
-mesh(variable_t<V>, Slot &, Ref) -> mesh<V,
-                                         typename Ref::Base::Topology,
-                                         Ref::space,
-                                         typename Ref::value_type>;
+mesh(variable_t<V>, Slot &, Ref)
+	-> mesh<V, typename Ref::Topology, Ref::space, typename Ref::value_type>;
 
 template<class Topo, typename Topo::index_space Space, class Scalar>
 struct mesh<anon_var::anonymous, Topo, Space, Scalar>
@@ -67,7 +65,7 @@ struct mesh<anon_var::anonymous, Topo, Space, Scalar>
 
 template<class Slot, class Ref>
 mesh(Slot &, Ref) -> mesh<anon_var::anonymous,
-                          typename Ref::Base::Topology,
+                          typename Ref::Topology,
                           Ref::space,
                           typename Ref::value_type>;
 

@@ -32,13 +32,12 @@ constexpr scalar_t DEFAULT_TOL = 1.0E-8;
 inline auto
 make_faces_ref(const util::key_array<fld<msh::faces>, msh::axes> & fs) {
 	return util::key_array<fldr<msh::faces>, msh::axes>{
-		fs[msh::x_axis](m), fs[msh::y_axis](m), fs[msh::z_axis](m)};
+		{fs[msh::x_axis](m), fs[msh::y_axis](m), fs[msh::z_axis](m)}};
 }
 
 inline void init_mesh(const std::vector<std::size_t> & extents) {
 
-	auto colors = msh::distribute(processes(), extents);
-	coloring.allocate(colors, extents);
+	coloring.allocate(flecsi::processes(), extents);
 
 	msh::gbox geometry;
 	geometry[msh::x_axis][0] = 0.0;
