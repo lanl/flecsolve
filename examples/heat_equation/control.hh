@@ -17,7 +17,7 @@ inline const char * operator*(cp control_point) {
 			return "initialize";
 		case cp::advance:
 			return "advance";
-		case cp::finalize:
+		default: // case cp::finalize:
 			return "finalize";
 	}
 }

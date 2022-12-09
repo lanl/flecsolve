@@ -2,9 +2,9 @@ set(solvers_HEADERS
   bicgstab.hh
   cg.hh
   gmres.hh
-  krylov_interface.hh
+  krylov_operator.hh
+  krylov_parameters.hh
   nka.hh
-  shell.hh
   solver_settings.hh
   traits.hh
   factory.hh
@@ -73,5 +73,6 @@ flecsi_add_test(nka
   INPUTS
   ${chem97ztz_SOURCE_DIR}/Chem97ZtZ.mtx
   test/nka.cfg
+  test/nka-factory.cfg
   LIBRARIES flecsolve
   PROCS 1)

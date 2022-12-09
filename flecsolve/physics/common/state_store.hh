@@ -18,9 +18,9 @@ namespace common {
 
 template<class K, class Vec, auto Space, std::size_t Len, std::size_t tag>
 struct topo_state_store {
-	using topo_t = topo_t<Vec>;
-	using scalar_t = scalar_t<Vec>;
-	using topo_slot_t = topo_slot_t<Vec>;
+	using topo_t = physics::topo_t<Vec>;
+	using scalar_t = physics::scalar_t<Vec>;
+	using topo_slot_t = physics::topo_slot_t<Vec>;
 
 	using fd = field_def<Vec, Space>;
 	// ypename flecsi::field<scalar_t>::template definition<topo_t, Space>;

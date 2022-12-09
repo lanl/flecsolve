@@ -1,5 +1,6 @@
 set(time-integrators_HEADERS
   base.hh
+  bdf_parameters.hh
   bdf.hh
   parameters.hh
   rk23.hh
@@ -8,6 +9,7 @@ set(time-integrators_HEADERS
 
 set(time-integrators_SOURCES
   bdf.cc
+  bdf_parameters.cc
   PARENT_SCOPE)
 
 flecsi_add_test(explicit

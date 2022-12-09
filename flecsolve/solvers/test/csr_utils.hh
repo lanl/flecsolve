@@ -4,6 +4,8 @@
 #include <iostream>
 
 #include "flecsolve/vectors/variable.hh"
+#include "flecsolve/vectors/base.hh"
+#include "flecsolve/operators/base.hh"
 
 #include "test_mesh.hh"
 
@@ -181,38 +183,36 @@ void spmv(const CSR & mat,
 }
 
 template<class CSR>
-struct csr_op {
+struct csr_op : op::base<csr_op<CSR>> {
 
-	template<class domain_vec, class range_vec>
-	void apply(const domain_vec & x, range_vec & y) const {
+	csr_op(CSR && m) : mat(std::forward<CSR>(m)) {}
+
+	template<class D, class R>
+	void apply(const vec::base<D> & x, vec::base<R> & y) const {
 		flecsi::execute<spmv<CSR>, flecsi::mpi>(
 			mat, x.data.topo(), x.data.ref(), y.data.ref());
 	}
 
-	template<class domain_vec, class range_vec>
-	void
-	residual(const domain_vec & b, const range_vec & x, range_vec & r) const {
-		apply(x, r);
-		r.subtract(b, r);
+	auto Dinv() {
+		csr<> out{mat.nrows, mat.nrows};
+
+		for (std::size_t i = 0; i < mat.nrows; i++) {
+			for (std::size_t off = mat.rowptr[i]; off < mat.rowptr[i + 1];
+			     off++) {
+				if (mat.colind[off] == i) {
+					out.values[i] = 1.0 / mat.values[off];
+					out.colind[i] = i;
+				}
+			}
+			out.rowptr[i + 1] = i + 1;
+		}
+
+		return csr_op{std::move(out)};
 	}
-
-	template<auto tag, class T>
-	auto get_parameters(const T &) const {
-		return nullptr;
-	}
-
-	auto & get_operator() { return *this; }
-	const auto & get_operator() const { return *this; }
-
-	template<class T>
-	void reset(const T &) const {}
 
 	CSR mat;
-
-	static constexpr auto input_var = variable<anon_var::anonymous>;
-	static constexpr auto output_var = variable<anon_var::anonymous>;
 };
 template<class CSR>
-csr_op(CSR) -> csr_op<CSR>;
+csr_op(CSR &&) -> csr_op<CSR>;
 
 }

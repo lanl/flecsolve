@@ -1,7 +1,7 @@
 #ifndef FLECSI_LINALG_VECTORS_MESH_H
 #define FLECSI_LINALG_VECTORS_MESH_H
 
-#include "vector.hh"
+#include "base.hh"
 #include "variable.hh"
 #include "operations/mesh.hh"
 #include "data/mesh.hh"
@@ -9,12 +9,8 @@
 namespace flecsolve::vec {
 
 template<auto V, class Topo, typename Topo::index_space Space, class Scalar>
-struct mesh : vector<data::mesh<Topo, Space, Scalar>,
-                     ops::mesh<Topo, Space, Scalar>,
-                     V> {
-	using base_t = vector<data::mesh<Topo, Space, Scalar>,
-	                      ops::mesh<Topo, Space, Scalar>,
-	                      V>;
+struct mesh : base<mesh<V, Topo, Space, Scalar>> {
+	using base_t = base<mesh<V, Topo, Space, Scalar>>;
 
 	template<class Slot, class Ref>
 	mesh(variable_t<V>, Slot & topo, Ref ref)
@@ -39,12 +35,8 @@ mesh(variable_t<V>, Slot &, Ref)
 
 template<class Topo, typename Topo::index_space Space, class Scalar>
 struct mesh<anon_var::anonymous, Topo, Space, Scalar>
-	: vector<data::mesh<Topo, Space, Scalar>,
-             ops::mesh<Topo, Space, Scalar>,
-             anon_var::anonymous> {
-	using base_t = vector<data::mesh<Topo, Space, Scalar>,
-	                      ops::mesh<Topo, Space, Scalar>,
-	                      anon_var::anonymous>;
+	: base<mesh<anon_var::anonymous, Topo, Space, Scalar>> {
+	using base_t = base<mesh<anon_var::anonymous, Topo, Space, Scalar>>;
 
 	template<class Slot, class Ref>
 	mesh(Slot & topo, Ref ref)
@@ -68,7 +60,14 @@ mesh(Slot &, Ref) -> mesh<anon_var::anonymous,
                           typename Ref::Topology,
                           Ref::space,
                           typename Ref::value_type>;
-
 }
 
+namespace flecsolve {
+template<auto V, class Topo, typename Topo::index_space Space, class Scalar>
+struct traits<vec::mesh<V, Topo, Space, Scalar>> {
+	static constexpr auto var = variable<V>;
+	using data_t = vec::data::mesh<Topo, Space, Scalar>;
+	using ops_t = vec::ops::mesh<Topo, Space, Scalar>;
+};
+}
 #endif

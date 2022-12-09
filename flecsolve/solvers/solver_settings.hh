@@ -7,13 +7,9 @@
 #include <boost/program_options/options_description.hpp>
 
 #include "flecsolve/vectors/multi.hh"
-#include "shell.hh"
 
 namespace flecsolve {
 
-namespace op {
-enum class label { jacobian };
-}
 namespace po = boost::program_options;
 
 struct solver_settings {
@@ -35,6 +31,8 @@ struct solver_settings {
 	float rtol;
 	float atol;
 	bool use_zero_guess;
+
+	const std::string & get_prefix() const { return prefix; }
 
 protected:
 	std::string prefix;
@@ -134,5 +132,5 @@ protected:
 	}
 };
 
-} // namespace flecsolve
+}
 #endif

@@ -34,6 +34,15 @@ constexpr bool operator!=(const variable_t<V0> &, const variable_t<V1> &) {
 template<auto V>
 inline variable_t<V> variable{};
 
+template<class T>
+struct is_variable : std::false_type {};
+
+template<auto V>
+struct is_variable<variable_t<V>> : std::true_type {};
+
+template<class T>
+inline constexpr bool is_variable_v = is_variable<T>::value;
+
 template<auto... Vs>
 struct multivariable_t {};
 
