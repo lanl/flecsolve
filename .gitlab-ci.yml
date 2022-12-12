@@ -293,4 +293,3 @@ openmpi-mpi-clang:
     C_COMPILER: clang
     C_FLAGS: ${CXX_FLAGS}
     CMAKE_OPTIONS: ''
-
