@@ -7,8 +7,8 @@
 #include "flecsolve/vectors/mesh.hh"
 #include "flecsolve/solvers/gmres.hh"
 #include "flecsolve/util/config.hh"
-
-#include "csr_utils.hh"
+#include "flecsolve/matrices/io/matrix_market.hh"
+#include "flecsolve/util/test/mesh.hh"
 
 namespace flecsolve {
 
@@ -53,14 +53,14 @@ struct diagnostic {
 
 int gmres_test() {
 	UNIT () {
-		auto mat = read_mm("Chem97ZtZ.mtx");
+		auto matrix = mat::io::matrix_market<>::read("Chem97ZtZ.mtx").tocsr();
 
 		double cond = 2.472189e+02;
 		double cfact = (cond * cond - 1) / (cond * cond);
 
 		auto & msh = mshs[0];
-		init_mesh(mat.nrows, msh, colorings[0]);
-		csr_op A{std::move(mat)};
+		init_mesh(matrix.rows(), msh, colorings[0]);
+		csr_op A{std::move(matrix)};
 		auto Dinv = A.Dinv();
 
 		vec::mesh x(msh, xd(msh)), b(msh, bd(msh));

@@ -22,6 +22,8 @@ struct base {
 
 	static constexpr std::size_t num_components = 1;
 
+	base() {}
+
 	template<class D>
 	base(D && d) : data(std::forward<D>(d)) {}
 

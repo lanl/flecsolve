@@ -7,8 +7,9 @@
 #include "flecsolve/vectors/mesh.hh"
 #include "flecsolve/solvers/bicgstab.hh"
 #include "flecsolve/util/config.hh"
+#include "flecsolve/matrices/io/matrix_market.hh"
 
-#include "csr_utils.hh"
+#include "flecsolve/util/test/mesh.hh"
 
 namespace flecsolve {
 
@@ -30,13 +31,13 @@ int driver() {
 
 		std::size_t i = 0;
 		for (const auto & cs : cases) {
-			auto mat = read_mm(std::get<0>(cs));
+			auto mtx = mat::io::matrix_market<>::read(std::get<0>(cs)).tocsr();
 
 			auto & msh = mshs[i];
 
-			init_mesh(mat.nrows, msh, colorings[i]);
+			init_mesh(mtx.rows(), msh, colorings[i]);
 
-			csr_op A{std::move(mat)};
+			csr_op A{std::move(mtx)};
 
 			vec::mesh x(msh, xd(msh)), b(msh, bd(msh));
 			b.set_random(0);

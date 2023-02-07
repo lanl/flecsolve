@@ -33,5 +33,14 @@ struct num_traits<std::complex<T>> {
 	static constexpr bool is_complex = true;
 };
 
+template<class Derived>
+struct with_derived {
+	Derived & derived() { return static_cast<Derived &>(*this); }
+
+	const Derived & derived() const {
+		return static_cast<const Derived &>(*this);
+	}
+};
+
 }
 #endif

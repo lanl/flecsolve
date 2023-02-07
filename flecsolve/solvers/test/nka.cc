@@ -10,8 +10,8 @@
 #include "flecsolve/solvers/cg.hh"
 #include "flecsolve/solvers/nka.hh"
 #include "flecsolve/solvers/factory.hh"
-
-#include "csr_utils.hh"
+#include "flecsolve/matrices/io/matrix_market.hh"
+#include "flecsolve/util/test/mesh.hh"
 
 namespace flecsolve {
 
@@ -45,7 +45,7 @@ struct simple_factory : solver_factory<simple_factory> {
 			dinv->apply(x, y);
 	}
 
-	std::optional<csr_op<csr<>>> dinv;
+	std::optional<csr_op> dinv;
 	registry solver_type;
 };
 
@@ -65,10 +65,10 @@ std::istream & operator>>(std::istream & in, simple_factory::registry & reg) {
 
 int nkatest() {
 	UNIT () {
-		auto mat = read_mm("Chem97ZtZ.mtx");
-		init_mesh(mat.nrows, msh, coloring);
+		auto mtx = mat::io::matrix_market<>::read("Chem97ZtZ.mtx").tocsr();
+		init_mesh(mtx.rows(), msh, coloring);
 
-		csr_op A{std::move(mat)};
+		csr_op A{std::move(mtx)};
 		vec::mesh x(msh, xd(msh)), b(msh, bd(msh));
 		{
 			b.set_scalar(1.);
