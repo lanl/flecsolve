@@ -4,7 +4,6 @@ set(vectors_HEADERS
   multi.hh
   util.hh
   variable.hh
-  vector.hh
   base.hh
   data/mesh.hh
   operations/mesh.hh
