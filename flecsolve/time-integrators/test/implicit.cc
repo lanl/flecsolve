@@ -135,5 +135,5 @@ int bdftest() {
 	};
 }
 
-flecsi::unit::driver<bdftest> driver;
+flecsi::util::unit::driver<bdftest> driver;
 }

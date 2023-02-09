@@ -94,5 +94,5 @@ int extest() {
 	};
 }
 
-flecsi::unit::driver<extest> driver;
+flecsi::util::unit::driver<extest> driver;
 }

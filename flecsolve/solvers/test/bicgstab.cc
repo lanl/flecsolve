@@ -56,6 +56,6 @@ int driver() {
 	};
 }
 
-flecsi::unit::driver<driver> drv;
+flecsi::util::unit::driver<driver> drv;
 
 }

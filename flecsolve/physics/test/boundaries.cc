@@ -154,7 +154,7 @@ int boundary_test() {
 	};
 }
 
-unit::driver<boundary_test> driver;
+util::unit::driver<boundary_test> driver;
 
 } // namespace physics_testing
 } // namespace flecsolve

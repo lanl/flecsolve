@@ -202,7 +202,7 @@ int fvm_diffusion_test() {
 	};
 }
 
-unit::driver<fvm_diffusion_test> driver;
+util::unit::driver<fvm_diffusion_test> driver;
 
 } // namespace physics_testing
 } // namespace flecsolve

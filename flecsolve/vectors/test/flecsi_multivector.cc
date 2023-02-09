@@ -243,6 +243,6 @@ int vectest() {
 	};
 }
 
-flecsi::unit::driver<vectest> driver;
+flecsi::util::unit::driver<vectest> driver;
 
 }

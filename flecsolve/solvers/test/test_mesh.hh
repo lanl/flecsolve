@@ -5,18 +5,20 @@ namespace flecsolve {
 struct testmesh : flecsi::topo::specialization<flecsi::topo::narray, testmesh> {
 	enum index_space { cells };
 	using index_spaces = has<cells>;
-	enum domain { logical, all, global };
+	//enum domain { logical, all, global };
 	enum axis { x_axis };
 	using axes = has<x_axis>;
-	enum boundary { low, high };
+	//enum boundary { low, high };
 	using coord = base::coord;
 	using gcoord = base::gcoord;
 	using colors = base::colors;
 	using hypercube = base::hypercube;
 	using axis_definition = base::axis_definition;
 	using index_definition = base::index_definition;
+	using domain = base::domain;
 
-	struct meta_data {};
+	struct meta_data {
+	};
 
 	static constexpr std::size_t dimension = 1;
 
@@ -25,21 +27,23 @@ struct testmesh : flecsi::topo::specialization<flecsi::topo::narray, testmesh> {
 	template<class B>
 	struct interface : B {
 
-		template<axis A, domain DM = logical>
+		template<axis A, domain DM = domain::logical>
 		std::size_t size() {
-			if constexpr (DM == logical) {
-				return B::
-					template size<index_space::cells, A, B::domain::logical>();
-			}
-			else if (DM == all) {
-				return B::
-					template size<index_space::cells, A, B::domain::all>();
-			}
-			else if (DM == global) {
-				return B::
-					template size<index_space::cells, A, B::domain::global>();
-			}
+			return B::template size<index_space::cells, A, DM>();
 		}
+		// 	if constexpr (DM == domain::logical) {
+		// 		return B::
+		// 			template size<index_space::cells, A, domain::logical>();
+		// 	}
+		// 	else if (DM == domain::all) {
+		// 		return B::
+		// 			template size<index_space::cells, A, domain::all>();
+		// 	}
+		// 	else if (DM == domain::global) {
+		// 		return B::
+		// 			template size<index_space::cells, A, domain::global>();
+		// 	}
+		// }
 
 		std::size_t global_id(std::size_t i) const {
 			return B::template global_id<index_space::cells, testmesh::x_axis>(
@@ -48,8 +52,8 @@ struct testmesh : flecsi::topo::specialization<flecsi::topo::narray, testmesh> {
 
 		template<index_space Space>
 		auto dofs() {
-			const std::size_t start = B::template logical<Space, x_axis, 0>();
-			const std::size_t end = B::template logical<Space, x_axis, 1>();
+			const std::size_t start = B::template offset<Space, x_axis, domain::logical>();
+			const std::size_t end = B::template offset<Space, x_axis, domain::boundary_high>();
 
 			return flecsi::topo::make_ids<Space>(
 				flecsi::util::iota_view<flecsi::util::id>(start, end));

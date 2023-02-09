@@ -107,7 +107,7 @@ int fvm_coeff_test() {
 	};
 }
 
-unit::driver<fvm_coeff_test> driver;
+util::unit::driver<fvm_coeff_test> driver;
 
 } // namespace physics_testing
 } // namespace flecsolve

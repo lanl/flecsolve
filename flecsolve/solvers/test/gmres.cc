@@ -118,6 +118,6 @@ int gmres_test() {
 	return 0;
 }
 
-flecsi::unit::driver<gmres_test> driver;
+flecsi::util::unit::driver<gmres_test> driver;
 
 }

@@ -182,10 +182,6 @@ struct fvm_narray
 				return base::domain::global;
 		}
 
-		template<index_space IS, axis A>
-		std::size_t extents() const {
-			return B::template extent<IS, A>();
-		}
 		template<index_space IS, axis A, domain DM = logical>
 		std::size_t size() const {
 			return B::template size<IS, A, NAD<DM>()>();
@@ -221,10 +217,10 @@ struct fvm_narray
 			}
 		}
 
-		template<axis A, index_space IS = cells>
-		std::size_t global_id(std::size_t i) const {
-			return i - B::template logical<IS, A, 0>() +
-			       B::template offset<IS, A, base::domain::global>();
+		template<axis A, index_space S = cells>
+		FLECSI_INLINE_TARGET std::size_t global_id(std::size_t i) const {
+			return i - B::template offset<S, A, base::domain::logical>() +
+			       B::template offset<S, A, base::domain::global>();
 		}
 
 		template<axis A>
@@ -239,9 +235,9 @@ struct fvm_narray
 			                               range<cells, y_axis, logical>(),
 			                               range<cells, z_axis, logical>());
 			auto strides = utils::make_array(
-				extents<cells, x_axis>() / extents<cells, x_axis>(),
-				extents<cells, x_axis>(),
-				extents<cells, x_axis>() * extents<cells, y_axis>());
+				size<cells, x_axis>() / size<cells, x_axis>(),
+				size<cells, x_axis>(),
+				size<cells, x_axis>() * size<cells, y_axis>());
 
 			return flecsi::util::transform_view(
 				flecsi::util::iota_view<flecsi::util::id>(
@@ -254,7 +250,7 @@ struct fvm_narray
 
 		template<axis A>
 		double dx() {
-			return (*(this->policy_meta_)).delta[A];
+			return this->policy_meta().delta[A];
 		}
 
 		template<axis A>
@@ -280,7 +276,23 @@ struct fvm_narray
 			return (dx<As>() * ... * 1.0);
 		}
 
+		template<class Box, axis... Ax>
+		constexpr flecsi::util::key_array<double, axes>
+		box_geom(const Box & box, has<Ax...>) {
+			return {std::abs(box[Ax][1] - box[Ax][0]) /
+			        (size<cells, Ax, domain::all>() - 1)...};
+		}
+
+		template<class Box>
+		constexpr auto set_geom(const Box & box) {
+			this->policy_meta() = {box_geom(box, axes())};
+		}
+
 	}; // interface
+
+	static auto distribute(std::size_t np, std::vector<std::size_t> indices) {
+		return flecsi::topo::narray_utils::distribute(np, indices);
+	}
 
 	static coloring color(std::size_t num_colors, gcoord axis_extents) {
 		index_definition idef;
@@ -299,8 +311,8 @@ struct fvm_narray
 			flecsi::topo::narray_utils::make_axes(num_colors, axis_extents);
 
 		for (auto & a : idef_faces.axes) {
-			a.hdepth = 1;
-			a.bdepth = 1;
+			a.hdepth = 0;
+			a.bdepth = 0;
 			a.auxiliary = true;
 		}
 
@@ -309,32 +321,19 @@ struct fvm_narray
 
 		return {MPI_COMM_WORLD, {idef, idef_faces}};
 	}
+
 	using gbox = flecsi::util::key_array<std::array<double, 2>, axes>;
 
-	template<axis A>
-	static auto set_delta(fvm_narray::accessor<flecsi::rw> sm, const gbox & g) {
-		if (sm.size<fvm_narray::cells, A, fvm_narray::global>() <= 1) {
-			return 1.0;
-		}
-		return std::abs(g[A][1] - g[A][0]) /
-		       (sm.size<fvm_narray::cells, A, fvm_narray::global>() - 1);
-	}
-
-	template<auto... Axis>
-	static flecsi::util::key_array<double, axes>
-	geom(fvm_narray::accessor<flecsi::rw> sm, const gbox & g, has<Axis...>) {
-		return {{set_delta<Axis>(sm, g)...}};
-	}
-
-	static void set_geometry(fvm_narray::accessor<flecsi::rw> sm,
-	                         gbox const & g) {
-		meta_data & md = sm.policy_meta_;
-		md.delta = geom(sm, g, axes());
+	static void
+	set_geometry(fvm_narray::accessor<flecsi::rw> sm,
+	             gbox const & g) {
+		sm.set_geom(g);
 	}
 
 	static void initialize(flecsi::data::topology_slot<fvm_narray> & s,
 	                       coloring const &,
 	                       gbox const & geometry) {
+
 		flecsi::execute<set_geometry, flecsi::mpi>(s, geometry);
 	} // initialize
 };
