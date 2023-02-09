@@ -29,31 +29,28 @@ struct testmesh : flecsi::topo::specialization<flecsi::topo::narray, testmesh> {
 		template<axis A, domain DM = logical>
 		std::size_t size() {
 			if constexpr (DM == logical) {
-				return B::
-					template size<cells, x_axis, base::domain::logical>();
+				return B::template size<cells, x_axis, base::domain::logical>();
 			}
 			else if (DM == all) {
-				return B::
-					template size<cells, x_axis, base::domain::all>();
+				return B::template size<cells, x_axis, base::domain::all>();
 			}
 			else if (DM == global) {
-				return B::
-					template size<cells, x_axis, base::domain::global>();
+				return B::template size<cells, x_axis, base::domain::global>();
 			}
 		}
 
-
-    FLECSI_INLINE_TARGET std::size_t global_id(std::size_t i) const {
-      return i -
-             B::template offset<cells, x_axis, base::domain::logical>() +
-             B::template offset<cells, x_axis, base::domain::global>();
-    }
-
+		FLECSI_INLINE_TARGET std::size_t global_id(std::size_t i) const {
+			return i -
+			       B::template offset<cells, x_axis, base::domain::logical>() +
+			       B::template offset<cells, x_axis, base::domain::global>();
+		}
 
 		template<index_space Space>
 		auto dofs() {
-			const std::size_t start = B::template offset<Space, x_axis, base::domain::logical>();
-			const std::size_t end = B::template offset<Space, x_axis, base::domain::boundary_high>();
+			const std::size_t start =
+				B::template offset<Space, x_axis, base::domain::logical>();
+			const std::size_t end = B::
+				template offset<Space, x_axis, base::domain::boundary_high>();
 
 			return flecsi::topo::make_ids<Space>(
 				flecsi::util::iota_view<flecsi::util::id>(start, end));

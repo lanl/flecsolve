@@ -37,7 +37,8 @@ struct operator_task<bc<neumann<Vec, Var>, Axis, Boundary>> {
 	}
 	static constexpr void
 	operate(topo_acc<Vec> m, field_acc<Vec, flecsi::rw> u, scalar_t<Vec> v) {
-		constexpr int nd = (Boundary == topo_t<Vec>::domain::boundary_low ? 1 : -1);
+		constexpr int nd =
+			(Boundary == topo_t<Vec>::domain::boundary_low ? 1 : -1);
 		const scalar_t<Vec> dx = m.template dx<Axis>();
 		const scalar_t<Vec> d_shift = static_cast<scalar_t<Vec>>(nd) * dx * v;
 

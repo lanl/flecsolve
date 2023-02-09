@@ -5,10 +5,10 @@ namespace flecsolve {
 struct testmesh : flecsi::topo::specialization<flecsi::topo::narray, testmesh> {
 	enum index_space { cells };
 	using index_spaces = has<cells>;
-	//enum domain { logical, all, global };
+	// enum domain { logical, all, global };
 	enum axis { x_axis };
 	using axes = has<x_axis>;
-	//enum boundary { low, high };
+	// enum boundary { low, high };
 	using coord = base::coord;
 	using gcoord = base::gcoord;
 	using colors = base::colors;
@@ -52,8 +52,10 @@ struct testmesh : flecsi::topo::specialization<flecsi::topo::narray, testmesh> {
 
 		template<index_space Space>
 		auto dofs() {
-			const std::size_t start = B::template offset<Space, x_axis, domain::logical>();
-			const std::size_t end = B::template offset<Space, x_axis, domain::boundary_high>();
+			const std::size_t start =
+				B::template offset<Space, x_axis, domain::logical>();
+			const std::size_t end =
+				B::template offset<Space, x_axis, domain::boundary_high>();
 
 			return flecsi::topo::make_ids<Space>(
 				flecsi::util::iota_view<flecsi::util::id>(start, end));

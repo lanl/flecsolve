@@ -164,19 +164,22 @@ struct fvm_narray
 		constexpr auto full_range() {
 			using namespace fvmtools;
 			if constexpr (MAJORAXIS == x_axis) {
-				return std::make_tuple(range<cells, z_axis, base::domain::logical>(),
-				                       range<cells, y_axis, base::domain::logical>(),
-				                       range<MAJORSPACE, x_axis, DM>());
+				return std::make_tuple(
+					range<cells, z_axis, base::domain::logical>(),
+					range<cells, y_axis, base::domain::logical>(),
+					range<MAJORSPACE, x_axis, DM>());
 			}
 			else if constexpr (MAJORAXIS == y_axis) {
-				return std::make_tuple(range<cells, z_axis, base::domain::logical>(),
-				                       range<MAJORSPACE, y_axis, DM>(),
-				                       range<cells, x_axis, base::domain::logical>());
+				return std::make_tuple(
+					range<cells, z_axis, base::domain::logical>(),
+					range<MAJORSPACE, y_axis, DM>(),
+					range<cells, x_axis, base::domain::logical>());
 			}
 			else if constexpr (MAJORAXIS == z_axis) {
-				return std::make_tuple(range<MAJORSPACE, z_axis, DM>(),
-				                       range<cells, y_axis, base::domain::logical>(),
-				                       range<cells, x_axis, base::domain::logical>());
+				return std::make_tuple(
+					range<MAJORSPACE, z_axis, DM>(),
+					range<cells, y_axis, base::domain::logical>(),
+					range<cells, x_axis, base::domain::logical>());
 			}
 			else {
 				static_no_match();

@@ -111,7 +111,8 @@ inline void slope_field(msh::accessor<ro, ro> vm,
 	auto xv = vm.mdspan<msh::cells>(xa);
 
 	for (auto j : vm.range<msh::cells, msh::y_axis, msh::domain::logical>()) {
-		for (auto i : vm.range<msh::cells, msh::x_axis, msh::domain::logical>()) {
+		for (auto i :
+		     vm.range<msh::cells, msh::x_axis, msh::domain::logical>()) {
 			xv[1][j][i] = vm.value<msh::x_axis>(i);
 		}
 	}

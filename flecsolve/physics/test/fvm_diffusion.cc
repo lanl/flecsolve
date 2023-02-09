@@ -29,12 +29,18 @@ template<class Vec>
 constexpr decltype(auto) make_boundary_operator_neumann(const Vec &) {
 	using namespace flecsolve::physics;
 
-	auto bndxl = bc<neumann<Vec>, msh::x_axis, msh::domain::boundary_low>::create({});
-	auto bndxh = bc<neumann<Vec>, msh::x_axis, msh::domain::boundary_high>::create({});
-	auto bndyl = bc<neumann<Vec>, msh::y_axis, msh::domain::boundary_low>::create({});
-	auto bndyh = bc<neumann<Vec>, msh::y_axis, msh::domain::boundary_high>::create({});
-	auto bndzl = bc<neumann<Vec>, msh::z_axis, msh::domain::boundary_low>::create({});
-	auto bndzh = bc<neumann<Vec>, msh::z_axis, msh::domain::boundary_high>::create({});
+	auto bndxl =
+		bc<neumann<Vec>, msh::x_axis, msh::domain::boundary_low>::create({});
+	auto bndxh =
+		bc<neumann<Vec>, msh::x_axis, msh::domain::boundary_high>::create({});
+	auto bndyl =
+		bc<neumann<Vec>, msh::y_axis, msh::domain::boundary_low>::create({});
+	auto bndyh =
+		bc<neumann<Vec>, msh::y_axis, msh::domain::boundary_high>::create({});
+	auto bndzl =
+		bc<neumann<Vec>, msh::z_axis, msh::domain::boundary_low>::create({});
+	auto bndzh =
+		bc<neumann<Vec>, msh::z_axis, msh::domain::boundary_high>::create({});
 
 	return op_expr(flecsolve::multivariable<Vec::var.value>,
 	               bndxl,
@@ -50,17 +56,23 @@ constexpr decltype(auto) make_boundary_operator_dirichlet(const Vec &) {
 	using namespace flecsolve::physics;
 
 	auto bndxl =
-		bc<dirichlet<Vec>, msh::x_axis, msh::domain::boundary_low>::create({{1.0E-9}});
+		bc<dirichlet<Vec>, msh::x_axis, msh::domain::boundary_low>::create(
+			{{1.0E-9}});
 	auto bndxh =
-		bc<dirichlet<Vec>, msh::x_axis, msh::domain::boundary_high>::create({{1.0E-9}});
+		bc<dirichlet<Vec>, msh::x_axis, msh::domain::boundary_high>::create(
+			{{1.0E-9}});
 	auto bndyl =
-		bc<dirichlet<Vec>, msh::y_axis, msh::domain::boundary_low>::create({{1.0E-9}});
+		bc<dirichlet<Vec>, msh::y_axis, msh::domain::boundary_low>::create(
+			{{1.0E-9}});
 	auto bndyh =
-		bc<dirichlet<Vec>, msh::y_axis, msh::domain::boundary_high>::create({{1.0E-9}});
+		bc<dirichlet<Vec>, msh::y_axis, msh::domain::boundary_high>::create(
+			{{1.0E-9}});
 	auto bndzl =
-		bc<dirichlet<Vec>, msh::z_axis, msh::domain::boundary_low>::create({{1.0E-9}});
+		bc<dirichlet<Vec>, msh::z_axis, msh::domain::boundary_low>::create(
+			{{1.0E-9}});
 	auto bndzh =
-		bc<dirichlet<Vec>, msh::z_axis, msh::domain::boundary_high>::create({{1.0E-9}});
+		bc<dirichlet<Vec>, msh::z_axis, msh::domain::boundary_high>::create(
+			{{1.0E-9}});
 
 	return op_expr(flecsolve::multivariable<Vec::var.value>,
 	               bndxl,

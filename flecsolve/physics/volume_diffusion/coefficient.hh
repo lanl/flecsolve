@@ -143,19 +143,19 @@ struct operator_task<coefficient<average_coefficient<Vec, Var>, Vec>> {
 			bvx,
 			m.template full_range<topo_t<Vec>::faces, topo_t<Vec>::x_axis>(),
 			[&](const auto k, const auto j, const auto i) {
-				return 0.5 * (uv[k][j][i+1] + uv[k][j][i]);
+				return 0.5 * (uv[k][j][i + 1] + uv[k][j][i]);
 			});
 		fvmtools::apply_to_with_index(
 			bvy,
 			m.template full_range<topo_t<Vec>::faces, topo_t<Vec>::y_axis>(),
 			[&](const auto k, const auto j, const auto i) {
-				return 0.5 * (uv[k][j+1][i] + uv[k][j][i]);
+				return 0.5 * (uv[k][j + 1][i] + uv[k][j][i]);
 			});
 		fvmtools::apply_to_with_index(
 			bvz,
 			m.template full_range<topo_t<Vec>::faces, topo_t<Vec>::z_axis>(),
 			[&](const auto k, const auto j, const auto i) {
-				return 0.5 * (uv[k+1][j][i] + uv[k][j][i]);
+				return 0.5 * (uv[k + 1][j][i] + uv[k][j][i]);
 			});
 	}
 };
