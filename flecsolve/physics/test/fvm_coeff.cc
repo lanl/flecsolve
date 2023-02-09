@@ -39,12 +39,12 @@ constexpr auto make_bcs(const Vec &) {
 	using namespace flecsolve::physics;
 
 	return std::make_tuple(
-		bc<dirichlet<Vec>, msh::x_axis, msh::boundary_low>::create({{1.0}}),
-		bc<dirichlet<Vec>, msh::x_axis, msh::boundary_high>::create({{1.0}}),
-		bc<dirichlet<Vec>, msh::y_axis, msh::boundary_low>::create({{1.0}}),
-		bc<dirichlet<Vec>, msh::y_axis, msh::boundary_high>::create({{1.0}}),
-		bc<dirichlet<Vec>, msh::z_axis, msh::boundary_low>::create({{1.0}}),
-		bc<dirichlet<Vec>, msh::z_axis, msh::boundary_high>::create({{1.0}}));
+		bc<dirichlet<Vec>, msh::x_axis, msh::domain::boundary_low>::create({{1.0}}),
+		bc<dirichlet<Vec>, msh::x_axis, msh::domain::boundary_high>::create({{1.0}}),
+		bc<dirichlet<Vec>, msh::y_axis, msh::domain::boundary_low>::create({{1.0}}),
+		bc<dirichlet<Vec>, msh::y_axis, msh::domain::boundary_high>::create({{1.0}}),
+		bc<dirichlet<Vec>, msh::z_axis, msh::domain::boundary_low>::create({{1.0}}),
+		bc<dirichlet<Vec>, msh::z_axis, msh::domain::boundary_high>::create({{1.0}}));
 }
 
 static fvm_check chk_constx([](auto...) { return 3.14; },

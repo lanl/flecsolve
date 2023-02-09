@@ -128,7 +128,7 @@ struct operator_task<diffusion<Vec, Var>> {
 			m.template full_range<topo_t<Vec>::faces, topo_t<Vec>::x_axis>(),
 			[&](const auto k, const auto j, const auto i) {
 				return bvx[k][j][i] * (dAx * i_dx) *
-			           (uv[k][j][i] - uv[k][j][i - 1]);
+			           (uv[k][j][i+1] - uv[k][j][i]);
 			});
 
 		fvmtools::apply_to_with_index(
@@ -136,7 +136,7 @@ struct operator_task<diffusion<Vec, Var>> {
 			m.template full_range<topo_t<Vec>::faces, topo_t<Vec>::y_axis>(),
 			[&](const auto k, const auto j, const auto i) {
 				return bvy[k][j][i] * (dAy * i_dy) *
-			           (uv[k][j][i] - uv[k][j - 1][i]);
+			           (uv[k][j+1][i] - uv[k][j][i]);
 			});
 
 		fvmtools::apply_to_with_index(
@@ -144,7 +144,7 @@ struct operator_task<diffusion<Vec, Var>> {
 			m.template full_range<topo_t<Vec>::faces, topo_t<Vec>::z_axis>(),
 			[&](const auto k, const auto j, const auto i) {
 				return bvz[k][j][i] * (dAz * i_dz) *
-			           (uv[k][j][i] - uv[k - 1][j][i]);
+			           (uv[k+1][j][i] - uv[k][j][i]);
 			});
 	}
 
@@ -163,9 +163,9 @@ struct operator_task<diffusion<Vec, Var>> {
 			duv,
 			m.template full_range<>(),
 			[&](const auto k, const auto j, const auto i) {
-				return ((fvx[k][j][i + 1] - fvx[k][j][i])) +
-			           ((fvy[k][j + 1][i] - fvy[k][j][i])) +
-			           ((fvz[k + 1][j][i] - fvz[k][j][i]));
+				return ((fvx[k][j][i] - fvx[k][j][i-1])) +
+			           ((fvy[k][j][i] - fvy[k][j-1][i])) +
+			           ((fvz[k][j][i] - fvz[k-1][j][i]));
 			});
 	}
 

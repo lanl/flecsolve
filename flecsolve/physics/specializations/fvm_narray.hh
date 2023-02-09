@@ -120,29 +120,21 @@ apply_to_with_index(Box box, IdxT && idxs, F && f, Args &&... args) {
 
 struct fvm_narray
 	: flecsi::topo::specialization<flecsi::topo::narray, fvm_narray> {
+	using base = typename fvm_narray::base;
 	enum index_space { cells, faces };
 	using index_spaces = has<cells, faces>;
-
-	enum domain {
-		logical,
-		extended,
-		all,
-		boundary_low,
-		boundary_high,
-		ghost_low,
-		ghost_high,
-		global
-	};
 
 	enum axis { x_axis, y_axis, z_axis };
 	using axes = has<x_axis, y_axis, z_axis>;
 
-	using coord = base::coord;
-	using gcoord = base::gcoord;
-	using colors = base::colors;
-	using hypercube = base::hypercube;
-	using axis_definition = base::axis_definition;
-	using index_definition = base::index_definition;
+	using coord = typename base::coord;
+	using domain = typename base::domain;
+	using gcoord = typename base::gcoord;
+	using colors = typename base::colors;
+	using coloring = typename base::coloring;
+	using hypercube = typename base::hypercube;
+	using axis_definition = typename base::axis_definition;
+	using index_definition = typename base::index_definition;
 
 	static constexpr std::size_t dimension = 3;
 
@@ -155,62 +147,36 @@ struct fvm_narray
 
 	template<class B>
 	struct interface : B {
-		/**
-		 * Currently, the domain enum of the topology is not mapped into
-		 * the interface, this is workaround
-		 *
-		 * @tparam DM interface domain
-		 * @return constexpr decltype(auto) topo domain
-		 */
-		template<domain DM>
-		static constexpr decltype(auto) NAD() {
-			if constexpr (DM == logical)
-				return base::domain::logical;
-			else if (DM == extended)
-				return base::domain::extended;
-			else if (DM == all)
-				return base::domain::all;
-			else if (DM == boundary_low)
-				return base::domain::boundary_low;
-			else if (DM == boundary_high)
-				return base::domain::boundary_high;
-			else if (DM == ghost_low)
-				return base::domain::ghost_low;
-			else if (DM == ghost_high)
-				return base::domain::ghost_high;
-			else if (DM == global)
-				return base::domain::global;
-		}
 
-		template<index_space IS, axis A, domain DM = logical>
+		template<index_space IS, axis A, domain DM = base::domain::logical>
 		std::size_t size() const {
-			return B::template size<IS, A, NAD<DM>()>();
+			return B::template size<IS, A, DM>();
 		}
 
-		template<index_space IS, axis A, domain DM = logical>
+		template<index_space IS, axis A, domain DM = base::domain::logical>
 		constexpr auto range() {
-			return B::template range<IS, A, NAD<DM>()>();
+			return B::template range<IS, A, DM>();
 		}
 
 		template<index_space MAJORSPACE = cells,
 		         axis MAJORAXIS = x_axis,
-		         domain DM = logical>
+		         domain DM = base::domain::logical>
 		constexpr auto full_range() {
 			using namespace fvmtools;
 			if constexpr (MAJORAXIS == x_axis) {
-				return std::make_tuple(range<cells, z_axis, logical>(),
-				                       range<cells, y_axis, logical>(),
+				return std::make_tuple(range<cells, z_axis, base::domain::logical>(),
+				                       range<cells, y_axis, base::domain::logical>(),
 				                       range<MAJORSPACE, x_axis, DM>());
 			}
 			else if constexpr (MAJORAXIS == y_axis) {
-				return std::make_tuple(range<cells, z_axis, logical>(),
+				return std::make_tuple(range<cells, z_axis, base::domain::logical>(),
 				                       range<MAJORSPACE, y_axis, DM>(),
-				                       range<cells, x_axis, logical>());
+				                       range<cells, x_axis, base::domain::logical>());
 			}
 			else if constexpr (MAJORAXIS == z_axis) {
 				return std::make_tuple(range<MAJORSPACE, z_axis, DM>(),
-				                       range<cells, y_axis, logical>(),
-				                       range<cells, x_axis, logical>());
+				                       range<cells, y_axis, base::domain::logical>(),
+				                       range<cells, x_axis, base::domain::logical>());
 			}
 			else {
 				static_no_match();
@@ -231,13 +197,16 @@ struct fvm_narray
 		template<index_space Space>
 		constexpr auto dofs() {
 			using namespace fvmtools;
-			auto stacked = std::make_tuple(range<cells, x_axis, logical>(),
-			                               range<cells, y_axis, logical>(),
-			                               range<cells, z_axis, logical>());
-			auto strides = utils::make_array(
-				size<cells, x_axis>() / size<cells, x_axis>(),
-				size<cells, x_axis>(),
-				size<cells, x_axis>() * size<cells, y_axis>());
+			auto stacked =
+				std::make_tuple(range<cells, x_axis, base::domain::logical>(),
+			                    range<cells, y_axis, base::domain::logical>(),
+			                    range<cells, z_axis, base::domain::logical>());
+			auto strides =
+				utils::make_array(size<cells, x_axis, base::domain::all>() /
+			                          size<cells, x_axis, base::domain::all>(),
+			                      size<cells, x_axis, base::domain::all>(),
+			                      size<cells, x_axis, base::domain::all>() *
+			                          size<cells, y_axis, base::domain::all>());
 
 			return flecsi::util::transform_view(
 				flecsi::util::iota_view<flecsi::util::id>(
@@ -324,9 +293,8 @@ struct fvm_narray
 
 	using gbox = flecsi::util::key_array<std::array<double, 2>, axes>;
 
-	static void
-	set_geometry(fvm_narray::accessor<flecsi::rw> sm,
-	             gbox const & g) {
+	static void set_geometry(fvm_narray::accessor<flecsi::rw> sm,
+	                         gbox const & g) {
 		sm.set_geom(g);
 	}
 

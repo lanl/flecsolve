@@ -59,9 +59,9 @@ inline void check_vals(msh::accessor<ro, ro> vm,
 	oss << "--------------------\n";
 	oss << title << "\n";
 	oss << "--------------------\n";
-	for (auto j : vm.range<msh::cells, msh::y_axis, msh::all>()) {
+	for (auto j : vm.range<msh::cells, msh::y_axis, msh::domain::all>()) {
 		oss << "j = " << j << std::setw(6) << " | ";
-		for (auto i : vm.range<msh::cells, msh::x_axis, msh::all>()) {
+		for (auto i : vm.range<msh::cells, msh::x_axis, msh::domain::all>()) {
 			oss << xv[1][j][i] << " ";
 		}
 		oss << "\n";
@@ -84,9 +84,9 @@ inline void fill_field(msh::accessor<ro, ro> vm,
 
 {
 	auto xv = vm.mdspan<Space>(xa);
-	for (auto k : vm.range<Space, msh::z_axis, msh::all>()) {
-		for (auto j : vm.range<Space, msh::y_axis, msh::all>()) {
-			for (auto i : vm.range<Space, msh::x_axis, msh::all>()) {
+	for (auto k : vm.range<Space, msh::z_axis, msh::domain::all>()) {
+		for (auto j : vm.range<Space, msh::y_axis, msh::domain::all>()) {
+			for (auto i : vm.range<Space, msh::x_axis, msh::domain::all>()) {
 				xv[k][j][i] = val;
 			}
 		}
@@ -110,8 +110,8 @@ inline void slope_field(msh::accessor<ro, ro> vm,
                         field<scalar_t>::accessor<wo, na> xa) {
 	auto xv = vm.mdspan<msh::cells>(xa);
 
-	for (auto j : vm.range<msh::cells, msh::y_axis, msh::logical>()) {
-		for (auto i : vm.range<msh::cells, msh::x_axis, msh::logical>()) {
+	for (auto j : vm.range<msh::cells, msh::y_axis, msh::domain::logical>()) {
+		for (auto i : vm.range<msh::cells, msh::x_axis, msh::domain::logical>()) {
 			xv[1][j][i] = vm.value<msh::x_axis>(i);
 		}
 	}
@@ -128,7 +128,7 @@ struct fvm_check {
 	          T && t,
 	          A = fconstant<msh::x_axis>{},
 	          S = fconstant<msh::cells>{},
-	          D = fconstant<msh::logical>{})
+	          D = fconstant<msh::domain::logical>{})
 		: f(std::forward<F>(fun)), name(std::forward<T>(t)) {}
 
 	int operator()(msh::accessor<ro, ro> vm,
@@ -153,7 +153,7 @@ template<class F,
          class T,
          msh::axis A = msh::x_axis,
          msh::index_space S = msh::cells,
-         msh::domain D = msh::logical>
+         msh::domain D = msh::domain::logical>
 fvm_check(F &&,
           T &&,
           fconstant<A> = fconstant<A>{},
