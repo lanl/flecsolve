@@ -108,10 +108,14 @@ template<class Vec>
 constexpr decltype(auto) make_boundary_operator_neumann(const Vec &) {
 	using namespace flecsolve::physics;
 
-	auto bndxl = bc<neumann<Vec>, msh::x_axis, msh::domain::boundary_low>::create({});
-	auto bndxh = bc<neumann<Vec>, msh::x_axis, msh::domain::boundary_high>::create({});
-	auto bndyl = bc<neumann<Vec>, msh::y_axis, msh::domain::boundary_low>::create({});
-	auto bndyh = bc<neumann<Vec>, msh::y_axis, msh::domain::boundary_high>::create({});
+	auto bndxl =
+		bc<neumann<Vec>, msh::x_axis, msh::domain::boundary_low>::create({});
+	auto bndxh =
+		bc<neumann<Vec>, msh::x_axis, msh::domain::boundary_high>::create({});
+	auto bndyl =
+		bc<neumann<Vec>, msh::y_axis, msh::domain::boundary_low>::create({});
+	auto bndyh =
+		bc<neumann<Vec>, msh::y_axis, msh::domain::boundary_high>::create({});
 
 	return op_expr(
 		flecsolve::multivariable<Vec::var.value>, bndxl, bndxh, bndyl, bndyh);
@@ -125,13 +129,17 @@ constexpr decltype(auto) make_boundary_operator_dirichlet(const Vec &) {
 	using namespace flecsolve::physics;
 
 	auto bndxl =
-		bc<dirichlet<Vec>, msh::x_axis, msh::domain::boundary_low>::create({1.0E-9});
+		bc<dirichlet<Vec>, msh::x_axis, msh::domain::boundary_low>::create(
+			{1.0E-9});
 	auto bndxh =
-		bc<dirichlet<Vec>, msh::x_axis, msh::domain::boundary_high>::create({1.0E-9});
+		bc<dirichlet<Vec>, msh::x_axis, msh::domain::boundary_high>::create(
+			{1.0E-9});
 	auto bndyl =
-		bc<dirichlet<Vec>, msh::y_axis, msh::domain::boundary_low>::create({1.0E-9});
+		bc<dirichlet<Vec>, msh::y_axis, msh::domain::boundary_low>::create(
+			{1.0E-9});
 	auto bndyh =
-		bc<dirichlet<Vec>, msh::y_axis, msh::domain::boundary_high>::create({1.0E-9});
+		bc<dirichlet<Vec>, msh::y_axis, msh::domain::boundary_high>::create(
+			{1.0E-9});
 	return op_expr(
 		flecsolve::multivariable<Vec::var.value>, bndxl, bndxh, bndyl, bndyh);
 }
@@ -143,8 +151,10 @@ template<class Vec>
 constexpr decltype(auto) make_boundary_operator_pseudo(const Vec &) {
 	using namespace flecsolve::physics;
 
-	auto bndl = bc<neumann<Vec>, msh::z_axis, msh::domain::boundary_low>::create({});
-	auto bndh = bc<neumann<Vec>, msh::z_axis, msh::domain::boundary_high>::create({});
+	auto bndl =
+		bc<neumann<Vec>, msh::z_axis, msh::domain::boundary_low>::create({});
+	auto bndh =
+		bc<neumann<Vec>, msh::z_axis, msh::domain::boundary_high>::create({});
 	return op_expr(flecsolve::multivariable<Vec::var.value>, bndl, bndh);
 }
 
@@ -189,7 +199,8 @@ void field_out(msh::accessor<ro, ro> vm,
 		const scalar_t z = vm.value<msh::y_axis>(k);
 		for (auto j : vm.range<msh::cells, msh::y_axis, msh::domain::all>()) {
 			const scalar_t y = vm.value<msh::y_axis>(j);
-			for (auto i : vm.range<msh::cells, msh::x_axis, msh::domain::all>()) {
+			for (auto i :
+			     vm.range<msh::cells, msh::x_axis, msh::domain::all>()) {
 				const scalar_t x = vm.value<msh::x_axis>(i);
 				ofs << I << ": " << i << " " << j << " " << k << " " << x << " "
 					<< y << " " << z << " " << xv[k][j][i] << "\n";
