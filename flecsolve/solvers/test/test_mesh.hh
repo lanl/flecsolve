@@ -17,8 +17,7 @@ struct testmesh : flecsi::topo::specialization<flecsi::topo::narray, testmesh> {
 	using index_definition = base::index_definition;
 	using domain = base::domain;
 
-	struct meta_data {
-	};
+	struct meta_data {};
 
 	static constexpr std::size_t dimension = 1;
 

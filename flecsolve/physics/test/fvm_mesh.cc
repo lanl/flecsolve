@@ -55,9 +55,7 @@ inline int check_apply_to() {
 
 int fvm_mesh_test() {
 	init_mesh({16, 16, 8});
-	UNIT () {
-		check_apply_to();
-	};
+	UNIT () { check_apply_to(); };
 }
 
 util::unit::driver<fvm_mesh_test> driver;
