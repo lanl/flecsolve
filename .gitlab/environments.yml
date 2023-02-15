@@ -11,7 +11,7 @@ mpich:
     REGISTRY: gitlab.lanl.gov:5050/flecsi/flecsi
     IMAGE: rockylinux
     VERSION: flecsi
-    VARIANTS_LEGION: +hdf5 ~kokkos +flog +unit ^legion network=gasnet conduit=mpi +hdf5 ~kokkos
+    VARIANTS_LEGION: +hdf5 ~kokkos +flog +unit ^legion network=gasnet conduit=mpi +redop_complex +hdf5 ~kokkos
     VARIANTS_MPI: +hdf5 ~kokkos +flog +unit
 
 mpich-debug:
@@ -25,7 +25,7 @@ mpich-debug:
     REGISTRY: gitlab.lanl.gov:5050/flecsi/flecsi
     IMAGE: rockylinux
     VERSION: flecsi
-    VARIANTS_LEGION: caliper_detail=low +graphviz +hdf5 ~kokkos +flog +unit ^legion build_type=Debug network=gasnet conduit=mpi +hdf5 ~kokkos
+    VARIANTS_LEGION: caliper_detail=low +graphviz +hdf5 ~kokkos +flog +unit ^legion build_type=Debug network=gasnet conduit=mpi +redop_complex +hdf5 ~kokkos
     VARIANTS_MPI: caliper_detail=low +graphviz +hdf5 ~kokkos +flog +unit
 
 mpich-clang:
@@ -39,7 +39,7 @@ mpich-clang:
     REGISTRY: gitlab.lanl.gov:5050/flecsi/flecsi
     IMAGE: fedora-34
     VERSION: flecsi
-    VARIANTS_LEGION: +flog +unit +hdf5 ~kokkos %clang ^legion network=gasnet conduit=mpi +hdf5 ~kokkos %gcc ^boost %gcc ^cmake %gcc ^metis %gcc ^parmetis %gcc ^hdf5 %gcc
+    VARIANTS_LEGION: +flog +unit +hdf5 ~kokkos %clang ^legion network=gasnet conduit=mpi +redop_complex +hdf5 ~kokkos %gcc ^boost %gcc ^cmake %gcc ^metis %gcc ^parmetis %gcc ^hdf5 %gcc
     VARIANTS_MPI: +flog +unit +hdf5 ~kokkos %clang ^boost %gcc ^cmake %gcc ^metis %gcc ^parmetis %gcc ^hdf5 %gcc
 
 mpich-clang-debug:
@@ -53,7 +53,7 @@ mpich-clang-debug:
     REGISTRY: gitlab.lanl.gov:5050/flecsi/flecsi
     IMAGE: fedora-34
     VERSION: flecsi
-    VARIANTS_LEGION: +flog +unit +hdf5 ~kokkos %clang ^legion build_type=Debug network=gasnet conduit=mpi +hdf5 ~kokkos %gcc ^boost %gcc ^cmake %gcc ^metis %gcc ^parmetis %gcc ^hdf5 %gcc
+    VARIANTS_LEGION: +flog +unit +hdf5 ~kokkos %clang ^legion build_type=Debug network=gasnet conduit=mpi +redop_complex +hdf5 ~kokkos %gcc ^boost %gcc ^cmake %gcc ^metis %gcc ^parmetis %gcc ^hdf5 %gcc
     VARIANTS_MPI: +flog +unit +hdf5 ~kokkos %clang ^boost %gcc ^cmake %gcc ^metis %gcc ^parmetis %gcc ^hdf5 %gcc
 
 openmpi:
@@ -67,7 +67,7 @@ openmpi:
     REGISTRY: gitlab.lanl.gov:5050/flecsi/flecsi
     IMAGE: rockylinux
     VERSION: flecsi
-    VARIANTS_LEGION: +flog +unit +hdf5 ~kokkos ^legion network=gasnet conduit=mpi +hdf5 ~kokkos
+    VARIANTS_LEGION: +flog +unit +hdf5 ~kokkos ^legion network=gasnet conduit=mpi +redop_complex +hdf5 ~kokkos
     VARIANTS_MPI: +flog +unit +hdf5 ~kokkos
 
 
@@ -82,7 +82,7 @@ openmpi-debug:
     REGISTRY: gitlab.lanl.gov:5050/flecsi/flecsi
     IMAGE: rockylinux
     VERSION: flecsi
-    VARIANTS_LEGION: +flog +unit +hdf5 ^legion build_type=Debug network=gasnet conduit=mpi +hdf5 ~kokkos
+    VARIANTS_LEGION: +flog +unit +hdf5 ^legion build_type=Debug network=gasnet conduit=mpi +redop_complex +hdf5 ~kokkos
     VARIANTS_MPI: +hdf5 +flog +unit
 
 openmpi-clang:
@@ -96,7 +96,7 @@ openmpi-clang:
     REGISTRY: gitlab.lanl.gov:5050/flecsi/flecsi
     IMAGE: fedora-34
     VERSION: flecsi
-    VARIANTS_LEGION: +flog +unit +hdf5 ~kokkos %clang ^legion network=gasnet conduit=mpi +hdf5 ~kokkos %gcc ^boost %gcc ^cmake %gcc ^metis %gcc ^parmetis %gcc ^hdf5 %gcc
+    VARIANTS_LEGION: +flog +unit +hdf5 ~kokkos %clang ^legion network=gasnet conduit=mpi +redop_complex +hdf5 ~kokkos %gcc ^boost %gcc ^cmake %gcc ^metis %gcc ^parmetis %gcc ^hdf5 %gcc
     VARIANTS_MPI: +flog +unit +hdf5 ~kokkos %clang ^boost %gcc ^cmake %gcc ^metis %gcc ^parmetis %gcc ^hdf5 %gcc
 
 openmpi-clang-debug:
@@ -110,5 +110,5 @@ openmpi-clang-debug:
     REGISTRY: gitlab.lanl.gov:5050/flecsi/flecsi
     IMAGE: fedora-34
     VERSION: flecsi
-    VARIANTS_LEGION: +flog +unit +hdf5 %clang ^legion build_type=Debug network=gasnet conduit=mpi +hdf5 ~kokkos %gcc ^boost %gcc ^cmake %gcc ^metis %gcc ^parmetis %gcc ^hdf5 %gcc
+    VARIANTS_LEGION: +flog +unit +hdf5 %clang ^legion build_type=Debug network=gasnet conduit=mpi +redop_complex +hdf5 ~kokkos %gcc ^boost %gcc ^cmake %gcc ^metis %gcc ^parmetis %gcc ^hdf5 %gcc
     VARIANTS_MPI: +flog +unit +hdf5 %clang ^boost %gcc ^cmake %gcc ^metis %gcc ^parmetis %gcc ^hdf5 %gcc
