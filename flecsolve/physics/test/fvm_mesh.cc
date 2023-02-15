@@ -58,7 +58,7 @@ int fvm_mesh_test() {
 	UNIT () { check_apply_to(); };
 }
 
-unit::driver<fvm_mesh_test> driver;
+util::unit::driver<fvm_mesh_test> driver;
 
 } // namespace physics_testing
 } // namespace flecsolve

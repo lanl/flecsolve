@@ -90,6 +90,6 @@ int multicg() {
 	return 0;
 }
 
-flecsi::unit::driver<multicg> driver;
+flecsi::util::unit::driver<multicg> driver;
 
 }

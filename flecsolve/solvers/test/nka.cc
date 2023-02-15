@@ -121,5 +121,5 @@ int nkatest() {
 	return 0;
 }
 
-flecsi::unit::driver<nkatest> driver;
+flecsi::util::unit::driver<nkatest> driver;
 }

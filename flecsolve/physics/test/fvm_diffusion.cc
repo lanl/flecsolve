@@ -29,12 +29,18 @@ template<class Vec>
 constexpr decltype(auto) make_boundary_operator_neumann(const Vec &) {
 	using namespace flecsolve::physics;
 
-	auto bndxl = bc<neumann<Vec>, msh::x_axis, msh::boundary_low>::create({});
-	auto bndxh = bc<neumann<Vec>, msh::x_axis, msh::boundary_high>::create({});
-	auto bndyl = bc<neumann<Vec>, msh::y_axis, msh::boundary_low>::create({});
-	auto bndyh = bc<neumann<Vec>, msh::y_axis, msh::boundary_high>::create({});
-	auto bndzl = bc<neumann<Vec>, msh::z_axis, msh::boundary_low>::create({});
-	auto bndzh = bc<neumann<Vec>, msh::z_axis, msh::boundary_high>::create({});
+	auto bndxl =
+		bc<neumann<Vec>, msh::x_axis, msh::domain::boundary_low>::create({});
+	auto bndxh =
+		bc<neumann<Vec>, msh::x_axis, msh::domain::boundary_high>::create({});
+	auto bndyl =
+		bc<neumann<Vec>, msh::y_axis, msh::domain::boundary_low>::create({});
+	auto bndyh =
+		bc<neumann<Vec>, msh::y_axis, msh::domain::boundary_high>::create({});
+	auto bndzl =
+		bc<neumann<Vec>, msh::z_axis, msh::domain::boundary_low>::create({});
+	auto bndzh =
+		bc<neumann<Vec>, msh::z_axis, msh::domain::boundary_high>::create({});
 
 	return op_expr(flecsolve::multivariable<Vec::var.value>,
 	               bndxl,
@@ -50,17 +56,23 @@ constexpr decltype(auto) make_boundary_operator_dirichlet(const Vec &) {
 	using namespace flecsolve::physics;
 
 	auto bndxl =
-		bc<dirichlet<Vec>, msh::x_axis, msh::boundary_low>::create({{1.0E-9}});
+		bc<dirichlet<Vec>, msh::x_axis, msh::domain::boundary_low>::create(
+			{{1.0E-9}});
 	auto bndxh =
-		bc<dirichlet<Vec>, msh::x_axis, msh::boundary_high>::create({{1.0E-9}});
+		bc<dirichlet<Vec>, msh::x_axis, msh::domain::boundary_high>::create(
+			{{1.0E-9}});
 	auto bndyl =
-		bc<dirichlet<Vec>, msh::y_axis, msh::boundary_low>::create({{1.0E-9}});
+		bc<dirichlet<Vec>, msh::y_axis, msh::domain::boundary_low>::create(
+			{{1.0E-9}});
 	auto bndyh =
-		bc<dirichlet<Vec>, msh::y_axis, msh::boundary_high>::create({{1.0E-9}});
+		bc<dirichlet<Vec>, msh::y_axis, msh::domain::boundary_high>::create(
+			{{1.0E-9}});
 	auto bndzl =
-		bc<dirichlet<Vec>, msh::z_axis, msh::boundary_low>::create({{1.0E-9}});
+		bc<dirichlet<Vec>, msh::z_axis, msh::domain::boundary_low>::create(
+			{{1.0E-9}});
 	auto bndzh =
-		bc<dirichlet<Vec>, msh::z_axis, msh::boundary_high>::create({{1.0E-9}});
+		bc<dirichlet<Vec>, msh::z_axis, msh::domain::boundary_high>::create(
+			{{1.0E-9}});
 
 	return op_expr(flecsolve::multivariable<Vec::var.value>,
 	               bndxl,
@@ -94,9 +106,9 @@ static inline int source_only(msh::accessor<ro, ro> m,
                               scalar_t alpha) {
 
 	auto xv = m.mdspan<msh::cells>(xa);
-	auto kk = m.range<msh::cells, msh::z_axis, msh::logical>();
-	auto jj = m.range<msh::cells, msh::y_axis, msh::logical>();
-	auto ii = m.range<msh::cells, msh::x_axis, msh::logical>();
+	auto kk = m.range<msh::cells, msh::z_axis, msh::domain::logical>();
+	auto jj = m.range<msh::cells, msh::y_axis, msh::domain::logical>();
+	auto ii = m.range<msh::cells, msh::x_axis, msh::domain::logical>();
 	auto vol = m.volume();
 
 	UNIT ("source only") {
@@ -116,9 +128,9 @@ static inline int boundary_sink(msh::accessor<ro, ro> m,
                                 field<scalar_t>::accessor<ro, na> xa,
                                 scalar_t x0) {
 	auto xv = m.mdspan<msh::cells>(xa);
-	auto kk = m.range<msh::cells, msh::z_axis, msh::logical>();
-	auto jj = m.range<msh::cells, msh::y_axis, msh::logical>();
-	auto ii = m.range<msh::cells, msh::x_axis, msh::logical>();
+	auto kk = m.range<msh::cells, msh::z_axis, msh::domain::logical>();
+	auto jj = m.range<msh::cells, msh::y_axis, msh::domain::logical>();
+	auto ii = m.range<msh::cells, msh::x_axis, msh::domain::logical>();
 	std::ostringstream oss;
 
 	oss << "====================\n";
@@ -202,7 +214,7 @@ int fvm_diffusion_test() {
 	};
 }
 
-unit::driver<fvm_diffusion_test> driver;
+util::unit::driver<fvm_diffusion_test> driver;
 
 } // namespace physics_testing
 } // namespace flecsolve

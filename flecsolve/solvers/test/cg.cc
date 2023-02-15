@@ -109,6 +109,6 @@ int cgtest() {
 	return 0;
 }
 
-flecsi::unit::driver<cgtest> driver;
+flecsi::util::unit::driver<cgtest> driver;
 
 }
