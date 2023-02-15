@@ -251,8 +251,8 @@ struct fvm_narray
 		template<class Box, axis... Ax>
 		constexpr flecsi::util::key_array<double, axes>
 		box_geom(const Box & box, has<Ax...>) {
-			return {std::abs(box[Ax][1] - box[Ax][0]) /
-			        (size<cells, Ax, domain::all>() - 1)...};
+			return {{std::abs(box[Ax][1] - box[Ax][0]) /
+			         (size<cells, Ax, domain::all>() - 1)...}};
 		}
 
 		template<class Box>
