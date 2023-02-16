@@ -95,6 +95,6 @@ int csr_test() {
 	return 0;
 }
 
-flecsi::unit::driver<csr_test> driver;
+flecsi::util::unit::driver<csr_test> driver;
 }
 

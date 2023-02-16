@@ -55,7 +55,8 @@ void set_problem(mesh::accessor<ro> m,
 	if (m.is_boundary<mesh::y_axis, mesh::boundary::low>(jbeg - 1))
 		++jbeg;
 
-	auto ext = m.extents<mesh::vertices>();
+	auto ext = std::array{m.size<mesh::axis::x_axis, mesh::domain::all>(),
+	                      m.size<mesh::axis::y_axis, mesh::domain::all>()};
 	std::size_t iend{ext[0] - 2}, jend{ext[1] - 2};
 	if (m.is_boundary<mesh::x_axis, mesh::boundary::high>(iend))
 		--iend;

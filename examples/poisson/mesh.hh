@@ -45,6 +45,7 @@ struct mesh : flecsi::topo::specialization<flecsi::topo::narray, mesh> {
 
 	template<auto>
 	static constexpr std::size_t privilege_count = 2;
+	using grect = std::array<std::array<double, 2>, 2>;
 
 	/*--------------------------------------------------------------------------*
 	  Interface.
@@ -53,10 +54,6 @@ struct mesh : flecsi::topo::specialization<flecsi::topo::narray, mesh> {
 	template<class B>
 	struct interface : B {
 
-		template<index_space S>
-		auto extents() {
-			return B::template extents<S>();
-		}
 		template<axis A, domain DM = interior>
 		std::size_t size() {
 			if constexpr (DM == interior) {
@@ -93,7 +90,10 @@ struct mesh : flecsi::topo::specialization<flecsi::topo::narray, mesh> {
 
 		template<axis A>
 		std::size_t global_id(std::size_t i) const {
-			return i - B::template logical<mesh::vertices, A, 0>() +
+			return i -
+			       B::template offset<mesh::vertices,
+			                          A,
+			                          base::domain::logical>() +
 			       B::template offset<mesh::vertices,
 			                          A,
 			                          base::domain::global>();
@@ -106,9 +106,9 @@ struct mesh : flecsi::topo::specialization<flecsi::topo::narray, mesh> {
 				const bool high =
 					B::template is_high<index_space::vertices, A>();
 				const std::size_t start =
-					B::template logical<index_space::vertices, A, 0>();
+					B::template offset<index_space::vertices, A, base::domain::logical>();
 				const std::size_t end =
-					B::template logical<index_space::vertices, A, 1>();
+					start + B::template size<index_space::vertices, A, base::domain::logical>();
 
 				return flecsi::topo::make_ids<index_space::vertices>(
 					flecsi::util::iota_view<flecsi::util::id>(start + low,
@@ -126,9 +126,9 @@ struct mesh : flecsi::topo::specialization<flecsi::topo::narray, mesh> {
 			}
 		}
 
-		double xdelta() { return (*(this->policy_meta_)).xdelta; }
+		double xdelta() { return this->policy_meta().xdelta; }
 
-		double ydelta() { return (*(this->policy_meta_)).ydelta; }
+		double ydelta() { return this->policy_meta().ydelta; }
 
 		double dxdy() { return xdelta() * ydelta(); }
 
@@ -216,13 +216,24 @@ struct mesh : flecsi::topo::specialization<flecsi::topo::narray, mesh> {
 				interior_subrange<Space>(axes()), extents_array<Space>(axes()));
 		}
 
+		void set_geom(const grect & g) {
+			auto & md = this->policy_meta();
+			double xdelta =
+				std::abs(g[0][1] - g[0][0]) / (size<x_axis, global>() - 1);
+			double ydelta =
+				std::abs(g[1][1] - g[1][0]) / (size<y_axis, global>() - 1);
+
+			md.xdelta = xdelta;
+			md.ydelta = ydelta;
+		}
+
 	protected:
 		template<index_space Space, axis A>
 		util::srange interior_subrange() {
 			const bool low = B::template is_low<Space, A>();
 			const bool high = B::template is_high<Space, A>();
-			const std::size_t start = B::template logical<Space, A, 0>();
-			const std::size_t end = B::template logical<Space, A, 1>();
+			const std::size_t start = B::template offset<Space, A, base::domain::logical>();
+			const std::size_t end = start + B::template size<Space, A, base::domain::logical>();
 			return {start + low, end - high};
 		}
 
@@ -235,7 +246,7 @@ struct mesh : flecsi::topo::specialization<flecsi::topo::narray, mesh> {
 		template<index_space Space, auto... Axis>
 		auto extents_array(flecsi::util::constants<Axis...>) {
 			return std::array<std::size_t, sizeof...(Axis)>{
-				{B::template extents<Space>().template get<Axis>()...}};
+				{B::template size<Space, Axis, base::domain::all>()...}};
 		}
 	};
 
@@ -254,17 +265,8 @@ struct mesh : flecsi::topo::specialization<flecsi::topo::narray, mesh> {
 		return {MPI_COMM_WORLD, {idef}};
 	}
 
-	using grect = std::array<std::array<double, 2>, 2>;
-
 	static void set_geometry(mesh::accessor<flecsi::rw> sm, grect const & g) {
-		meta_data & md = sm.policy_meta_;
-		double xdelta =
-			std::abs(g[0][1] - g[0][0]) / (sm.size<x_axis, global>() - 1);
-		double ydelta =
-			std::abs(g[1][1] - g[1][0]) / (sm.size<y_axis, global>() - 1);
-
-		md.xdelta = xdelta;
-		md.ydelta = ydelta;
+		sm.set_geom(g);
 	}
 
 	static void initialize(flecsi::data::topology_slot<mesh> & s,

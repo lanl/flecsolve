@@ -15,8 +15,30 @@
 
 namespace flecsolve::mat::detail {
 
+
 namespace impl = flecsi::topo::unstructured_impl;
 namespace util = flecsi::util;
+
+// coloring definition removed from FleCSI
+struct coloring_definition {
+	struct index_map {
+		impl::entity_kind kind;
+		impl::entity_index_space idx;
+	};
+
+	/// Total number of colors.
+	flecsi::Color colors;
+	/// Index of primary entity in \c index_spaces.
+	/// \warning Not an \c index_space enumerator \b value.
+	index_map cid;
+	/// Number of layers of ghosts needed.
+	std::size_t depth;
+	/// Index of vertices in \c index_spaces.
+	index_map vid;
+	/// Indices of auxiliary entities in \c index_spaces.
+	std::vector<index_map> aidxs;
+};
+
 
 template<class MD>
 struct coloring_utils {
@@ -26,7 +48,7 @@ struct coloring_utils {
 	using ghost_entity = flecsi::topo::unstructured_impl::ghost_entity;
 
 	coloring_utils(MD & md,
-	               const impl::coloring_definition & cd,
+	               const coloring_definition & cd,
 	               MPI_Comm comm = MPI_COMM_WORLD) :
 		md_(md), cd_(cd), comm_(comm) {
 		std::tie(rank_, size_) = util::mpi::info(comm_);
@@ -107,7 +129,7 @@ protected:
 	}
 
 	MD & md_;
-	impl::coloring_definition cd_;
+	coloring_definition cd_;
 	unstructured_base::coloring coloring_;
 	std::vector<std::set<flecsi::Color>> color_peers_;
 	MPI_Comm comm_;
@@ -415,5 +437,52 @@ std::vector<csr<double>> coloring_utils<MD>::send_rows() {
 		});
 }
 
+}
+// Serialization rules removed from FleCSI.
+namespace flecsi {
+template<>
+struct util::serial::traits<topo::unstructured_impl::shared_entity> {
+  using type = topo::unstructured_impl::shared_entity;
+  template<class P>
+  static void put(P & p, const type & s) {
+    serial::put(p, s.id, s.dependents);
+  }
+  static type get(const std::byte *& p) {
+    const cast r{p};
+    return type{r, r};
+  }
+};
+
+template<>
+struct util::serial::traits<topo::unstructured_impl::index_coloring> {
+  using type = topo::unstructured_impl::index_coloring;
+  template<class P>
+  static void put(P & p, const type & c) {
+    serial::put(p, c.all, c.owned, c.exclusive, c.shared, c.ghost);
+  }
+  static type get(const std::byte *& p) {
+    const cast r{p};
+    return type{r, r, r, r, r};
+  }
+};
+
+template<>
+struct util::serial::traits<topo::unstructured_impl::process_coloring> {
+  using type = topo::unstructured_impl::process_coloring;
+  template<class P>
+  static void put(P & p, const type & c) {
+    serial::put(p,
+      c.color,
+      c.entities,
+      c.coloring,
+      c.peers,
+      c.cnx_allocs,
+      c.cnx_colorings);
+  }
+  static type get(const std::byte *& p) {
+    const cast r{p};
+    return type{r, r, r, r, r, r};
+  }
+};
 }
 #endif
