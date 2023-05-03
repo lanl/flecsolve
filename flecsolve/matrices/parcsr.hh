@@ -167,9 +167,8 @@ struct parcsr_category : parcsr_base, flecsi::topo::with_meta<P> {
 	         typename P::index_space Space>
 	void ghost_copy(
 		const flecsi::data::field_reference<Type, Layout, P, Space> & f) {
-		// static_assert(Space == P::column_space);
-		if constexpr (Space == P::column_space)
-			column_plan_.issue_copy(f.fid());
+		static_assert(Space == P::column_space);
+		column_plan_.issue_copy(f.fid());
 	}
 
 	parcsr_category(const coloring & c)
@@ -345,9 +344,6 @@ struct parcsr : flecsi::topo::specialization<parcsr_category, parcsr> {
 	static constexpr flecsi::PrivilegeCount privilege_count = 1;
 	template<>
 	static constexpr flecsi::PrivilegeCount privilege_count<index_space::cols> =
-		2;
-	template<>
-	static constexpr flecsi::PrivilegeCount privilege_count<index_space::rows> =
 		2;
 
 	template<class B>
