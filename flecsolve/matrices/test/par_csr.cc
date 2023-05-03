@@ -18,7 +18,7 @@ namespace flecsolve {
 using namespace flecsi;
 
 field<double>::definition<mat::parcsr, mat::parcsr::cols> xd;
-field<double>::definition<mat::parcsr, mat::parcsr::rows> yd;
+field<double>::definition<mat::parcsr, mat::parcsr::cols> yd;
 
 namespace mat {
 struct parcsr_op;
@@ -34,7 +34,7 @@ struct traits<parcsr_op> {
 		auto spmv_tmp() { return vec::mesh(topo, spmv_tmp_def(topo)); }
 
 	protected:
-		field<scalar_t>::definition<parcsr, parcsr::rows> spmv_tmp_def;
+		field<scalar_t>::definition<parcsr, parcsr::cols> spmv_tmp_def;
 	};
 
 	struct ops_t {
@@ -138,15 +138,14 @@ int csr_test() {
 		y.set_scalar(0.0);
 		x.set_scalar(2);
 
-		// op::krylov_parameters params{cg::settings("solver"),
-		// 	cg::topo_work<>::get(x),
-		// 	std::ref(A)};
-		// read_config("parcsr.cfg", params);
+		op::krylov_parameters params{
+			cg::settings("solver"), cg::topo_work<>::get(x), std::ref(A)};
+		read_config("parcsr.cfg", params);
 
-		// op::krylov slv{std::move(params)};
+		op::krylov slv{std::move(params)};
 
-		// auto info = slv.apply(y, x);
-		// EXPECT_TRUE(info.iters == 167);
+		auto info = slv.apply(y, x);
+		EXPECT_TRUE(info.iters == 167);
 	};
 	return 0;
 }
