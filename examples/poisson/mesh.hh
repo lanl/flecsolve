@@ -106,9 +106,13 @@ struct mesh : flecsi::topo::specialization<flecsi::topo::narray, mesh> {
 				const bool high =
 					B::template is_high<index_space::vertices, A>();
 				const std::size_t start =
-					B::template offset<index_space::vertices, A, base::domain::logical>();
+					B::template offset<index_space::vertices,
+				                       A,
+				                       base::domain::logical>();
 				const std::size_t end =
-					start + B::template size<index_space::vertices, A, base::domain::logical>();
+					start + B::template size<index_space::vertices,
+				                             A,
+				                             base::domain::logical>();
 
 				return flecsi::topo::make_ids<index_space::vertices>(
 					flecsi::util::iota_view<flecsi::util::id>(start + low,
@@ -232,8 +236,10 @@ struct mesh : flecsi::topo::specialization<flecsi::topo::narray, mesh> {
 		util::srange interior_subrange() {
 			const bool low = B::template is_low<Space, A>();
 			const bool high = B::template is_high<Space, A>();
-			const std::size_t start = B::template offset<Space, A, base::domain::logical>();
-			const std::size_t end = start + B::template size<Space, A, base::domain::logical>();
+			const std::size_t start =
+				B::template offset<Space, A, base::domain::logical>();
+			const std::size_t end =
+				start + B::template size<Space, A, base::domain::logical>();
 			return {start + low, end - high};
 		}
 

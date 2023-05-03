@@ -15,15 +15,16 @@ struct poisson_op;
 template<>
 struct flecsolve::op::traits<poisson::poisson_op> {
 	struct parameters {
-		using ref_t = poisson::template stencil_field<poisson::five_pt>::Reference<poisson::mesh, poisson::mesh::vertices>;
+		using ref_t = poisson::template stencil_field<poisson::five_pt>::
+			Reference<poisson::mesh, poisson::mesh::vertices>;
 		ref_t op_reference;
 	};
 
-	static constexpr auto input_var = flecsolve::variable<flecsolve::anon_var::anonymous>;
-	static constexpr auto output_var = flecsolve::variable<flecsolve::anon_var::anonymous>;
+	static constexpr auto input_var =
+		flecsolve::variable<flecsolve::anon_var::anonymous>;
+	static constexpr auto output_var =
+		flecsolve::variable<flecsolve::anon_var::anonymous>;
 };
-
-
 
 namespace poisson {
 
@@ -37,9 +38,7 @@ struct poisson_op : flecsolve::op::base<poisson_op> {
 			y.data.topo(), params.op_reference, y.data.ref(), x.data.ref());
 	}
 
-	auto ref() {
-		return params.op_reference;
-	}
+	auto ref() { return params.op_reference; }
 
 protected:
 	static void spmv(mesh::accessor<ro> m,
@@ -53,11 +52,11 @@ protected:
 
 		for (auto j : m.vertices<mesh::y_axis>()) {
 			for (auto i : m.vertices<mesh::x_axis>()) {
-				y(i,j) = so(i, j, five_pt::c) * x(i, j)
-					- so(i,   j  , five_pt::w) * x(i-1, j  )
-					- so(i+1, j  , five_pt::w) * x(i+1, j  )
-					- so(i,   j  , five_pt::s) * x(i,   j-1)
-					- so(i,   j+1, five_pt::s) * x(i,   j+1);
+				y(i, j) = so(i, j, five_pt::c) * x(i, j) -
+				          so(i, j, five_pt::w) * x(i - 1, j) -
+				          so(i + 1, j, five_pt::w) * x(i + 1, j) -
+				          so(i, j, five_pt::s) * x(i, j - 1) -
+				          so(i, j + 1, five_pt::s) * x(i, j + 1);
 			}
 		}
 	}

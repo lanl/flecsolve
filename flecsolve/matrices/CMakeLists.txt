@@ -1,6 +1,7 @@
 set(matrices_HEADERS
-  par.hh
+  parcsr.hh
   seq.hh
+  io/matrix_market.hh
   PARENT_SCOPE)
 
 flecsi_add_test(parcsr

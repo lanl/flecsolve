@@ -21,8 +21,7 @@ struct matrix_market {
 		bool symmetric;
 	};
 
-
-	static header read_header(std::ifstream &fh) {
+	static header read_header(std::ifstream & fh) {
 		header hdr;
 		std::array<size, 3> sizes;
 		std::string line;
@@ -50,26 +49,23 @@ struct matrix_market {
 		return hdr;
 	}
 
-
-	static coo<scalar, size> read(const char * fname)
-	{
+	static coo<scalar, size> read(const char * fname) {
 		std::ifstream fh(fname);
 		auto hdr = read_header(fh);
 
 		return read(fh, hdr);
 	}
 
-
-	static coo<scalar, size> read(std::ifstream & fh,
-	                              const header & hdr) {
+	static coo<scalar, size> read(std::ifstream & fh, const header & hdr) {
 		// only estimate if symmetric
-		std::size_t estimate = hdr.symmetric ? hdr.nnz * 2 - hdr.nrows : hdr.nnz;
+		std::size_t estimate =
+			hdr.symmetric ? hdr.nnz * 2 - hdr.nrows : hdr.nnz;
 		coo<scalar, size> ret{hdr.nrows, hdr.ncols};
 		auto & I = ret.data.I;
 		auto & J = ret.data.J;
 		auto & V = ret.data.V;
 
-		[=](auto & ... v) { ((v.reserve(estimate)), ...); }(I, J, V);
+		[=](auto &... v) { ((v.reserve(estimate)), ...); }(I, J, V);
 
 		for (size i = 0; i < hdr.nnz; ++i) {
 			std::string line;
@@ -91,24 +87,17 @@ struct matrix_market {
 		return ret;
 	}
 
-
 	struct definition {
-		definition(const char * fname)
-			: fh{fname} {
-			hdr = read_header(fh);
-		}
+		definition(const char * fname) : fh{fname} { hdr = read_header(fh); }
 
-		size num_rows() const {
-			return hdr.nrows;
-		}
+		size num_rows() const { return hdr.nrows; }
 
-		size num_cols() const {
-			return hdr.ncols;
-		}
+		size num_cols() const { return hdr.ncols; }
 
 		template<class Range>
 		auto graph(const Range & rng) {
-			if (!mat_read) read_mat();
+			if (!mat_read)
+				read_mat();
 
 			flecsi::util::crs conn;
 
@@ -116,7 +105,7 @@ struct matrix_market {
 			auto colind = mat.indices();
 			for (auto i : rng) {
 				std::vector<size> inds;
-				for (size off = rowptr[i]; off < rowptr[i+1]; ++off) {
+				for (size off = rowptr[i]; off < rowptr[i + 1]; ++off) {
 					inds.push_back(colind[off]);
 				}
 				conn.add_row(inds);
@@ -127,8 +116,9 @@ struct matrix_market {
 
 		template<class Range>
 		auto matrix(const Range & rng) {
-			if (!mat_read) read_mat();
-			csr<double, size> ret{rng.size(), rng.size()};
+			if (!mat_read)
+				read_mat();
+			csr<scalar, size> ret{rng.size(), rng.size()};
 
 			// should really do some more reserving
 			auto & ret_data = ret.data;
@@ -138,7 +128,8 @@ struct matrix_market {
 			size nnz = 0;
 			size ii = 0;
 			for (auto i : rng) {
-				for (size off = mat.offsets()[i]; off < mat.offsets()[i+1]; ++off) {
+				for (size off = mat.offsets()[i]; off < mat.offsets()[i + 1];
+				     ++off) {
 					colind.push_back(mat.indices()[off]);
 					values.push_back(mat.values()[off]);
 					++nnz;
@@ -146,7 +137,8 @@ struct matrix_market {
 
 				rowptr[ii++] = mat.offsets()[i] - mat.offsets()[rng.front()];
 			}
-			rowptr[ii] = mat.offsets()[rng.back() + 1] - mat.offsets()[rng.front()];
+			rowptr[ii] =
+				mat.offsets()[rng.back() + 1] - mat.offsets()[rng.front()];
 			ret.set_nnz(nnz);
 
 			return ret;
@@ -174,8 +166,8 @@ protected:
 	}
 	template<class T, std::size_t... I>
 	static void parse_entry_impl(T & t,
-	                      std::istringstream & iss,
-	                      std::index_sequence<I...>) {
+	                             std::istringstream & iss,
+	                             std::index_sequence<I...>) {
 		std::string tok;
 		((std::getline(iss, tok, ' '), std::get<I>(t) = stov<I>(tok)), ...);
 	}

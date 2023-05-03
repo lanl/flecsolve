@@ -82,7 +82,6 @@ struct testmesh : flecsi::topo::specialization<flecsi::topo::narray, testmesh> {
 	                       coloring const &) {}
 };
 
-
 using realf = flecsi::field<double>;
 
 using flecsi::na;
@@ -97,9 +96,9 @@ init_mesh(std::size_t nrows, testmesh::slot & msh, testmesh::cslot & coloring) {
 }
 
 inline void spmv(const mat::csr<double> & A,
-          testmesh::accessor<ro> m,
-          realf::accessor<ro, na> x,
-          realf::accessor<wo, na> y) {
+                 testmesh::accessor<ro> m,
+                 realf::accessor<ro, na> x,
+                 realf::accessor<wo, na> y) {
 	auto dofs = m.dofs<testmesh::cells>();
 	auto rowptr = A.offsets();
 	auto colind = A.indices();
