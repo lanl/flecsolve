@@ -341,10 +341,8 @@ struct parcsr : flecsi::topo::specialization<parcsr_category, parcsr> {
 	static constexpr index_space column_space = cols;
 
 	template<index_space S>
-	static constexpr flecsi::PrivilegeCount privilege_count = 1;
-	template<>
-	static constexpr flecsi::PrivilegeCount privilege_count<index_space::cols> =
-		2;
+	static constexpr flecsi::PrivilegeCount
+		privilege_count = (S == index_space::cols) ? 2 : 1;
 
 	template<class B>
 	struct interface : B {
