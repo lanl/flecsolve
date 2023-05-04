@@ -72,12 +72,13 @@ int cgtest() {
 			x.set_random(7);
 
 			diagnostic diag(A, x, cs.cond);
-			op::krylov_parameters params(cg::settings("cg-solver"),
+			cg::settings settings{"cg-solver"};
+			read_config("cg.cfg", settings);
+			op::krylov_parameters params(std::move(settings),
 			                             vec::seq_work<double, cg::nwork>{b},
 			                             std::ref(A),
 			                             op::I,
 			                             std::ref(diag));
-			read_config("cg.cfg", params);
 			op::krylov slv(std::move(params));
 
 			auto info = slv.apply(b, x);
