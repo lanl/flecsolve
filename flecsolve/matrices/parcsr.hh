@@ -91,7 +91,7 @@ struct parcsr_base {
 
 				auto & inter = *iit++;
 				inter.emplace_back(std::make_pair(
-					cm[col].size(), cm[col].size() + cghosts.size() + 1));
+					cm[col].size(), cm[col].size() + cghosts.size()));
 			}
 		}
 	}
