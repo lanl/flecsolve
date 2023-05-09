@@ -17,123 +17,17 @@ namespace flecsolve {
 
 using namespace flecsi;
 
-field<double>::definition<mat::parcsr, mat::parcsr::cols> xd;
-field<double>::definition<mat::parcsr, mat::parcsr::cols> yd;
-
-namespace mat {
-struct parcsr_op;
-template<>
-struct traits<parcsr_op> {
-	using scalar_t = double;
-	using size_t = std::size_t;
-	struct data_t {
-		parcsr::slot topo;
-		parcsr::cslot coloring;
-		parcsr::init coloring_input;
-
-		auto spmv_tmp() { return vec::mesh(topo, spmv_tmp_def(topo)); }
-
-	protected:
-		field<scalar_t>::definition<parcsr, parcsr::cols> spmv_tmp_def;
-	};
-
-	struct ops_t {
-		template<class D, class R>
-		void spmv(const D & x, const data_t & data_c, R & y) const {
-			auto & data = const_cast<data_t &>(data_c);
-			auto tmpv = const_cast<data_t &>(data).spmv_tmp();
-			flecsi::execute<spmv_remote>(
-				data.topo, tmpv.data.ref(), x.data.ref());
-			flecsi::execute<spmv_local>(data.topo, y.data.ref(), x.data.ref());
-			y.add(y, tmpv);
-		}
-
-	protected:
-		static void
-		spmv_remote(parcsr::accessor<flecsi::ro> ma,
-		            field<scalar_t>::accessor<flecsi::wo, flecsi::na> ya,
-		            field<scalar_t>::accessor<flecsi::na, flecsi::ro> xa) {
-			vec::seq_view y{ya.span()};
-			vec::seq_view x{xa.span()};
-			ma.offd().mult(x, y);
-		}
-
-		static void
-		spmv_local(parcsr::accessor<flecsi::ro> ma,
-		           field<scalar_t>::accessor<flecsi::wo, flecsi::na> ya,
-		           field<scalar_t>::accessor<flecsi::ro, flecsi::na> xa) {
-			vec::seq_view y{ya.span()};
-			vec::seq_view x{xa.span()};
-			ma.diag().mult(x, y);
-		}
-	};
-};
-
-struct parcsr_op : flecsolve::mat::sparse<parcsr_op> {
-	parcsr_op(MPI_Comm comm,
-	          const char * fname,
-	          Color colors = flecsi::processes())
-		: comm_(comm), colors_(colors) {
-		flecsi::execute<read_mat, flecsi::mpi>(
-			comm, fname, colors, data.coloring_input);
-		data.coloring.allocate(data.coloring_input);
-		data.topo.allocate(data.coloring.get(), data.coloring_input);
-	}
-
-protected:
-	static void read_mat(MPI_Comm comm,
-	                     const char * fname,
-	                     Color colors,
-	                     flecsolve::mat::parcsr::init & ci) {
-		/*
-		  1. distribute csr across colors to each processor
-		  2. broadcast global dimensions
-		  3. distribute referencers (source pointers) to each processor
-		*/
-		// read and distribute to colors
-		auto [rank, comm_size] = util::mpi::info(comm);
-		using scalar = mat::parcsr::scalar;
-		using size = mat::parcsr::size;
-
-		mat::io::matrix_market<scalar, size>::definition mdef{fname};
-		const util::equal_map pm(colors, comm_size);
-		ci.proc_mats = util::mpi::one_to_allv(
-			[=, &mdef](int r, int) {
-				const util::equal_map rm(mdef.num_rows(), colors);
-				std::vector<mat::csr<scalar, size>> proc_mats;
-
-				for (const auto clr : pm[r]) {
-					proc_mats.push_back(mdef.matrix(rm[clr]));
-				}
-
-				return proc_mats;
-			},
-			comm);
-
-		std::array<std::size_t, 2> shape;
-		if (rank == 0) {
-			shape[0] = mdef.num_rows();
-			shape[1] = mdef.num_cols();
-		}
-		MPI_Bcast(shape.data(), 2, util::mpi::type<std::size_t>(), 0, comm);
-
-		ci.comm = comm;
-		ci.nrows = shape[0];
-		ci.ncols = shape[1];
-	}
-
-	MPI_Comm comm_;
-	Color colors_;
-};
-}
+field<double>::definition<topo::csr, topo::csr::cols> xd;
+field<double>::definition<topo::csr, topo::csr::cols> yd;
 
 int csr_test() {
 	UNIT () {
 		using namespace flecsolve::mat;
 
-		parcsr_op A{MPI_COMM_WORLD, "Chem97ZtZ.mtx"};
-		vec::mesh x(A.data.topo, xd(A.data.topo));
-		vec::mesh y(A.data.topo, yd(A.data.topo));
+		auto A = io::matrix_market<double, std::size_t>::readpar(
+			MPI_COMM_WORLD, "Chem97ZtZ.mtx", flecsi::processes());
+		vec::mesh x(A.data.topo(), xd(A.data.topo()));
+		vec::mesh y(A.data.topo(), yd(A.data.topo()));
 
 		y.set_scalar(0.0);
 		x.set_scalar(2);
