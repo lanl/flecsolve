@@ -17,8 +17,10 @@ namespace flecsolve {
 
 using namespace flecsi;
 
-field<double>::definition<topo::csr, topo::csr::cols> xd;
-field<double>::definition<topo::csr, topo::csr::cols> yd;
+using csr = topo::csr<double>;
+
+csr::vec_def<csr::cols> xd;
+csr::vec_def<csr::cols> yd;
 
 int csr_test() {
 	UNIT () {
@@ -26,8 +28,8 @@ int csr_test() {
 
 		auto A = io::matrix_market<double, std::size_t>::readpar(
 			MPI_COMM_WORLD, "Chem97ZtZ.mtx", flecsi::processes());
-		vec::mesh x(A.data.topo(), xd(A.data.topo()));
-		vec::mesh y(A.data.topo(), yd(A.data.topo()));
+		auto x = A.vec(xd);
+		auto y = A.vec(yd);
 
 		y.set_scalar(0.0);
 		x.set_scalar(2);

@@ -6,26 +6,29 @@
 
 namespace flecsolve::mat {
 
+template<class scalar, class size>
 struct parcsr;
-template<>
-struct traits<parcsr> {
-	using scalar_t = double;
-	using size_t = std::size_t;
+template<class scalar, class size>
+struct traits<parcsr<scalar, size>> {
+	using scalar_t = scalar;
+	using size_t = size;
+	using topo_t = topo::csr<scalar, size>;
 	struct data_t {
-		topo::csr::slot & topo() {
+		typename topo_t::slot & topo() {
 			if (!topo_slot)
-				topo_slot = std::make_unique<topo::csr::slot>();
+				topo_slot = std::make_unique<typename topo_t::slot>();
 			return *topo_slot;
 		}
-		topo::csr::cslot coloring;
-		topo::csr::init coloring_input;
+		typename topo_t::cslot coloring;
+		typename topo_t::init coloring_input;
 
 		auto spmv_tmp() { return vec::mesh(topo(), spmv_tmp_def(topo())); }
 
 	protected:
-		flecsi::field<scalar_t>::definition<topo::csr, topo::csr::cols>
+		typename flecsi::field<scalar_t>::template definition<topo_t,
+		                                                      topo_t::cols>
 			spmv_tmp_def;
-		std::unique_ptr<topo::csr::slot> topo_slot;
+		std::unique_ptr<typename topo_t::slot> topo_slot;
 	};
 
 	struct ops_t {
@@ -42,18 +45,22 @@ struct traits<parcsr> {
 
 	protected:
 		static void spmv_remote(
-			topo::csr::accessor<flecsi::ro> ma,
-			flecsi::field<scalar_t>::accessor<flecsi::wo, flecsi::na> ya,
-			flecsi::field<scalar_t>::accessor<flecsi::na, flecsi::ro> xa) {
+			typename topo_t::template accessor<flecsi::ro> ma,
+			typename flecsi::field<scalar_t>::template accessor<flecsi::wo,
+		                                                        flecsi::na> ya,
+			typename flecsi::field<
+				scalar_t>::template accessor<flecsi::na, flecsi::ro> xa) {
 			vec::seq_view y{ya.span()};
 			vec::seq_view x{xa.span()};
 			ma.offd().mult(x, y);
 		}
 
 		static void spmv_local(
-			topo::csr::accessor<flecsi::ro> ma,
-			flecsi::field<scalar_t>::accessor<flecsi::wo, flecsi::na> ya,
-			flecsi::field<scalar_t>::accessor<flecsi::ro, flecsi::na> xa) {
+			typename topo_t::template accessor<flecsi::ro> ma,
+			typename flecsi::field<scalar_t>::template accessor<flecsi::wo,
+		                                                        flecsi::na> ya,
+			typename flecsi::field<
+				scalar_t>::template accessor<flecsi::ro, flecsi::na> xa) {
 			vec::seq_view y{ya.span()};
 			vec::seq_view x{xa.span()};
 			ma.diag().mult(x, y);
@@ -61,7 +68,15 @@ struct traits<parcsr> {
 	};
 };
 
-struct parcsr : sparse<parcsr> {};
+template<class scalar, class size = std::size_t>
+struct parcsr : sparse<parcsr<scalar, size>> {
+	using sparse<parcsr<scalar, size>>::data;
+	template<typename topo::csr<scalar, size>::index_space S>
+	auto vec(typename flecsi::field<
+			 scalar>::template definition<topo::csr<scalar, size>, S> & def) {
+		return vec::mesh(data.topo(), def(data.topo()));
+	}
+};
 
 }
 

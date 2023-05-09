@@ -140,7 +140,7 @@ struct matrix_market {
 	static void dist_read(MPI_Comm comm,
 	                      const char * fname,
 	                      flecsi::Color colors,
-	                      topo::csr::init & ci) {
+	                      typename topo::csr<scalar, size>::init & ci) {
 		/*
 		  1. distribute csr across colors to each processor
 		  2. broadcast global dimensions
@@ -177,9 +177,9 @@ struct matrix_market {
 		ci.ncols = shape[1];
 	}
 
-	static parcsr
+	static parcsr<scalar, size>
 	readpar(MPI_Comm comm, const char * fname, flecsi::Color colors) {
-		parcsr ret;
+		parcsr<scalar, size> ret;
 		flecsi::execute<dist_read, flecsi::mpi>(
 			comm, fname, colors, ret.data.coloring_input);
 		ret.data.coloring.allocate(ret.data.coloring_input);
