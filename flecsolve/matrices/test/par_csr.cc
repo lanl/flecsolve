@@ -26,8 +26,8 @@ int csr_test() {
 	UNIT () {
 		using namespace flecsolve::mat;
 
-		auto A = io::matrix_market<double, std::size_t>::readpar(
-			MPI_COMM_WORLD, "Chem97ZtZ.mtx", flecsi::processes());
+		parcsr<double> A{parcsr_params{
+			MPI_COMM_WORLD, flecsi::processes(), "Chem97ZtZ.mtx"}};
 		auto x = A.vec(xd);
 		auto y = A.vec(yd);
 

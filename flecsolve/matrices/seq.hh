@@ -1,6 +1,7 @@
 #ifndef FLECSOLVE_MATRICES_CSR_HH
 #define FLECSOLVE_MATRICES_CSR_HH
 
+#include <cstddef>
 #include <limits>
 #include <vector>
 #include <numeric>
@@ -28,6 +29,8 @@ struct sparse : with_derived<Derived>, op::base<Derived> {
 	using with_derived<Derived>::derived;
 
 	sparse() {}
+	sparse(typename op::traits<Derived>::parameters p)
+		: op::base<Derived>(std::move(p)) {}
 	sparse(data_t && d) : data{std::move(d)} {}
 
 	constexpr size rows() const { return derived().rows(); }

@@ -7,7 +7,6 @@
 
 #include "flecsi/util/crs.hh"
 
-#include "flecsolve/matrices/parcsr.hh"
 #include "flecsolve/matrices/seq.hh"
 
 namespace flecsolve::mat::io {
@@ -136,58 +135,6 @@ struct matrix_market {
 		std::ifstream fh;
 		bool mat_read = false;
 	};
-
-	static void dist_read(MPI_Comm comm,
-	                      const char * fname,
-	                      flecsi::Color colors,
-	                      typename topo::csr<scalar, size>::init & ci) {
-		/*
-		  1. distribute csr across colors to each processor
-		  2. broadcast global dimensions
-		  3. distribute referencers (source pointers) to each processor
-		*/
-		// read and distribute to colors
-		auto [rank, comm_size] = flecsi::util::mpi::info(comm);
-
-		mat::io::matrix_market<scalar, size>::definition mdef{fname};
-		const flecsi::util::equal_map pm(colors, comm_size);
-		ci.proc_mats = flecsi::util::mpi::one_to_allv(
-			[=, &mdef](int r, int) {
-				const flecsi::util::equal_map rm(mdef.num_rows(), colors);
-				std::vector<mat::csr<scalar, size>> proc_mats;
-
-				for (const auto clr : pm[r]) {
-					proc_mats.push_back(mdef.matrix(rm[clr]));
-				}
-
-				return proc_mats;
-			},
-			comm);
-
-		std::array<std::size_t, 2> shape;
-		if (rank == 0) {
-			shape[0] = mdef.num_rows();
-			shape[1] = mdef.num_cols();
-		}
-		MPI_Bcast(
-			shape.data(), 2, flecsi::util::mpi::type<std::size_t>(), 0, comm);
-
-		ci.comm = comm;
-		ci.nrows = shape[0];
-		ci.ncols = shape[1];
-	}
-
-	static parcsr<scalar, size>
-	readpar(MPI_Comm comm, const char * fname, flecsi::Color colors) {
-		parcsr<scalar, size> ret;
-		flecsi::execute<dist_read, flecsi::mpi>(
-			comm, fname, colors, ret.data.coloring_input);
-		ret.data.coloring.allocate(ret.data.coloring_input);
-		ret.data.topo().allocate(ret.data.coloring.get(),
-		                         ret.data.coloring_input);
-
-		return ret;
-	}
 
 protected:
 	template<std::size_t I>
