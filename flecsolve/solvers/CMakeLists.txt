@@ -8,6 +8,7 @@ set(solvers_HEADERS
   solver_settings.hh
   traits.hh
   factory.hh
+  mg/jacobi.hh
   PARENT_SCOPE)
 
 flecsi_add_test(cg
@@ -57,3 +58,5 @@ flecsi_add_test(nka
   test/nka-factory.cfg
   LIBRARIES flecsolve
   PROCS 1)
+
+add_subdirectory(mg)

@@ -274,7 +274,7 @@ struct base {
 	 */
 	void set_random(unsigned seed) { ops.set_random(data, seed); }
 
-	void dump(std::string_view str) { ops.dump(str, data); }
+	void dump(std::string_view str) const { ops.dump(str, data); }
 
 	template<class T>
 	constexpr decltype(auto) subset(T && t) const {

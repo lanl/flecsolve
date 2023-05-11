@@ -304,7 +304,9 @@ struct mesh_tasks {
 		std::string fname{pre};
 		fname += "-" + std::to_string(flecsi::process());
 		std::ofstream ofile(fname);
-		forall(dof, util::dofs(m), "dump") { ofile << x(dof) << '\n'; };
+		for (auto dof : util::dofs(m)) {
+			ofile << x(dof) << '\n';
+		}
 	}
 };
 
