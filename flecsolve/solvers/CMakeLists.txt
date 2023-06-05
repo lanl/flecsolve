@@ -9,6 +9,7 @@ set(solvers_HEADERS
   traits.hh
   factory.hh
   mg/jacobi.hh
+  mg/gs.hh
   PARENT_SCOPE)
 
 flecsi_add_test(cg

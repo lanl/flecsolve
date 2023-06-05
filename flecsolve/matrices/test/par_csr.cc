@@ -24,9 +24,8 @@ csr::vec_def<csr::cols> yd;
 
 int csr_test() {
 	UNIT () {
-		using namespace flecsolve::mat;
-
-		parcsr<double> A{parcsr_params{
+		using parcsr = mat::parcsr<double>;
+		parcsr A{parcsr::parameters{
 			MPI_COMM_WORLD, flecsi::processes(), "Chem97ZtZ.mtx"}};
 		auto x = A.vec(xd);
 		auto y = A.vec(yd);

@@ -8,10 +8,55 @@
 namespace flecsolve {
 
 namespace mat {
+template<class scalar, class size>
 struct parcsr_params {
-	MPI_Comm comm;
-	flecsi::Color colors;
-	std::string fname;
+	parcsr_params(MPI_Comm comm, flecsi::Color colors, std::string fname) {
+		flecsi::execute<dist_read, flecsi::mpi>(
+			comm, fname.c_str(), colors, topo_init);
+	}
+
+	typename topo::csr<scalar, size>::init topo_init;
+
+private:
+	static void dist_read(MPI_Comm comm,
+	                      const char * fname,
+	                      flecsi::Color colors,
+	                      typename topo::csr<scalar, size>::init & ci) {
+		/*
+		  1. distribute csr across colors to each processor
+		  2. broadcast global dimensions
+		  3. distribute referencers (source pointers) to each processor
+		*/
+		// read and distribute to colors
+		auto [rank, comm_size] = flecsi::util::mpi::info(comm);
+
+		typename mat::io::matrix_market<scalar, size>::definition mdef{fname};
+		const flecsi::util::equal_map pm(colors, comm_size);
+		ci.proc_mats = flecsi::util::mpi::one_to_allv(
+			[=, &mdef](int r, int) {
+				const flecsi::util::equal_map rm(mdef.num_rows(), colors);
+				std::vector<mat::csr<scalar, size>> proc_mats;
+
+				for (const auto clr : pm[r]) {
+					proc_mats.push_back(mdef.matrix(rm[clr]));
+				}
+
+				return proc_mats;
+			},
+			comm);
+
+		std::array<std::size_t, 2> shape;
+		if (rank == 0) {
+			shape[0] = mdef.num_rows();
+			shape[1] = mdef.num_cols();
+		}
+		MPI_Bcast(
+			shape.data(), 2, flecsi::util::mpi::type<std::size_t>(), 0, comm);
+
+		ci.comm = comm;
+		ci.nrows = shape[0];
+		ci.ncols = shape[1];
+	}
 };
 template<class scalar, class size>
 struct parcsr;
@@ -22,7 +67,7 @@ template<class scalar, class size>
 struct traits<mat::parcsr<scalar, size>> {
 	static constexpr auto input_var = variable<anon_var::anonymous>;
 	static constexpr auto output_var = variable<anon_var::anonymous>;
-	using parameters = mat::parcsr_params;
+	using parameters = mat::parcsr_params<scalar, size>;
 };
 }
 }
@@ -41,7 +86,6 @@ struct traits<parcsr<scalar, size>> {
 			return *topo_slot;
 		}
 		typename topo_t::cslot coloring;
-		typename topo_t::init coloring_input;
 
 		auto spmv_tmp() { return vec::mesh(topo(), spmv_tmp_def(topo())); }
 
@@ -94,61 +138,17 @@ struct parcsr : sparse<parcsr<scalar, size>> {
 	using base = sparse<parcsr<scalar, size>>;
 	using base::data;
 	using base::params;
+	using parameters = typename base::params_type;
 
-	parcsr(parcsr_params p) : base(std::move(p)) {
-		flecsi::execute<dist_read, flecsi::mpi>(params.comm,
-		                                        params.fname.c_str(),
-		                                        params.colors,
-		                                        data.coloring_input);
-		data.coloring.allocate(data.coloring_input);
-		data.topo().allocate(data.coloring.get(), data.coloring_input);
+	parcsr(parameters p) : base(std::move(p)) {
+		data.coloring.allocate(params.topo_init);
+		data.topo().allocate(data.coloring.get(), params.topo_init);
 	}
 
 	template<typename topo::csr<scalar, size>::index_space S>
 	auto vec(typename flecsi::field<
 			 scalar>::template definition<topo::csr<scalar, size>, S> & def) {
 		return vec::mesh(data.topo(), def(data.topo()));
-	}
-
-protected:
-	static void dist_read(MPI_Comm comm,
-	                      const char * fname,
-	                      flecsi::Color colors,
-	                      typename topo::csr<scalar, size>::init & ci) {
-		/*
-		  1. distribute csr across colors to each processor
-		  2. broadcast global dimensions
-		  3. distribute referencers (source pointers) to each processor
-		*/
-		// read and distribute to colors
-		auto [rank, comm_size] = flecsi::util::mpi::info(comm);
-
-		typename mat::io::matrix_market<scalar, size>::definition mdef{fname};
-		const flecsi::util::equal_map pm(colors, comm_size);
-		ci.proc_mats = flecsi::util::mpi::one_to_allv(
-			[=, &mdef](int r, int) {
-				const flecsi::util::equal_map rm(mdef.num_rows(), colors);
-				std::vector<mat::csr<scalar, size>> proc_mats;
-
-				for (const auto clr : pm[r]) {
-					proc_mats.push_back(mdef.matrix(rm[clr]));
-				}
-
-				return proc_mats;
-			},
-			comm);
-
-		std::array<std::size_t, 2> shape;
-		if (rank == 0) {
-			shape[0] = mdef.num_rows();
-			shape[1] = mdef.num_cols();
-		}
-		MPI_Bcast(
-			shape.data(), 2, flecsi::util::mpi::type<std::size_t>(), 0, comm);
-
-		ci.comm = comm;
-		ci.nrows = shape[0];
-		ci.ncols = shape[1];
 	}
 };
 
