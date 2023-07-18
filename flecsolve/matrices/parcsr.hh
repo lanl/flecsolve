@@ -85,6 +85,7 @@ struct traits<parcsr<scalar, size>> {
 				topo_slot = std::make_unique<typename topo_t::slot>();
 			return *topo_slot;
 		}
+		typename topo_t::slot & topo() const { return *topo_slot; }
 		typename topo_t::cslot coloring;
 
 		auto spmv_tmp() { return vec::mesh(topo(), spmv_tmp_def(topo())); }

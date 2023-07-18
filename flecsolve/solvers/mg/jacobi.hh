@@ -70,13 +70,8 @@ struct jacobi : op::base<jacobi<scalar, size>> {
 		auto diag = A.diag();
 		auto offd = A.offd();
 
-		auto drowptr = diag.offsets();
-		auto dcolind = diag.indices();
-		auto dvalues = diag.values();
-
-		auto orowptr = offd.offsets();
-		auto ocolind = offd.indices();
-		auto ovalues = offd.values();
+		auto [drowptr, dcolind, dvalues] = diag.rep();
+		auto [orowptr, ocolind, ovalues] = offd.rep();
 
 		for (size r = 0; r < diag.rows(); ++r) {
 			scalar diag = 0;

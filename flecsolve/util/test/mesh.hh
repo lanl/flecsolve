@@ -100,9 +100,7 @@ inline void spmv(const mat::csr<double> & A,
                  realf::accessor<ro, na> x,
                  realf::accessor<wo, na> y) {
 	auto dofs = m.dofs<testmesh::cells>();
-	auto rowptr = A.offsets();
-	auto colind = A.indices();
-	auto values = A.values();
+	auto [rowptr, colind, values] = A.rep();
 	for (std::size_t i = 0; i < A.rows(); i++) {
 		auto dof = dofs[i];
 		y[dof] = 0.;
@@ -128,14 +126,15 @@ struct csr_op : op::base<csr_op> {
 		out.resize(A.nnz());
 
 		for (std::size_t i = 0; i < A.rows(); i++) {
-			for (std::size_t off = A.offsets()[i]; off < A.offsets()[i + 1];
+			for (std::size_t off = A.data.offsets()[i];
+			     off < A.data.offsets()[i + 1];
 			     off++) {
-				if (A.indices()[off] == i) {
-					out.values()[i] = 1.0 / A.values()[off];
-					out.indices()[i] = i;
+				if (A.data.indices()[off] == i) {
+					out.data.values()[i] = 1.0 / A.data.values()[off];
+					out.data.indices()[i] = i;
 				}
 			}
-			out.offsets()[i + 1] = i + 1;
+			out.data.offsets()[i + 1] = i + 1;
 		}
 
 		return csr_op{std::move(out)};

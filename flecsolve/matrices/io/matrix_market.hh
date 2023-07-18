@@ -102,23 +102,25 @@ struct matrix_market {
 
 			// should really do some more reserving
 			auto & ret_data = ret.data;
-			auto & rowptr = ret_data.offsets();
-			auto & colind = ret_data.indices();
-			auto & values = ret_data.values();
+			auto & rowptr = ret_data.offsets_vec();
+			auto & colind = ret_data.indices_vec();
+			auto & values = ret_data.values_vec();
 			size nnz = 0;
 			size ii = 0;
 			for (auto i : rng) {
-				for (size off = mat.offsets()[i]; off < mat.offsets()[i + 1];
+				for (size off = mat.data.offsets()[i];
+				     off < mat.data.offsets()[i + 1];
 				     ++off) {
-					colind.push_back(mat.indices()[off]);
-					values.push_back(mat.values()[off]);
+					colind.push_back(mat.data.indices()[off]);
+					values.push_back(mat.data.values()[off]);
 					++nnz;
 				}
 
-				rowptr[ii++] = mat.offsets()[i] - mat.offsets()[rng.front()];
+				rowptr[ii++] =
+					mat.data.offsets()[i] - mat.data.offsets()[rng.front()];
 			}
-			rowptr[ii] =
-				mat.offsets()[rng.back() + 1] - mat.offsets()[rng.front()];
+			rowptr[ii] = mat.data.offsets()[rng.back() + 1] -
+			             mat.data.offsets()[rng.front()];
 			ret.set_nnz(nnz);
 
 			return ret;

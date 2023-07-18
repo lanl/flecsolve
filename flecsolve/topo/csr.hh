@@ -183,8 +183,7 @@ struct csr_category : csr_base, flecsi::topo::with_meta<P> {
 
 private:
 	template<auto... VV>
-	csr_category(const csr_base::coloring & c,
-	                flecsi::util::constants<VV...>)
+	csr_category(const csr_base::coloring & c, flecsi::util::constants<VV...>)
 		: flecsi::topo::with_meta<P>(c.colors),
 		  part_{{flecsi::topo::make_repartitioned<P, VV>(
 			  c.colors,
@@ -271,10 +270,12 @@ private:
 
 	template<index_space nnz_space>
 	struct csr_def {
-		static inline const field_def<typename P::size_type, index_space::rowsp1>
+		static inline const field_def<typename P::size_type,
+		                              index_space::rowsp1>
 			offsets;
 		static inline const field_def<typename P::size_type, nnz_space> indices;
-		static inline const field_def<typename P::scalar_type, nnz_space> values;
+		static inline const field_def<typename P::scalar_type, nnz_space>
+			values;
 	};
 
 	using diag = csr_def<index_space::nnz_diag>;
@@ -333,7 +334,7 @@ struct detail::base<flecsolve::topo::csr_category> {
 namespace flecsolve::topo {
 template<class scalar, class size = std::size_t>
 struct csr : flecsi::topo::help,
-	flecsi::topo::specialization<csr_category, csr<scalar, size>> {
+			 flecsi::topo::specialization<csr_category, csr<scalar, size>> {
 	using coloring = csr_base::coloring;
 	using size_type = size;
 	using scalar_type = scalar;
@@ -343,7 +344,9 @@ struct csr : flecsi::topo::help,
 	static constexpr index_space column_space = cols;
 
 	template<index_space S>
-	using vec_def = typename flecsi::field<scalar>::template definition<csr<scalar, size>, S>;
+	using vec_def =
+		typename flecsi::field<scalar>::template definition<csr<scalar, size>,
+	                                                        S>;
 
 	template<index_space S>
 	static constexpr flecsi::PrivilegeCount
@@ -353,16 +356,16 @@ struct csr : flecsi::topo::help,
 	struct interface : B {
 		FLECSI_INLINE_TARGET auto diag() {
 			auto diaga = B::diag();
-			return mat::csr_view{diaga.offsets.span(),
+			return mat::csr_view(diaga.offsets.span(),
 			                     diaga.indices.span(),
-			                     diaga.values.span()};
+			                     diaga.values.span());
 		}
 
 		FLECSI_INLINE_TARGET auto offd() {
 			auto offda = B::offd();
-			return mat::csr_view{offda.offsets.span(),
+			return mat::csr_view(offda.offsets.span(),
 			                     offda.indices.span(),
-			                     offda.values.span()};
+			                     offda.values.span());
 		}
 
 		FLECSI_INLINE_TARGET const auto & meta() { return B::meta(); }
@@ -414,12 +417,12 @@ struct csr : flecsi::topo::help,
 				auto & mat = *lmat++;
 				auto & sz = *lsizes++;
 				auto & ghosts = *lghosts++;
-				for (std::size_t row = 0; row < mat.offsets().size() - 1;
+				for (std::size_t row = 0; row < mat.data.offsets().size() - 1;
 				     ++row) {
-					for (std::size_t off = mat.offsets()[row];
-					     off < mat.offsets()[row + 1];
+					for (std::size_t off = mat.data.offsets()[row];
+					     off < mat.data.offsets()[row + 1];
 					     ++off) {
-						auto cid = mat.indices()[off];
+						auto cid = mat.data.indices()[off];
 						if (cm.bin(cid) != col) {
 							++num_offd;
 							ghosts.push_back(cid);
@@ -457,9 +460,11 @@ struct csr : flecsi::topo::help,
 	  the columns in offd are compressed using the ghost ordering set
 	  by the coloring.
 	*/
-	static void init_mats(flecsi::data::multi<typename csr<scalar, size>::template accessor<flecsi::wo>> m,
-	                      const coloring & c,
-	                      const init & ci) {
+	static void
+	init_mats(flecsi::data::multi<
+				  typename csr<scalar, size>::template accessor<flecsi::wo>> m,
+	          const coloring & c,
+	          const init & ci) {
 		auto [rank, comm_size] = flecsi::util::mpi::info(c.comm);
 		const flecsi::util::equal_map cm{ci.ncols, c.colors};
 		const flecsi::util::equal_map rm{ci.nrows, c.colors};
@@ -480,15 +485,15 @@ struct csr : flecsi::topo::help,
 			auto diag = ma[lc].diag();
 			auto offd = ma[lc].offd();
 
-			diag.offsets()[0] = 0;
-			offd.offsets()[0] = 0;
-			for (size row = 0; row < mat.offsets().size() - 1; ++row) {
+			diag.data.offsets()[0] = 0;
+			offd.data.offsets()[0] = 0;
+			for (size row = 0; row < mat.data.offsets().size() - 1; ++row) {
 				size nnz_row_offd{0}, nnz_row_diag{0};
-				for (size off = mat.offsets()[row];
-				     off < mat.offsets()[row + 1];
+				for (size off = mat.data.offsets()[row];
+				     off < mat.data.offsets()[row + 1];
 				     ++off) {
-					auto cid = mat.indices()[off];
-					auto val = mat.values()[off];
+					auto cid = mat.data.indices()[off];
+					auto val = mat.data.values()[off];
 					auto insert = [&](size local_col,
 					                  size base,
 					                  auto colind,
@@ -500,21 +505,23 @@ struct csr : flecsi::topo::help,
 					};
 					if (cm.bin(cid) == col) { // insert in diag
 						insert(cm.invert(cid).second,
-						       diag.offsets()[row],
-						       diag.indices(),
-						       diag.values(),
+						       diag.data.offsets()[row],
+						       diag.data.indices(),
+						       diag.data.values(),
 						       nnz_row_diag);
 					}
 					else { // insert in offd
 						insert(colmap.at(cid),
-						       offd.offsets()[row],
-						       offd.indices(),
-						       offd.values(),
+						       offd.data.offsets()[row],
+						       offd.data.indices(),
+						       offd.data.values(),
 						       nnz_row_offd);
 					}
 				}
-				diag.offsets()[row + 1] = diag.offsets()[row] + nnz_row_diag;
-				offd.offsets()[row + 1] = offd.offsets()[row] + nnz_row_offd;
+				diag.data.offsets()[row + 1] =
+					diag.data.offsets()[row] + nnz_row_diag;
+				offd.data.offsets()[row + 1] =
+					offd.data.offsets()[row] + nnz_row_offd;
 			}
 		}
 	}

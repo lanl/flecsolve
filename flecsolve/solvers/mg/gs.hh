@@ -17,8 +17,10 @@ struct hybrid_gs_params {
 	std::size_t nrelax;
 	relax_dir direction;
 
-	hybrid_gs_params(std::reference_wrapper<mat::parcsr<scalar,size>> a,
-	                 std::size_t n, relax_dir d) : A(a), nrelax(n), direction(d) {}
+	hybrid_gs_params(std::reference_wrapper<mat::parcsr<scalar, size>> a,
+	                 std::size_t n,
+	                 relax_dir d)
+		: A(a), nrelax(n), direction(d) {}
 };
 
 template<class scalar, class size>
@@ -69,13 +71,8 @@ struct hybrid_gs : op::base<hybrid_gs<scalar, size>> {
 		auto diag = A.diag();
 		auto offd = A.offd();
 
-		auto drowptr = diag.offsets();
-		auto dcolind = diag.indices();
-		auto dvalues = diag.values();
-
-		auto orowptr = offd.offsets();
-		auto ocolind = offd.indices();
-		auto ovalues = offd.values();
+		auto [drowptr, dcolind, dvalues] = diag.rep();
+		auto [orowptr, ocolind, ovalues] = offd.rep();
 
 		auto update = [&](size r) {
 			scalar diag = 0.;
@@ -96,11 +93,11 @@ struct hybrid_gs : op::base<hybrid_gs<scalar, size>> {
 			x[r] = dinv * (b[r] - rsum);
 		};
 
-
 		if (dir == relax_dir::down) {
 			for (size r = 0; r < diag.rows(); ++r)
 				update(r);
-		} else {
+		}
+		else {
 			for (size r = diag.rows() - 1; r >= 0; --r)
 				update(r);
 		}
