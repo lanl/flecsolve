@@ -56,6 +56,8 @@ private:
 		ci.comm = comm;
 		ci.nrows = shape[0];
 		ci.ncols = shape[1];
+		ci.row_part.set_block_map(ci.nrows, colors);
+		ci.col_part.set_block_map(ci.ncols, colors);
 	}
 };
 template<class scalar, class size>

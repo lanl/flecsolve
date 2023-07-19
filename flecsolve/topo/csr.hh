@@ -1,6 +1,9 @@
 #ifndef FLECSOLVE_TOPO_CSR_H
 #define FLECSOLVE_TOPO_CSR_H
 
+#include <unordered_map>
+#include <variant>
+
 #include "flecsi/topo/types.hh"
 #include "flecsi/topo/core.hh"
 #include "flecsi/util/color_map.hh"
@@ -10,7 +13,6 @@
 #include "flecsi/data/layout.hh"
 
 #include "flecsolve/matrices/seq.hh"
-#include <unordered_map>
 
 namespace flecsolve::topo {
 
@@ -29,10 +31,39 @@ struct metadata {
 	rng rows;
 	rng cols;
 };
+
+struct partition {
+	partition() : storage{flecsi::util::equal_map(1, 1)} {}
+
+	constexpr auto operator[](flecsi::Color c) const {
+		return std::visit([=](auto & part) { return part[c]; }, storage);
+	}
+
+	constexpr flecsi::Color bin(std::size_t i) const {
+		return std::visit([=](auto & part) { return part.bin(i); }, storage);
+	}
+
+	constexpr auto invert(std::size_t i) const {
+		return std::visit([=](auto & part) { return part.invert(i); }, storage);
+	}
+
+	void set_block_map(std::size_t s, flecsi::Color bins) {
+		storage = flecsi::util::equal_map(s, bins);
+	}
+
+	template<class V>
+	void set_map(V && v) {
+		storage = flecsi::util::offsets(std::forward<V>(v));
+	}
+
+protected:
+	std::variant<flecsi::util::equal_map, flecsi::util::offsets> storage;
+};
 }
 // everything that does not depend on policy
 struct csr_base {
 	using process_coloring = csr_impl::process_coloring;
+	using partition = csr_impl::partition;
 	using metadata = csr_impl::metadata;
 	using destination_intervals = std::vector< // local colors
 		std::vector< // contiguous intervals
@@ -55,6 +86,8 @@ struct csr_base {
 		std::vector< // process colors
 			std::vector<flecsi::util::gid>>
 			column_ghosts;
+		partition row_part;
+		partition col_part;
 	};
 
 	static std::size_t idx_size(std::vector<std::size_t> vs, std::size_t c) {
@@ -63,15 +96,12 @@ struct csr_base {
 
 	static void
 	idx_itvls(flecsi::Color colors,
-	          flecsi::util::gid nrows,
-	          flecsi::util::gid ncols,
+	          const csr_impl::partition & cm,
 	          const std::vector<std::vector<flecsi::util::gid>> ghosts,
 	          destination_intervals & intervals,
 	          source_pointers & pointers,
 	          MPI_Comm comm) {
 		auto [rank, comm_size] = flecsi::util::mpi::info(comm);
-		const flecsi::util::equal_map rm(nrows, colors);
-		const flecsi::util::equal_map cm(ncols, colors);
 		const flecsi::util::equal_map pm(colors, comm_size);
 		pointers.resize(ghosts.size());
 		intervals.resize(ghosts.size());
@@ -206,13 +236,8 @@ private:
 		destination_intervals intervals;
 		source_pointers pointers;
 
-		flecsi::execute<idx_itvls, flecsi::mpi>(c.colors,
-		                                        c.nrows,
-		                                        c.ncols,
-		                                        c.column_ghosts,
-		                                        intervals,
-		                                        pointers,
-		                                        c.comm);
+		flecsi::execute<idx_itvls, flecsi::mpi>(
+			c.colors, c.col_part, c.column_ghosts, intervals, pointers, c.comm);
 
 		auto dest_task = [&](auto f) {
 			auto lm = flecsi::data::launch::make(f.topology());
@@ -242,8 +267,8 @@ private:
 		const auto ma = mm.accessors();
 		auto [rank, comm_size] = flecsi::util::mpi::info(c.comm);
 
-		const flecsi::util::equal_map cm(c.ncols, c.colors);
-		const flecsi::util::equal_map rm(c.nrows, c.colors);
+		const auto & cm = c.col_part;
+		const auto & rm = c.row_part;
 		const flecsi::util::equal_map pm(c.colors, comm_size);
 		assert(static_cast<std::size_t>(ma.size()) == pm[rank].size());
 		std::size_t i{0};
@@ -389,6 +414,7 @@ struct csr : flecsi::topo::help,
 	struct init {
 		MPI_Comm comm;
 		std::size_t nrows, ncols;
+		csr_impl::partition row_part, col_part;
 		std::vector<csr_t> proc_mats;
 	};
 
@@ -399,10 +425,12 @@ struct csr : flecsi::topo::help,
 		c.colors = flecsi::processes();
 		c.nrows = ci.nrows;
 		c.ncols = ci.ncols;
+		c.row_part = ci.row_part;
+		c.col_part = ci.col_part;
 
 		auto [rank, comm_size] = flecsi::util::mpi::info(ci.comm);
-		const flecsi::util::equal_map cm(ci.ncols, c.colors);
-		const flecsi::util::equal_map rm(ci.nrows, c.colors);
+		const auto & cm = ci.col_part;
+		const auto & rm = ci.row_part;
 		const flecsi::util::equal_map pm(c.colors, comm_size);
 
 		std::vector<std::array<flecsi::util::id, index_spaces::size>> isizes;
@@ -466,8 +494,7 @@ struct csr : flecsi::topo::help,
 	          const coloring & c,
 	          const init & ci) {
 		auto [rank, comm_size] = flecsi::util::mpi::info(c.comm);
-		const flecsi::util::equal_map cm{ci.ncols, c.colors};
-		const flecsi::util::equal_map rm{ci.nrows, c.colors};
+		const auto & cm = ci.col_part;
 		const flecsi::util::equal_map pm(c.colors, comm_size);
 
 		auto ma = m.accessors();
