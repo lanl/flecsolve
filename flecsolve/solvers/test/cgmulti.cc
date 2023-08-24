@@ -10,8 +10,9 @@
 #include "flecsolve/operators/base.hh"
 #include "flecsolve/solvers/cg.hh"
 #include "flecsolve/util/config.hh"
+#include "flecsolve/matrices/io/matrix_market.hh"
 
-#include "csr_utils.hh"
+#include "flecsolve/util/test/mesh.hh"
 
 namespace flecsolve {
 
@@ -50,10 +51,10 @@ struct traits<test_op<var, Op>> {
 
 int multicg() {
 	UNIT () {
-		auto mat = read_mm("Chem97ZtZ.mtx");
+		auto mtx = mat::io::matrix_market<>::read("Chem97ZtZ.mtx").tocsr();
 
-		init_mesh(mat.nrows, msh, coloring);
-		csr_op A{std::move(mat)};
+		init_mesh(mtx.rows(), msh, coloring);
+		csr_op A{std::move(mtx)};
 
 		vec::multi xm(vec::mesh(variable<vars::var1>, msh, xmd[0](msh)),
 		              vec::mesh(variable<vars::var2>, msh, xmd[1](msh)));

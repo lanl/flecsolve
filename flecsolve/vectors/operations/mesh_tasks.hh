@@ -33,38 +33,31 @@ struct mesh_tasks {
 	using util = typename VecData::util;
 
 	static scalar scalar_prod(topo_acc m, acc<ro> x, acc<ro> y) {
-		scalar res = 0.0;
-
-		if constexpr (is_complex) {
-			for (auto dof : util::dofs(m)) {
-				res += std::conj(y[dof]) * x[dof];
-			}
-		}
-		else {
-			for (auto dof : util::dofs(m)) {
-				res += x[dof] * y[dof];
-			}
-		}
+		scalar res = reduceall(dof,
+		                       up,
+		                       util::dofs(m),
+		                       flecsi::exec::fold::sum,
+		                       scalar,
+		                       "scalar_prod") {
+			if constexpr (is_complex)
+				up(std::conj(y[dof]) * x[dof]);
+			else
+				up(x[dof] * y[dof]);
+		};
 
 		return res;
 	}
 
 	static void set_to_scalar(topo_acc m, acc<wo> x, scalar val) {
-		for (auto dof : util::dofs(m)) {
-			x[dof] = val;
-		}
+		forall(dof, util::dofs(m), "set_scalar") { x[dof] = val; };
 	}
 
 	static void scale_self(topo_acc m, acc<rw> x, scalar val) {
-		for (auto dof : util::dofs(m)) {
-			x[dof] *= val;
-		}
+		forall(dof, util::dofs(m), "scale_self") { x[dof] *= val; };
 	}
 
 	static void scale(topo_acc m, acc<ro> x, acc<wo> y, scalar val) {
-		for (auto dof : util::dofs(m)) {
-			y[dof] = x[dof] * val;
-		}
+		forall(dof, util::dofs(m), "scale") { y[dof] = x[dof] * val; };
 	}
 
 	template<class OtherAcc>
@@ -75,75 +68,61 @@ struct mesh_tasks {
 	}
 
 	static void add_self(topo_acc m, acc<wo> z, acc<ro> x) {
-		for (auto dof : util::dofs(m)) {
-			z[dof] = z[dof] + x[dof];
-		}
+		forall(dof, util::dofs(m), "add_self") { z[dof] = z[dof] + x[dof]; };
 	}
 
 	static void add(topo_acc m, acc<wo> z, acc<ro> x, acc<ro> y) {
-		for (auto dof : util::dofs(m)) {
-			z[dof] = x[dof] + y[dof];
-		}
+		forall(dof, util::dofs(m), "add") { z[dof] = x[dof] + y[dof]; };
 	}
 
 	static void subtract(topo_acc m, acc<wo> x, acc<ro> a, acc<ro> b) {
-		for (auto dof : util::dofs(m)) {
-			x[dof] = a[dof] - b[dof];
-		}
+		forall(dof, util::dofs(m), "subtract") { x[dof] = a[dof] - b[dof]; };
 	}
 
 	template<bool inv>
 	static void subtract_self(topo_acc m, acc<wo> x, acc<ro> b) {
-		for (auto dof : util::dofs(m)) {
+		forall(dof, util::dofs(m), "subtract_self") {
 			if constexpr (inv) {
 				x[dof] = x[dof] - b[dof];
 			}
 			else {
 				x[dof] = b[dof] - x[dof];
 			}
-		}
+		};
 	}
 
 	static void multiply(topo_acc m, acc<wo> z, acc<ro> x, acc<ro> y) {
-		for (auto dof : util::dofs(m)) {
-			z[dof] = x[dof] * y[dof];
-		}
+		forall(dof, util::dofs(m), "multiply") { z[dof] = x[dof] * y[dof]; };
 	}
 
 	static void multiply_self(topo_acc m, acc<rw> x, acc<ro> y) {
-		for (auto dof : util::dofs(m)) {
+		forall(dof, util::dofs(m), "multiply_self") {
 			x[dof] = x[dof] * y[dof];
-		}
+		};
 	}
 
 	template<bool inv>
 	static void divide_self(topo_acc m, acc<rw> z, acc<ro> x) {
-		for (auto dof : util::dofs(m)) {
+		forall(dof, util::dofs(m), "divide_self") {
 			if constexpr (inv) {
 				z[dof] = z[dof] / x[dof];
 			}
 			else {
 				z[dof] = x[dof] / z[dof];
 			}
-		}
+		};
 	}
 
 	static void divide(topo_acc m, acc<wo> z, acc<ro> x, acc<ro> y) {
-		for (auto dof : util::dofs(m)) {
-			z[dof] = x[dof] / y[dof];
-		}
+		forall(dof, util::dofs(m), "divide") { z[dof] = x[dof] / y[dof]; };
 	}
 
 	static void reciprocal_self(topo_acc m, acc<rw> x) {
-		for (auto dof : util::dofs(m)) {
-			x[dof] = 1.0 / x[dof];
-		}
+		forall(dof, util::dofs(m), "reci_self") { x[dof] = 1.0 / x[dof]; };
 	}
 
 	static void reciprocal(topo_acc m, acc<wo> x, acc<ro> y) {
-		for (auto dof : util::dofs(m)) {
-			x[dof] = 1.0 / y[dof];
-		}
+		forall(dof, util::dofs(m), "recip") { x[dof] = 1.0 / y[dof]; };
 	}
 
 	static void linear_sum(topo_acc m,
@@ -153,9 +132,9 @@ struct mesh_tasks {
 	                       scalar beta,
 	                       acc<ro> y) {
 
-		for (auto dof : util::dofs(m)) {
+		forall(dof, util::dofs(m), "linear_sum") {
 			z[dof] = alpha * x[dof] + beta * y[dof];
-		}
+		};
 	}
 
 	template<bool inv>
@@ -164,80 +143,76 @@ struct mesh_tasks {
 	                            acc<ro> x,
 	                            scalar alpha,
 	                            scalar beta) {
-		for (auto dof : util::dofs(m)) {
+		forall(dof, util::dofs(m), "linear_sum_self") {
 			if constexpr (inv) {
 				z[dof] = alpha * z[dof] + beta * x[dof];
 			}
 			else {
 				z[dof] = alpha * x[dof] + beta * z[dof];
 			}
-		}
+		};
 	}
 
 	static void
 	axpy(topo_acc m, acc<wo> z, scalar alpha, acc<ro> x, acc<ro> y) {
-		for (auto dof : util::dofs(m)) {
+		forall(dof, util::dofs(m), "axpy") {
 			z[dof] = alpha * x[dof] + y[dof];
-		}
+		};
 	}
 
 	template<bool inv>
 	static void axpy_self(topo_acc m, acc<rw> z, acc<ro> x, scalar alpha) {
-		for (auto dof : util::dofs(m)) {
+		forall(dof, util::dofs(m), "axpy_self") {
 			if constexpr (inv) {
 				z[dof] = alpha * z[dof] + x[dof];
 			}
 			else {
 				z[dof] = alpha * x[dof] + z[dof];
 			}
-		}
+		};
 	}
 
 	static void
 	axpby(topo_acc m, acc<rw> y, acc<ro> x, scalar alpha, scalar beta) {
-		for (auto dof : util::dofs(m)) {
+		forall(dof, util::dofs(m), "axpby") {
 			y[dof] = alpha * x[dof] + beta * y[dof];
-		}
+		};
 	}
 
 	static void abs_self(topo_acc m, acc<rw> x) {
-		for (auto dof : util::dofs(m)) {
-			x[dof] = std::abs(x[dof]);
-		}
+		forall(dof, util::dofs(m), "abs_self") { x[dof] = std::abs(x[dof]); };
 	}
 
 	static void abs(topo_acc m, acc<wo> y, acc<ro> x) {
-		for (auto dof : util::dofs(m)) {
-			y[dof] = std::abs(x[dof]);
-		}
+		forall(dof, util::dofs(m), "abs") { y[dof] = std::abs(x[dof]); };
 	}
 
 	static void add_scalar_self(topo_acc m, acc<rw> x, scalar alpha) {
-		for (auto dof : util::dofs(m)) {
-			x[dof] += alpha;
-		}
+		forall(dof, util::dofs(m), "add_scalar_self") { x[dof] += alpha; };
 	}
 
 	static void add_scalar(topo_acc m, acc<wo> y, acc<ro> x, scalar alpha) {
-		for (auto dof : util::dofs(m)) {
-			y[dof] = x[dof] + alpha;
-		}
+		forall(dof, util::dofs(m), "add_scalar") { y[dof] = x[dof] + alpha; };
 	}
 
 	static real lp_norm_local(topo_acc m, acc<ro> u, int p) {
-		real ret = 0;
-		for (auto dof : util::dofs(m)) {
-			ret += std::pow(u[dof], p);
-		}
+		real ret = reduceall(dof,
+		                     up,
+		                     util::dofs(m),
+		                     flecsi::exec::fold::sum,
+		                     real,
+		                     "lp_norm_local") {
+			up(std::pow(u[dof], p));
+		};
 
 		return ret;
 	}
 
 	static real l1_norm_local(topo_acc m, acc<ro> u) {
-		real ret = 0;
-		for (auto dof : util::dofs(m)) {
-			ret += std::abs(u[dof]);
-		}
+		real ret = reduceall(
+			dof, up, util::dofs(m), flecsi::exec::fold::sum, real, "l1_norm") {
+			up(std::abs(u[dof]));
+		};
 
 		return ret;
 	}
@@ -251,32 +226,60 @@ struct mesh_tasks {
 	}
 
 	static real local_max(topo_acc m, acc<ro> u) {
-		auto ret = std::numeric_limits<real>::lowest();
-		for (auto dof : util::dofs(m)) {
-			if constexpr (is_complex)
-				ret = std::max(u[dof].real(), ret);
-			else
-				ret = std::max(u[dof], ret);
+		if constexpr (is_complex) {
+			auto ret = reduceall(dof,
+			                     up,
+			                     util::dofs(m),
+			                     flecsi::exec::fold::max,
+			                     real,
+			                     "local_max") {
+				up(u[dof].real());
+			};
+			return ret;
 		}
-		return ret;
+		else {
+			auto ret = reduceall(dof,
+			                     up,
+			                     util::dofs(m),
+			                     flecsi::exec::fold::max,
+			                     real,
+			                     "local_max") {
+				up(u[dof]);
+			};
+			return ret;
+		}
 	}
 
 	static real local_min(topo_acc m, acc<ro> u) {
-		auto ret = std::numeric_limits<real>::max();
-		for (auto dof : util::dofs(m)) {
-			if constexpr (is_complex)
-				ret = std::min(u[dof].real(), ret);
-			else
-				ret = std::min(u[dof], ret);
+		if constexpr (is_complex) {
+			auto ret = reduceall(dof,
+			                     up,
+			                     util::dofs(m),
+			                     flecsi::exec::fold::min,
+			                     real,
+			                     "local-min") {
+				up(u[dof].real());
+			};
+			return ret;
 		}
-		return ret;
+		else {
+			auto ret = reduceall(dof,
+			                     up,
+			                     util::dofs(m),
+			                     flecsi::exec::fold::min,
+			                     real,
+			                     "local-min") {
+				up(u[dof]);
+			};
+			return ret;
+		}
 	}
 
 	static real inf_norm_local(topo_acc m, acc<ro> x) {
-		auto ret = std::numeric_limits<real>::min();
-		for (auto dof : util::dofs(m)) {
-			ret = std::max(std::abs(x[dof]), ret);
-		}
+		auto ret = reduceall(
+			dof, up, util::dofs(m), flecsi::exec::fold::max, real, "inf_norm") {
+			up(std::abs(x[dof]));
+		};
 		return ret;
 	}
 
@@ -294,16 +297,14 @@ struct mesh_tasks {
 				x[dof] = scalar(dis(gen), dis(gen));
 			else
 				x[dof] = dis(gen);
-		}
+		};
 	}
 
 	static void dump(std::string_view pre, topo_acc m, acc<ro> x) {
 		std::string fname{pre};
 		fname += "-" + std::to_string(flecsi::process());
 		std::ofstream ofile(fname);
-		for (auto dof : util::dofs(m)) {
-			ofile << x(dof) << '\n';
-		}
+		forall(dof, util::dofs(m), "dump") { ofile << x(dof) << '\n'; };
 	}
 };
 

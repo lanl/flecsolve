@@ -1,4 +1,12 @@
-#include <flecsi/topo/narray/interface.hh>
+#ifndef FLECSOLVE_UTIL_TEST_TEST_MESH_H
+#define FLECSOLVE_UTIL_TEST_TEST_MESH_H
+
+#include "flecsi/topo/narray/interface.hh"
+
+#include "flecsolve/vectors/variable.hh"
+#include "flecsolve/vectors/base.hh"
+#include "flecsolve/operators/base.hh"
+#include "flecsolve/matrices/seq.hh"
 
 namespace flecsolve {
 
@@ -67,11 +75,74 @@ struct testmesh : flecsi::topo::specialization<flecsi::topo::narray, testmesh> {
 		flog_assert(idef.colors() == flecsi::processes(),
 		            "current implementation is restricted to 1-to-1 mapping");
 
-		return {MPI_COMM_WORLD, {idef}};
+		return {{idef}};
 	}
 
 	static void initialize(flecsi::data::topology_slot<testmesh> &,
 	                       coloring const &) {}
 };
 
+using realf = flecsi::field<double>;
+
+using flecsi::na;
+using flecsi::ro;
+using flecsi::wo;
+
+inline void
+init_mesh(std::size_t nrows, testmesh::slot & msh, testmesh::cslot & coloring) {
+	std::vector<std::size_t> extents{nrows};
+	coloring.allocate(flecsi::processes(), extents);
+	msh.allocate(coloring.get());
 }
+
+inline void spmv(const mat::csr<double> & A,
+                 testmesh::accessor<ro> m,
+                 realf::accessor<ro, na> x,
+                 realf::accessor<wo, na> y) {
+	auto dofs = m.dofs<testmesh::cells>();
+	auto rowptr = A.offsets();
+	auto colind = A.indices();
+	auto values = A.values();
+	for (std::size_t i = 0; i < A.rows(); i++) {
+		auto dof = dofs[i];
+		y[dof] = 0.;
+		for (std::size_t off = rowptr[i]; off < rowptr[i + 1]; off++) {
+			y[dof] += x[dofs[colind[off]]] * values[off];
+		}
+	}
+}
+
+struct csr_op : op::base<csr_op> {
+
+	template<class CSR>
+	csr_op(CSR && m) : A(std::forward<CSR>(m)) {}
+
+	template<class D, class R>
+	void apply(const vec::base<D> & x, vec::base<R> & y) const {
+		flecsi::execute<spmv, flecsi::mpi>(
+			A, x.data.topo(), x.data.ref(), y.data.ref());
+	}
+
+	auto Dinv() {
+		mat::csr<double> out{A.rows(), A.cols()};
+		out.resize(A.nnz());
+
+		for (std::size_t i = 0; i < A.rows(); i++) {
+			for (std::size_t off = A.offsets()[i]; off < A.offsets()[i + 1];
+			     off++) {
+				if (A.indices()[off] == i) {
+					out.values()[i] = 1.0 / A.values()[off];
+					out.indices()[i] = i;
+				}
+			}
+			out.offsets()[i + 1] = i + 1;
+		}
+
+		return csr_op{std::move(out)};
+	}
+
+	mat::csr<double> A;
+};
+
+}
+#endif

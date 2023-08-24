@@ -291,7 +291,7 @@ struct fvm_narray
 		flog_assert(idef_faces.colors() == flecsi::processes(),
 		            "current implementation is restricted to 1-to-1 mapping");
 
-		return {MPI_COMM_WORLD, {idef, idef_faces}};
+		return {{idef, idef_faces}};
 	}
 
 	using gbox = flecsi::util::key_array<std::array<double, 2>, axes>;

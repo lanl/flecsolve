@@ -13,8 +13,8 @@ struct base {
 	static constexpr auto output_var = traits<Derived>::output_var;
 	using params_type = typename traits<Derived>::parameters;
 
-	template<class T>
-	base(T && t) : params(std::forward<T>(t)) {}
+	template<class T = params_type>
+	base(T && p) : params(std::forward<T>(p)) {}
 
 	template<class T = params_type,
 	         class = std::enable_if_t<std::is_null_pointer_v<T>>>

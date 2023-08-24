@@ -1,9 +1,10 @@
 set(vectors_HEADERS
   mesh.hh
+  seq.hh
   multi.hh
   util.hh
   variable.hh
-  vector.hh
+  base.hh
   data/mesh.hh
   operations/mesh.hh
   operations/multi.hh

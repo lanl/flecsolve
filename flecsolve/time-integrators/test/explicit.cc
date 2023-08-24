@@ -7,7 +7,7 @@
 #include "flecsolve/time-integrators/rk45.hh"
 #include "flecsolve/util/config.hh"
 
-#include "flecsolve/solvers/test/csr_utils.hh"
+#include "flecsolve/util/test/mesh.hh"
 
 namespace flecsolve {
 

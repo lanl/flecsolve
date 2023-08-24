@@ -1,0 +1,532 @@
+#ifndef FLECSOLVE_MATRICES_PARCSR_H
+#define FLECSOLVE_MATRICES_PARCSR_H
+
+#include "flecsi/topo/types.hh"
+#include "flecsi/topo/core.hh"
+#include "flecsi/util/color_map.hh"
+#include "flecsi/util/crs.hh"
+#include "flecsi/data/copy_plan.hh"
+#include "flecsi/data/map.hh"
+#include "flecsi/data/layout.hh"
+
+#include "flecsolve/matrices/seq.hh"
+#include <unordered_map>
+
+namespace flecsolve::mat {
+
+namespace parcsr_impl {
+struct process_coloring {
+	flecsi::Color color;
+	flecsi::util::id entities;
+};
+
+struct metadata {
+	flecsi::util::gid nrows, ncols;
+	struct rng {
+		flecsi::util::gid beg, end;
+		constexpr flecsi::util::gid size() const { return end - beg + 1; }
+	};
+	rng rows;
+	rng cols;
+};
+}
+// everything that does not depend on policy
+struct parcsr_base {
+	using process_coloring = parcsr_impl::process_coloring;
+	using metadata = parcsr_impl::metadata;
+	using destination_intervals = std::vector< // local colors
+		std::vector< // contiguous intervals
+			flecsi::data::subrow>>;
+	using source_pointers = std::vector< // local colors
+		std::map< // global source colors
+			flecsi::Color,
+			std::vector< // color source pointers
+				std::pair<flecsi::util::id /* local ghost offset */,
+	                      flecsi::util::id /* remote shared offset */>>>>;
+	struct coloring {
+		MPI_Comm comm;
+		flecsi::Color colors;
+		flecsi::util::gid nrows;
+		flecsi::util::gid ncols;
+		std::vector< // index spaces
+			std::vector< // process colors
+				process_coloring>>
+			idx_spaces;
+		std::vector< // process colors
+			std::vector<flecsi::util::gid>>
+			column_ghosts;
+	};
+
+	static std::size_t idx_size(std::vector<std::size_t> vs, std::size_t c) {
+		return vs[c];
+	}
+
+	static void
+	idx_itvls(flecsi::Color colors,
+	          flecsi::util::gid nrows,
+	          flecsi::util::gid ncols,
+	          const std::vector<std::vector<flecsi::util::gid>> ghosts,
+	          destination_intervals & intervals,
+	          source_pointers & pointers,
+	          MPI_Comm comm) {
+		auto [rank, comm_size] = flecsi::util::mpi::info(comm);
+		const flecsi::util::equal_map rm(nrows, colors);
+		const flecsi::util::equal_map cm(ncols, colors);
+		const flecsi::util::equal_map pm(colors, comm_size);
+		pointers.resize(ghosts.size());
+		intervals.resize(ghosts.size());
+		{
+			auto it = ghosts.begin();
+			auto pit = pointers.begin();
+			auto iit = intervals.begin();
+			for (auto col : pm[rank]) {
+				const auto & cghosts = *it++;
+				auto & pts = *pit++;
+				std::size_t off{0};
+				for (auto cid : cghosts) {
+					auto [owner, shared_offset] = cm.invert(cid);
+					pts[owner].emplace_back(
+						std::make_pair(cm[col].size() + off++, shared_offset));
+				}
+
+				auto & inter = *iit++;
+				inter.emplace_back(std::make_pair(
+					cm[col].size(), cm[col].size() + cghosts.size()));
+			}
+		}
+	}
+
+	static void
+	set_dests(flecsi::data::multi<flecsi::field<
+				  flecsi::data::intervals::Value>::accessor<flecsi::wo>> aa,
+	          const std::vector<std::vector<flecsi::data::subrow>> & intervals,
+	          const MPI_Comm &) {
+		std::size_t ci = 0;
+		for (auto [c, a] : aa.components()) {
+			auto & iv = intervals[ci++];
+			flog_assert(a.span().size() == iv.size(),
+			            "interval size mismatch a.span (" << a.span().size()
+			                                              << ") != intervals ("
+			                                              << iv.size() << ")");
+			std::size_t i{0};
+			for (auto & it : iv) {
+				a[i++] = flecsi::data::intervals::make(it, c);
+			}
+		}
+	}
+
+	template<flecsi::PrivilegeCount N>
+	static void
+	set_ptrs(flecsi::data::multi<
+				 flecsi::field<flecsi::data::points::Value>::accessor1<
+					 flecsi::privilege_repeat<flecsi::wo, N>>> aa,
+	         const std::vector<std::map<
+				 flecsi::Color,
+				 std::vector<std::pair<flecsi::util::id, flecsi::util::id>>>> &
+	             points,
+	         const MPI_Comm &) {
+		std::size_t ci = 0;
+		for (auto & a : aa.accessors()) {
+			for (auto const & si : points[ci++]) {
+				for (auto p : si.second) {
+					// si.first: owner
+					// p.first: local ghost offset
+					// p.second: remote shared offset
+					a[p.first] = flecsi::data::points::make(si.first, p.second);
+				}
+			}
+		}
+	}
+};
+
+template<class P>
+struct parcsr_category : parcsr_base, flecsi::topo::with_meta<P> {
+	using index_space = typename P::index_space;
+	using index_spaces = typename P::index_spaces;
+
+	flecsi::Color colors() const { return part_.front().colors(); }
+
+	template<index_space S>
+	static constexpr std::size_t index = index_spaces::template index<S>;
+
+	template<flecsi::Privileges>
+	struct access;
+
+	template<index_space S>
+	flecsi::data::region & get_region() {
+		return part_.template get<S>();
+	}
+
+	template<index_space S>
+	flecsi::topo::repartition & get_partition() {
+		return part_.template get<S>();
+	}
+
+	template<typename Type,
+	         flecsi::data::layout Layout,
+	         typename P::index_space Space>
+	void ghost_copy(
+		const flecsi::data::field_reference<Type, Layout, P, Space> & f) {
+		static_assert(Space == P::column_space);
+		column_plan_.issue_copy(f.fid());
+	}
+
+	parcsr_category(const coloring & c)
+		: parcsr_category(
+			  [&c]() -> auto & {
+				  flog_assert(
+					  c.idx_spaces.size() == index_spaces::size,
+					  "invalid number of idx_spaces: " << c.idx_spaces.size());
+				  return c;
+			  }(),
+			  index_spaces()) {}
+
+private:
+	template<auto... VV>
+	parcsr_category(const parcsr_base::coloring & c,
+	                flecsi::util::constants<VV...>)
+		: flecsi::topo::with_meta<P>(c.colors),
+		  part_{{flecsi::topo::make_repartitioned<P, VV>(
+			  c.colors,
+			  flecsi::make_partial<idx_size>([&]() {
+				  std::vector<std::size_t> partitions;
+				  for (const auto & pc : c.idx_spaces[index<VV>]) {
+					  partitions.push_back(pc.entities);
+				  }
+				  flecsi::topo::concatenate(partitions, c.colors, c.comm);
+				  return partitions;
+			  }()))...}},
+		  column_plan_{make_copy_plan(c, part_[index<P::column_space>])} {
+		auto lm = flecsi::data::launch::make(this->meta);
+		flecsi::execute<set_meta, flecsi::mpi>(metadata_field(lm), c);
+	}
+
+	flecsi::data::copy_plan make_copy_plan(const parcsr_base::coloring & c,
+	                                       flecsi::topo::repartitioned & p) {
+		std::vector<std::size_t> num_intervals(c.colors, 1);
+		destination_intervals intervals;
+		source_pointers pointers;
+
+		flecsi::execute<idx_itvls, flecsi::mpi>(c.colors,
+		                                        c.nrows,
+		                                        c.ncols,
+		                                        c.column_ghosts,
+		                                        intervals,
+		                                        pointers,
+		                                        c.comm);
+
+		auto dest_task = [&](auto f) {
+			auto lm = flecsi::data::launch::make(f.topology());
+			flecsi::execute<set_dests, flecsi::mpi>(lm(f), intervals, c.comm);
+		};
+
+		auto ptrs_task = [&](auto f) {
+			auto lm = flecsi::data::launch::make(f.topology());
+			flecsi::execute<
+				set_ptrs<P::template privilege_count<P::column_space>>,
+				flecsi::mpi>(lm(f), pointers, c.comm);
+		};
+
+		return {*this,
+		        p,
+		        num_intervals,
+		        dest_task,
+		        ptrs_task,
+		        flecsi::util::constant<P::column_space>()};
+	}
+
+	static void set_meta(
+		flecsi::data::multi<
+			flecsi::field<metadata, flecsi::data::single>::accessor<flecsi::wo>>
+			mm,
+		const parcsr_base::coloring & c) {
+		const auto ma = mm.accessors();
+		auto [rank, comm_size] = flecsi::util::mpi::info(c.comm);
+
+		const flecsi::util::equal_map cm(c.ncols, c.colors);
+		const flecsi::util::equal_map rm(c.nrows, c.colors);
+		const flecsi::util::equal_map pm(c.colors, comm_size);
+		assert(static_cast<std::size_t>(ma.size()) == pm[rank].size());
+		std::size_t i{0};
+		for (flecsi::Color col : pm[rank]) {
+			auto & e = ma[i++].get();
+			e.nrows = c.nrows;
+			e.ncols = c.ncols;
+			e.cols.beg = cm[col].front();
+			e.cols.end = cm[col].back();
+			e.rows.beg = rm[col].front();
+			e.rows.end = rm[col].back();
+		}
+	}
+
+	flecsi::util::key_array<flecsi::topo::repartitioned, index_spaces> part_;
+	flecsi::data::copy_plan column_plan_;
+
+	static inline const flecsi::field<metadata, flecsi::data::single>::
+		definition<flecsi::topo::meta<P>>
+			metadata_field;
+
+	template<class T, index_space ispace>
+	using field_def = typename flecsi::field<T>::template definition<P, ispace>;
+
+	template<index_space nnz_space>
+	struct csr_def {
+		static inline const field_def<typename P::size, index_space::rowsp1>
+			offsets;
+		static inline const field_def<typename P::size, nnz_space> indices;
+		static inline const field_def<typename P::scalar, nnz_space> values;
+	};
+
+	using diag = csr_def<index_space::nnz_diag>;
+	using offd = csr_def<index_space::nnz_offd>;
+};
+
+template<class P>
+template<flecsi::Privileges Priv>
+struct parcsr_category<P>::access {
+	template<class F>
+	void send(F && f) {
+		send_csr<parcsr_category::diag>(f, diag_);
+		send_csr<parcsr_category::offd>(f, offd_);
+		const auto meta = [](auto & n) -> auto & { return n.meta; };
+		meta_.topology_send(f, meta);
+	}
+
+	template<class FS, class A, class F>
+	void send_csr(F && f, A & a) {
+		f(a.offsets, [](auto & t) { return FS::offsets(t.get()); });
+		f(a.indices, [](auto & t) { return FS::indices(t.get()); });
+		f(a.values, [](auto & t) { return FS::values(t.get()); });
+	}
+
+	FLECSI_INLINE_TARGET auto diag() { return diag_; }
+
+	FLECSI_INLINE_TARGET auto offd() { return offd_; }
+
+	FLECSI_INLINE_TARGET const parcsr_impl::metadata & meta() { return *meta_; }
+
+private:
+	flecsi::data::scalar_access<parcsr_category<P>::metadata_field, Priv> meta_;
+
+	template<const auto & Field>
+	using accessor = flecsi::data::accessor_member<
+		Field,
+		flecsi::privilege_pack<flecsi::privilege_merge(Priv)>>;
+	template<class C>
+	struct csr_acc {
+		accessor<C::offsets> offsets;
+		accessor<C::indices> indices;
+		accessor<C::values> values;
+	};
+
+	csr_acc<parcsr_category::diag> diag_;
+	csr_acc<parcsr_category::offd> offd_;
+};
+}
+namespace flecsi::topo {
+template<>
+struct detail::base<flecsolve::mat::parcsr_category> {
+	using type = flecsolve::mat::parcsr_base;
+};
+}
+
+namespace flecsolve::mat {
+// template<class P>
+struct parcsr : flecsi::topo::specialization<parcsr_category, parcsr> {
+	using size = std::size_t; // TODO: get from policy
+	using scalar = double; // TODO: get from policy
+	using csr_t = csr<scalar, size>;
+	enum index_space { rows, cols, nnz_diag, nnz_offd, rowsp1 };
+	using index_spaces = has<rows, cols, nnz_diag, nnz_offd, rowsp1>;
+	static constexpr index_space column_space = cols;
+
+	template<index_space S>
+	static constexpr flecsi::PrivilegeCount
+		privilege_count = (S == index_space::cols) ? 2 : 1;
+
+	template<class B>
+	struct interface : B {
+		FLECSI_INLINE_TARGET auto diag() {
+			auto diaga = B::diag();
+			return csr_view{diaga.offsets.span(),
+			                diaga.indices.span(),
+			                diaga.values.span()};
+		}
+
+		FLECSI_INLINE_TARGET auto offd() {
+			auto offda = B::offd();
+			return csr_view{offda.offsets.span(),
+			                offda.indices.span(),
+			                offda.values.span()};
+		}
+
+		FLECSI_INLINE_TARGET const auto & meta() { return B::meta(); }
+
+		template<index_space S>
+		auto dofs() {
+			static_assert(S == index_space::rows || S == index_space::cols);
+			auto view = (S == index_space::rows) ? meta().rows : meta().cols;
+			return flecsi::topo::make_ids<S>(
+				flecsi::util::iota_view<flecsi::util::id>(0, view.size()));
+		}
+
+		template<index_space S>
+		flecsi::util::gid global_id(flecsi::topo::id<S> lid) {
+			static_assert(S == index_space::rows || S == index_space::cols);
+			auto view = (S == index_space::rows) ? meta().rows : meta().cols;
+			return view.beg + static_cast<flecsi::util::id>(lid);
+		}
+	};
+
+	struct init {
+		MPI_Comm comm;
+		std::size_t nrows, ncols;
+		std::vector<csr_t> proc_mats;
+	};
+
+	static coloring color(const init & ci) {
+		coloring c;
+
+		c.comm = ci.comm;
+		c.colors = flecsi::processes();
+		c.nrows = ci.nrows;
+		c.ncols = ci.ncols;
+
+		auto [rank, comm_size] = flecsi::util::mpi::info(ci.comm);
+		const flecsi::util::equal_map cm(ci.ncols, c.colors);
+		const flecsi::util::equal_map rm(ci.nrows, c.colors);
+		const flecsi::util::equal_map pm(c.colors, comm_size);
+
+		std::vector<std::array<flecsi::util::id, index_spaces::size>> isizes;
+		isizes.resize(pm[rank].size());
+		c.column_ghosts.resize(pm[rank].size());
+		{ // compute sizes of each index space
+			auto lmat = ci.proc_mats.begin();
+			auto lsizes = isizes.begin();
+			auto lghosts = c.column_ghosts.begin();
+			for (const flecsi::Color col : pm[rank]) {
+				std::size_t num_diag{0}, num_offd{0};
+				auto & mat = *lmat++;
+				auto & sz = *lsizes++;
+				auto & ghosts = *lghosts++;
+				for (std::size_t row = 0; row < mat.offsets().size() - 1;
+				     ++row) {
+					for (std::size_t off = mat.offsets()[row];
+					     off < mat.offsets()[row + 1];
+					     ++off) {
+						auto cid = mat.indices()[off];
+						if (cm.bin(cid) != col) {
+							++num_offd;
+							ghosts.push_back(cid);
+						}
+						else
+							++num_diag;
+					}
+				}
+				flecsi::util::force_unique(ghosts);
+				sz[rows] = rm[col].size();
+				sz[cols] = cm[col].size() + ghosts.size();
+				sz[nnz_diag] = num_diag;
+				sz[nnz_offd] = num_offd;
+				sz[rowsp1] = sz[rows] + 1;
+			}
+		}
+
+		// populate index space coloring
+		for (std::size_t ispace = 0; ispace < index_spaces::size; ++ispace) {
+			c.idx_spaces.emplace_back();
+			std::size_t lc = 0;
+			for (const flecsi::Color col : pm[rank]) {
+				c.idx_spaces.back().push_back({col, isizes[lc++][ispace]});
+			}
+		}
+
+		return c;
+	}
+
+	/*
+	  Initialize local diag and offd matrices using coloring input.
+
+	  This initializes diag and offd using the input matrices on each
+	  process.  The input matrices are split into diag and offd and
+	  the columns in offd are compressed using the ghost ordering set
+	  by the coloring.
+	*/
+	static void init_mats(flecsi::data::multi<parcsr::accessor<flecsi::wo>> m,
+	                      const coloring & c,
+	                      const init & ci) {
+		auto [rank, comm_size] = flecsi::util::mpi::info(c.comm);
+		const flecsi::util::equal_map cm{ci.ncols, c.colors};
+		const flecsi::util::equal_map rm{ci.nrows, c.colors};
+		const flecsi::util::equal_map pm(c.colors, comm_size);
+
+		auto ma = m.accessors();
+		auto lmat = ci.proc_mats.begin();
+		for (std::size_t lc = 0; lc < m.depth(); ++lc) {
+			auto col = pm[rank][lc];
+
+			// initialize reverse map for ghosts
+			std::unordered_map<flecsi::util::gid, size> colmap;
+			for (size i = 0; i < c.column_ghosts[lc].size(); ++i) {
+				colmap[c.column_ghosts[lc][i]] = i + cm[col].size();
+			}
+
+			auto & mat = *lmat++;
+			auto diag = ma[lc].diag();
+			auto offd = ma[lc].offd();
+
+			diag.offsets()[0] = 0;
+			offd.offsets()[0] = 0;
+			for (size row = 0; row < mat.offsets().size() - 1; ++row) {
+				size nnz_row_offd{0}, nnz_row_diag{0};
+				for (size off = mat.offsets()[row];
+				     off < mat.offsets()[row + 1];
+				     ++off) {
+					auto cid = mat.indices()[off];
+					auto val = mat.values()[off];
+					auto insert = [&](size local_col,
+					                  size base,
+					                  auto colind,
+					                  auto values,
+					                  size & nnz) {
+						auto j = base + nnz++;
+						colind[j] = local_col;
+						values[j] = val;
+					};
+					if (cm.bin(cid) == col) { // insert in diag
+						insert(cm.invert(cid).second,
+						       diag.offsets()[row],
+						       diag.indices(),
+						       diag.values(),
+						       nnz_row_diag);
+					}
+					else { // insert in offd
+						insert(colmap.at(cid),
+						       offd.offsets()[row],
+						       offd.indices(),
+						       offd.values(),
+						       nnz_row_offd);
+					}
+				}
+				diag.offsets()[row + 1] = diag.offsets()[row] + nnz_row_diag;
+				offd.offsets()[row + 1] = offd.offsets()[row] + nnz_row_offd;
+			}
+		}
+	}
+
+	/*
+	  Initialize parcsr data after topology has been setup.
+
+	  - execute mpi task to set diag and offd matrices
+	*/
+	static void initialize(flecsi::data::topology_slot<parcsr> & s,
+	                       const coloring & c,
+	                       const init & ci) {
+		auto lm = flecsi::data::launch::make(s);
+		flecsi::execute<init_mats, flecsi::mpi>(lm, c, ci);
+	}
+};
+
+}
+
+#endif

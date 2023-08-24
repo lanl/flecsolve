@@ -6,7 +6,7 @@
 #include "flecsolve/util/config.hh"
 #include "flecsolve/time-integrators/bdf.hh"
 
-#include "flecsolve/solvers/test/csr_utils.hh"
+#include "flecsolve/util/test/mesh.hh"
 #include "flecsolve/solvers/cg.hh"
 
 namespace flecsolve {

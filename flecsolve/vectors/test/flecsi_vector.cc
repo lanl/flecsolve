@@ -6,7 +6,7 @@
 
 #include "flecsolve/vectors/mesh.hh"
 
-#include "test_mesh.hh"
+#include "flecsolve/util/test/mesh.hh"
 
 using namespace flecsi;
 
@@ -20,13 +20,6 @@ using compf = field<std::complex<double>>;
 
 const realf::definition<testmesh, testmesh::cells> xd, yd, zd, tmpd;
 const compf::definition<testmesh, testmesh::cells> xd_c, yd_c, zd_c, tmpd_c;
-
-void init_mesh() {
-	std::vector<std::size_t> extents{32};
-
-	coloring.allocate(flecsi::processes(), extents);
-	msh.allocate(coloring.get());
-}
 
 template<int index>
 static constexpr double rconv(double gid) {
@@ -156,7 +149,7 @@ static check abs{[](double gid) {
                  "abs"};
 
 int vectest() {
-	init_mesh();
+	init_mesh(32, msh, coloring);
 	execute<init_fields>(
 		msh, xd(msh), yd(msh), zd(msh), xd_c(msh), yd_c(msh), zd_c(msh));
 
