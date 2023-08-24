@@ -23,6 +23,7 @@ struct process_coloring {
 };
 
 struct metadata {
+	MPI_Comm comm;
 	flecsi::util::gid nrows, ncols;
 	struct rng {
 		flecsi::util::gid beg, end;
@@ -51,10 +52,7 @@ struct partition {
 		storage = flecsi::util::equal_map(s, bins);
 	}
 
-	template<class V>
-	void set_map(V && v) {
-		storage = flecsi::util::offsets(std::forward<V>(v));
-	}
+	void set_offsets(const flecsi::util::offsets & off) { storage = off; }
 
 protected:
 	std::variant<flecsi::util::equal_map, flecsi::util::offsets> storage;
@@ -274,6 +272,7 @@ private:
 		std::size_t i{0};
 		for (flecsi::Color col : pm[rank]) {
 			auto & e = ma[i++].get();
+			e.comm = c.comm;
 			e.nrows = c.nrows;
 			e.ncols = c.ncols;
 			e.cols.beg = cm[col].front();

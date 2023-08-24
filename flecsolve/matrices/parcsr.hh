@@ -10,12 +10,16 @@ namespace flecsolve {
 namespace mat {
 template<class scalar, class size>
 struct parcsr_params {
+	using topo_init_t = typename topo::csr<scalar, size>::init;
+
 	parcsr_params(MPI_Comm comm, flecsi::Color colors, std::string fname) {
 		flecsi::execute<dist_read, flecsi::mpi>(
 			comm, fname.c_str(), colors, topo_init);
 	}
 
-	typename topo::csr<scalar, size>::init topo_init;
+	parcsr_params(topo_init_t init) : topo_init(std::move(init)) {}
+
+	topo_init_t topo_init;
 
 private:
 	static void dist_read(MPI_Comm comm,
@@ -93,10 +97,11 @@ struct traits<parcsr<scalar, size>> {
 		auto spmv_tmp() { return vec::mesh(topo(), spmv_tmp_def(topo())); }
 
 	protected:
-		typename flecsi::field<scalar_t>::template definition<topo_t,
-		                                                      topo_t::cols>
-			spmv_tmp_def;
 		std::unique_ptr<typename topo_t::slot> topo_slot;
+		inline static
+			typename flecsi::field<scalar_t>::template definition<topo_t,
+		                                                          topo_t::cols>
+				spmv_tmp_def;
 	};
 
 	struct ops_t {
