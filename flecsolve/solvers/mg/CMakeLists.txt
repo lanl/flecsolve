@@ -4,8 +4,18 @@ flecsi_add_test(jacobi
   LIBRARIES flecsolve
   PROCS 1)
 
-flecsi_add_test(coarsen
+flecsi_add_test(galerkin_prod
   SOURCES
-  test/coarsen.cc
+  test/galerkin_prod.cc
   LIBRARIES flecsolve
-  PROCS 1)
+  INPUTS
+  ${nos7_SOURCE_DIR}/nos7.mtx
+  PROCS 2)
+
+flecsi_add_test(intergrid
+  SOURCES
+  test/intergrid.cc
+  LIBRARIES flecsolve
+  INPUTS
+  ${nos7_SOURCE_DIR}/nos7.mtx
+  PROCS 3)

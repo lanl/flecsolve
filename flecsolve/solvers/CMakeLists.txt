@@ -10,6 +10,8 @@ set(solvers_HEADERS
   factory.hh
   mg/jacobi.hh
   mg/gs.hh
+  mg/coarsen.hh
+  mg/intergrid.hh
   PARENT_SCOPE)
 
 flecsi_add_test(cg

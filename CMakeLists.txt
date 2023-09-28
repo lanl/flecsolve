@@ -38,7 +38,10 @@ if(ENABLE_UNIT_TESTS)
   FetchContent_Declare(psmigr_3
 	URL https://www.cise.ufl.edu/research/sparse/MM/HB/psmigr_3.tar.gz
 	URL_HASH SHA256=bf45ebfdb2837cdd40fa934637170d6989df1f42c81e9c9da0a88afee0b3bcd6)
-  FetchContent_MakeAvailable(494_bus Chem97ZtZ psmigr_3)
+  FetchContent_Declare(nos7
+	URL https://www.cise.ufl.edu/research/sparse/MM/HB/nos7.tar.gz
+	URL_HASH SHA256=c5d8d99bf4b54ee45e2f45d78530e3787f2e9670c000a68ad986a3b923e9e5ae)
+  FetchContent_MakeAvailable(494_bus Chem97ZtZ psmigr_3 nos7)
 endif()
 
 include(FleCSI/summary)

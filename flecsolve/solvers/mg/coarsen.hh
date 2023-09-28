@@ -198,7 +198,7 @@ auto find_pair(std::size_t r,
 			curr.second = c;
 		}
 	}
-	assert(curr.second > 0);
+	assert(curr.second >= 0);
 
 	return curr.second;
 }
@@ -349,8 +349,8 @@ void aggregate_and_partition(
 	float beta,
 	typename topo::csr<scalar, size>::template accessor<flecsi::ro> A,
 	aggregate_t & agg_out,
-	typename flecsi::field<scalar>::template accessor<flecsi::wo, flecsi::na>
-		aggt,
+	typename flecsi::field<
+		flecsi::util::id>::template accessor<flecsi::wo, flecsi::na> aggt,
 	typename topo::csr<scalar, size>::init & topo_init) {
 	// TODO: implement with multiaccessors
 	auto agg = double_pairwise_agg(beta, A.diag(), A.offd(), true);
@@ -363,6 +363,9 @@ void aggregate_and_partition(
 	topo_init.nrows = part.total();
 	topo_init.ncols = part.total();
 
+	std::fill(aggt.span().begin(),
+	          aggt.span().end(),
+	          std::numeric_limits<flecsi::util::id>::max());
 	transpose_aggregates(agg, aggt, part);
 
 	agg_out = std::move(agg);
@@ -372,8 +375,8 @@ template<class scalar, class size>
 void coarsen_with_aggregates(
 	typename topo::csr<scalar, size>::template accessor<flecsi::ro> A,
 	const aggregate_t & agg,
-	typename flecsi::field<scalar>::template accessor<flecsi::ro, flecsi::ro>
-		aggt,
+	typename flecsi::field<
+		flecsi::util::id>::template accessor<flecsi::ro, flecsi::ro> aggt,
 	typename topo::csr<scalar, size>::init & topo_init) {
 	// TODO: implement with multiaccessors
 
