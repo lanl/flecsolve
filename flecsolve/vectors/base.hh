@@ -6,6 +6,8 @@
 #include <type_traits>
 #include <utility>
 
+#include <flecsi/util/target.hh>
+
 #include "flecsolve/util/traits.hh"
 #include "variable.hh"
 
@@ -25,7 +27,7 @@ struct base {
 	base() {}
 
 	template<class D>
-	base(D && d) : data(std::forward<D>(d)) {}
+	FLECSI_INLINE_TARGET base(D && d) : data(std::forward<D>(d)) {}
 
 	Derived & derived() { return static_cast<Derived &>(*this); }
 

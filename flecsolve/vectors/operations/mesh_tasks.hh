@@ -62,9 +62,8 @@ struct mesh_tasks {
 
 	template<class OtherAcc>
 	static void copy(topo_acc, acc_all<wo> xa, OtherAcc ya) {
-		const auto in = ya.span();
-		auto out = xa.span();
-		std::copy(in.begin(), in.end(), out.begin());
+		flecsi::util::iota_view<std::size_t> v(0, xa.span().size());
+		forall(i, v, "copy") { xa[i] = ya[i]; };
 	}
 
 	static void add_self(topo_acc m, acc<wo> z, acc<ro> x) {

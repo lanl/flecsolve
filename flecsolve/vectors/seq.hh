@@ -21,7 +21,7 @@ struct seq : base<Derived> {
 	seq() {}
 
 	template<class D>
-	seq(D && d) : base_t{std::forward<D>(d)} {}
+	FLECSI_INLINE_TARGET seq(D && d) : base_t{std::forward<D>(d)} {}
 
 	constexpr scalar & operator[](len_t i) { return data[i]; }
 
@@ -269,7 +269,7 @@ struct seq_view : seq<seq_view<T>> {
 	using base = seq<seq_view<T>>;
 	using data_t = typename base::data_t;
 
-	seq_view(flecsi::util::span<T> span) : base{span} {}
+	FLECSI_INLINE_TARGET seq_view(flecsi::util::span<T> span) : base{span} {}
 };
 
 template<class T, auto var = anon_var::anonymous>
