@@ -6,7 +6,7 @@
 
 #include "flecsolve/util/config.hh"
 #include "flecsolve/solvers/krylov_operator.hh"
-#include "flecsolve/vectors/mesh.hh"
+#include "flecsolve/vectors/topo_view.hh"
 #include "flecsolve/solvers/cg.hh"
 #include "flecsolve/solvers/nka.hh"
 #include "flecsolve/solvers/factory.hh"
@@ -69,7 +69,7 @@ int nkatest() {
 		init_mesh(mtx.rows(), msh, coloring);
 
 		csr_op A{std::move(mtx)};
-		vec::mesh x(msh, xd(msh)), b(msh, bd(msh));
+		vec::topo_view x(msh, xd(msh)), b(msh, bd(msh));
 		{
 			b.set_scalar(1.);
 			x.set_scalar(3.);

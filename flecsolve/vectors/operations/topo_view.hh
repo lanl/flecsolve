@@ -1,22 +1,22 @@
-#ifndef FLECSI_LINALG_VECTORS_OPERATIONS_H
-#define FLECSI_LINALG_VECTORS_OPERATIONS_H
+#ifndef FLECSI_LINALG_VECTORS_OPERATIONS_TOPO_VIEW_HH
+#define FLECSI_LINALG_VECTORS_OPERATIONS_TOPO_VIEW_HH
 
 #include "flecsolve/util/future.hh"
 #include "flecsolve/util/traits.hh"
-#include "flecsolve/vectors/data/mesh.hh"
-#include "mesh_tasks.hh"
+#include "flecsolve/vectors/data/topo_view.hh"
+#include "topo_tasks.hh"
 
 namespace flecsolve::vec::ops {
 
 template<class Topo, typename Topo::index_space Space, class Scalar>
-struct mesh {
+struct topo_view {
 	using scalar = Scalar;
 	using real = typename num_traits<Scalar>::real;
 	using len_t = flecsi::util::id;
 
-	using vec_data = data::mesh<Topo, Space, scalar>;
+	using vec_data = data::topo_view<Topo, Space, scalar>;
 
-	using tasks = mesh_tasks<vec_data, scalar, len_t>;
+	using tasks = topo_tasks<vec_data, scalar, len_t>;
 
 	template<class Other>
 	void copy(const Other & x, vec_data & z) {

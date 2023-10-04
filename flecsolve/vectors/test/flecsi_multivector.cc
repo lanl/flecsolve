@@ -5,7 +5,7 @@
 #include <flecsi/util/unit/types.hh>
 #include <utility>
 
-#include "flecsolve/vectors/mesh.hh"
+#include "flecsolve/vectors/topo_view.hh"
 #include "flecsolve/vectors/multi.hh"
 
 #include "flecsolve/util/test/mesh.hh"
@@ -57,7 +57,7 @@ void init_fields(const fd_array & arr,
 
 template<std::size_t... Index>
 auto create_multivector(const fd_array & arr, std::index_sequence<Index...>) {
-	return vec::multi(vec::mesh(msh, arr[Index](msh))...);
+	return vec::multi(vec::topo_view(msh, arr[Index](msh))...);
 }
 
 static constexpr double ftol = 1e-8;
@@ -221,11 +221,11 @@ int vectest() {
 			           x3.dot(y3).get()));
 		}
 
-		vec::mesh pvec(
+		vec::topo_view pvec(
 			variable<vars::pressure>, msh, defs<vars::pressure>()(msh));
-		vec::mesh tvec(
+		vec::topo_view tvec(
 			variable<vars::temperature>, msh, defs<vars::temperature>()(msh));
-		vec::mesh dvec(
+		vec::topo_view dvec(
 			variable<vars::density>, msh, defs<vars::density>()(msh));
 
 		vec::multi mv(pvec, tvec, dvec);

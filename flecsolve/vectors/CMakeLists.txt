@@ -1,14 +1,14 @@
 set(vectors_HEADERS
-  mesh.hh
+  topo_view.hh
   seq.hh
   multi.hh
   util.hh
   variable.hh
   base.hh
-  data/mesh.hh
-  operations/mesh.hh
+  data/topo_view.hh
+  operations/topo_view.hh
   operations/multi.hh
-  operations/mesh_tasks.hh
+  operations/topo_tasks.hh
   PARENT_SCOPE)
 
 set(vectors_SOURCES

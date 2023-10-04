@@ -9,7 +9,7 @@
 #include "flecsolve/solvers/factory.hh"
 #include "flecsolve/solvers/cg.hh"
 #include "flecsolve/solvers/krylov_operator.hh"
-#include "flecsolve/vectors/mesh.hh"
+#include "flecsolve/vectors/topo_view.hh"
 #include "flecsolve/matrices/io/matrix_market.hh"
 #include "flecsolve/matrices/parcsr.hh"
 
@@ -31,7 +31,7 @@ struct traits<parcsr_op> {
 		parcsr::cslot coloring;
 		parcsr::init coloring_input;
 
-		auto spmv_tmp() { return vec::mesh(topo, spmv_tmp_def(topo)); }
+		auto spmv_tmp() { return vec::topo_view(topo, spmv_tmp_def(topo)); }
 
 	protected:
 		field<scalar_t>::definition<parcsr, parcsr::cols> spmv_tmp_def;
@@ -132,8 +132,8 @@ int csr_test() {
 		using namespace flecsolve::mat;
 
 		parcsr_op A{MPI_COMM_WORLD, "Chem97ZtZ.mtx"};
-		vec::mesh x(A.data.topo, xd(A.data.topo));
-		vec::mesh y(A.data.topo, yd(A.data.topo));
+		vec::topo_view x(A.data.topo, xd(A.data.topo));
+		vec::topo_view y(A.data.topo, yd(A.data.topo));
 
 		y.set_scalar(0.0);
 		x.set_scalar(2);

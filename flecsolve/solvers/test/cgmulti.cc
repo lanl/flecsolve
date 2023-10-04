@@ -5,7 +5,7 @@
 #include "flecsi/util/unit.hh"
 #include "flecsi/util/unit/types.hh"
 
-#include "flecsolve/vectors/mesh.hh"
+#include "flecsolve/vectors/topo_view.hh"
 #include "flecsolve/vectors/multi.hh"
 #include "flecsolve/operators/base.hh"
 #include "flecsolve/solvers/cg.hh"
@@ -56,10 +56,10 @@ int multicg() {
 		init_mesh(mtx.rows(), msh, coloring);
 		csr_op A{std::move(mtx)};
 
-		vec::multi xm(vec::mesh(variable<vars::var1>, msh, xmd[0](msh)),
-		              vec::mesh(variable<vars::var2>, msh, xmd[1](msh)));
-		vec::multi bm(vec::mesh(variable<vars::var1>, msh, bmd[0](msh)),
-		              vec::mesh(variable<vars::var2>, msh, bmd[1](msh)));
+		vec::multi xm(vec::topo_view(variable<vars::var1>, msh, xmd[0](msh)),
+		              vec::topo_view(variable<vars::var2>, msh, xmd[1](msh)));
+		vec::multi bm(vec::topo_view(variable<vars::var1>, msh, bmd[0](msh)),
+		              vec::topo_view(variable<vars::var2>, msh, bmd[1](msh)));
 
 		bm.set_scalar(0.0);
 		bm.subset(variable<vars::var2>).set_random(3);

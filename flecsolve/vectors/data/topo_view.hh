@@ -1,5 +1,5 @@
-#ifndef FLECSI_LINALG_VEC_DATA_MESH_H
-#define FLECSI_LINALG_VEC_DATA_MESH_H
+#ifndef FLECSI_LINALG_VEC_DATA_TOPO_VIEW_HH
+#define FLECSI_LINALG_VEC_DATA_TOPO_VIEW_HH
 
 #include <flecsi/data.hh>
 
@@ -9,7 +9,7 @@ template<typename T, flecsi::data::layout L = flecsi::data::layout::dense>
 using field = flecsi::field<T, L>;
 
 template<class Topo, typename Topo::index_space Space, class T>
-struct mesh {
+struct topo_view {
 	using topo_t = Topo;
 	static constexpr typename Topo::index_space space = Space;
 	using topo_slot_t = flecsi::data::topology_slot<Topo>;
@@ -50,18 +50,20 @@ struct mesh {
 };
 
 template<class Slot, class Ref>
-mesh(std::reference_wrapper<Slot>, Ref)
-	-> mesh<typename Ref::Base::Topology, Ref::space, typename Ref::value_type>;
+topo_view(std::reference_wrapper<Slot>, Ref)
+	-> topo_view<typename Ref::Base::Topology,
+                 Ref::space,
+                 typename Ref::value_type>;
 
 template<class Topo, typename Topo::index_space Space, class T>
-bool operator==(const mesh<Topo, Space, T> & d1,
-                const mesh<Topo, Space, T> & d2) {
+bool operator==(const topo_view<Topo, Space, T> & d1,
+                const topo_view<Topo, Space, T> & d2) {
 	return d1.fid() == d2.fid();
 }
 
 template<class Topo, typename Topo::index_space Space, class T>
-bool operator!=(const mesh<Topo, Space, T> & d1,
-                const mesh<Topo, Space, T> & d2) {
+bool operator!=(const topo_view<Topo, Space, T> & d1,
+                const topo_view<Topo, Space, T> & d2) {
 	return d1.fid() != d2.fid();
 }
 

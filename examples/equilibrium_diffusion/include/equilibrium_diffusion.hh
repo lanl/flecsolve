@@ -8,7 +8,7 @@
 #include <iomanip>
 #include <iostream>
 
-#include "flecsolve/vectors/mesh.hh"
+#include "flecsolve/vectors/topo_view.hh"
 #include "flecsolve/vectors/multi.hh"
 
 #include "flecsolve/util/config.hh"
@@ -185,8 +185,8 @@ template<class FieldDefArr, std::size_t... I>
 decltype(auto) make_multivector(const FieldDefArr & fd,
                                 std::index_sequence<I...>) {
 	using namespace flecsolve;
-	return vec::multi{
-		vec::mesh(variable<static_cast<diffusion_var>(I)>, m, fd[I](m))...};
+	return vec::multi{vec::topo_view(
+		variable<static_cast<diffusion_var>(I)>, m, fd[I](m))...};
 }
 
 template<std::size_t I>

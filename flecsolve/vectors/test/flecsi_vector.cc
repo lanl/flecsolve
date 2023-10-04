@@ -4,7 +4,7 @@
 #include <flecsi/util/unit.hh>
 #include <flecsi/util/unit/types.hh>
 
-#include "flecsolve/vectors/mesh.hh"
+#include "flecsolve/vectors/topo_view.hh"
 
 #include "flecsolve/util/test/mesh.hh"
 
@@ -157,10 +157,10 @@ int vectest() {
 		msh, xd(msh), yd(msh), zd(msh), xd_c(msh), yd_c(msh), zd_c(msh));
 
 	UNIT () {
-		vec::mesh x(msh, xd(msh)), y(msh, yd(msh)), z(msh, zd(msh)),
+		vec::topo_view x(msh, xd(msh)), y(msh, yd(msh)), z(msh, zd(msh)),
 			tmp(msh, tmpd(msh));
-		vec::mesh x_c(msh, xd_c(msh)), y_c(msh, yd_c(msh)), z_c(msh, zd_c(msh)),
-			tmp_c(msh, tmpd_c(msh));
+		vec::topo_view x_c(msh, xd_c(msh)), y_c(msh, yd_c(msh)),
+			z_c(msh, zd_c(msh)), tmp_c(msh, tmpd_c(msh));
 
 		tmp.add(x, z);
 		tmp_c.add(x_c, z_c);

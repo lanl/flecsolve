@@ -2,7 +2,7 @@
 #include "flecsi/util/unit.hh"
 #include "flecsi/util/unit/types.hh"
 
-#include "flecsolve/vectors/mesh.hh"
+#include "flecsolve/vectors/topo_view.hh"
 #include "flecsolve/util/config.hh"
 #include "flecsolve/time-integrators/bdf.hh"
 
@@ -82,7 +82,7 @@ int bdftest() {
 
 		rate F(-1);
 
-		vec::mesh x(msh, xd(msh)), xnew(msh, xnewd(msh));
+		vec::topo_view x(msh, xd(msh)), xnew(msh, xnewd(msh));
 
 		rate_solver solver{std::ref(F)};
 		bdf::parameters params2(

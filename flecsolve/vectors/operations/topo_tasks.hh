@@ -1,4 +1,5 @@
-#pragma once
+#ifndef FLECSOLVE_VECTORS_OPERATIONS_TOPO_TASKS_HH
+#define FLECSOLVE_VECTORS_OPERATIONS_TOPO_TASKS_HH
 
 #include <cmath>
 #include <random>
@@ -7,7 +8,7 @@
 #include <flecsi/data.hh>
 
 #include "flecsolve/util/traits.hh"
-#include "flecsolve/vectors/data/mesh.hh"
+#include "flecsolve/vectors/data/topo_view.hh"
 
 namespace flecsolve::vec::ops {
 
@@ -16,7 +17,7 @@ using flecsi::rw;
 using flecsi::wo;
 
 template<class VecData, class Scalar, class Len>
-struct mesh_tasks {
+struct topo_tasks {
 
 	using scalar = Scalar;
 	using real = typename num_traits<Scalar>::real;
@@ -308,3 +309,4 @@ struct mesh_tasks {
 };
 
 }
+#endif

@@ -5,7 +5,7 @@
 #include "flecsi/util/unit.hh"
 #include "flecsi/util/unit/types.hh"
 
-#include "flecsolve/vectors/mesh.hh"
+#include "flecsolve/vectors/topo_view.hh"
 #include "flecsolve/vectors/multi.hh"
 
 #include "flecsolve/physics/specializations/fvm_narray.hh"
@@ -75,7 +75,7 @@ auto chk_avgz =
 int fvm_coeff_test() {
 
 	init_mesh({8, 8, 8});
-	vec::mesh x(m, xd(m));
+	vec::topo_view x(m, xd(m));
 
 	UNIT () {
 		x.set_scalar(1.0);

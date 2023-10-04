@@ -4,7 +4,7 @@
 #include <flecsi/util/unit.hh>
 #include <flecsi/util/unit/types.hh>
 
-#include "flecsolve/vectors/mesh.hh"
+#include "flecsolve/vectors/topo_view.hh"
 #include "flecsolve/vectors/multi.hh"
 
 #include "flecsolve/physics/boundary/dirichlet.hh"
@@ -167,9 +167,9 @@ static inline int boundary_sink(msh::accessor<ro, ro> m,
 int fvm_diffusion_test() {
 
 	init_mesh({8, 8, 8});
-	vec::mesh x(m, xd(m));
-	vec::mesh y(m, yd(m));
-	vec::mesh a(m, ad(m));
+	vec::topo_view x(m, xd(m));
+	vec::topo_view y(m, yd(m));
+	vec::topo_view a(m, ad(m));
 
 	a.set_scalar(1.0);
 
