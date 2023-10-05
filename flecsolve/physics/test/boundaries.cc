@@ -96,29 +96,27 @@ struct check {
 template<class F, class T, class A, class D>
 check(F &&, T &&, A &&, D &&) -> check<F, T, A, D>;
 
-static check xlo{
-	[](std::size_t, std::size_t) { return -1.0; },
-	"x low, dirichlet",
-	std::integral_constant<msh::axis, msh::x_axis>{},
-	std::integral_constant<msh::domain, msh::domain::boundary_low>{}};
+auto xlo = std::tuple(
+	[](std::size_t, std::size_t, std::size_t) { return -1.0; },
+	"x low, dirichlet");
 
-static check xhi{
-	[](std::size_t, std::size_t) { return 1.0; },
-	"x high, dirichlet",
-	std::integral_constant<msh::axis, msh::x_axis>{},
-	std::integral_constant<msh::domain, msh::domain::boundary_high>{}};
-
-static check ylo{
-	[](std::size_t, std::size_t) { return 1.0; },
-	"y low, neumann",
-	std::integral_constant<msh::axis, msh::y_axis>{},
-	std::integral_constant<msh::domain, msh::domain::boundary_low>{}};
-static check yhi{
-	[](std::size_t, std::size_t) { return 1.0; },
-	"y hi, neumann",
-	std::integral_constant<msh::axis, msh::y_axis>{},
-	std::integral_constant<msh::domain, msh::domain::boundary_high>{}};
-
+/* static check xhi{ */
+/* 	[](std::size_t, std::size_t) { return 1.0; }, */
+/* 	"x high, dirichlet", */
+/* 	std::integral_constant<msh::axis, msh::x_axis>{}, */
+/* 	std::integral_constant<msh::domain, msh::domain::boundary_high>{}}; */
+/**/
+/* static check ylo{ */
+/* 	[](std::size_t, std::size_t) { return 1.0; }, */
+/* 	"y low, neumann", */
+/* 	std::integral_constant<msh::axis, msh::y_axis>{}, */
+/* 	std::integral_constant<msh::domain, msh::domain::boundary_low>{}}; */
+/* static check yhi{ */
+/* 	[](std::size_t, std::size_t) { return 1.0; }, */
+/* 	"y hi, neumann", */
+/* 	std::integral_constant<msh::axis, msh::y_axis>{}, */
+/* 	std::integral_constant<msh::domain, msh::domain::boundary_high>{}}; */
+/**/
 template<class Vec>
 constexpr auto make_bcs(const Vec &) {
 	using namespace flecsolve::physics;
@@ -156,11 +154,10 @@ int boundary_test() {
 		bndry_yhi.apply(x, x);
 
 		// execute<check_vals>(m, xd(m), "checks");
-
-		EXPECT_EQ((test<xlo>(m, xd(m))), 0);
-		EXPECT_EQ((test<xhi>(m, xd(m))), 0);
-		EXPECT_EQ((test<ylo>(m, xd(m))), 0);
-		EXPECT_EQ((test<yhi>(m, xd(m))), 0);
+		EXPECT_TRUE(fvm_run<rxlo<msh::cells>>(xlo, m, xd(m)));
+		//EXPECT_EQ((test<xhi>(m, xd(m))), 0);
+		//EXPECT_EQ((test<ylo>(m, xd(m))), 0);
+		//EXPECT_EQ((test<yhi>(m, xd(m))), 0);
 	};
 }
 

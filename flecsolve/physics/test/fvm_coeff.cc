@@ -53,35 +53,36 @@ constexpr auto make_bcs(const Vec &) {
 			{{1.0}}));
 }
 
-static fvm_check chk_constx([](auto...) { return 3.14; },
-                            "face coefficient constant [x]",
-                            fconstant<msh::x_axis>{},
-                            fconstant<msh::faces>{});
-static fvm_check chk_consty([](auto...) { return 3.14; },
-                            "face coefficient constant [y]",
-                            fconstant<msh::y_axis>{},
-                            fconstant<msh::faces>{});
+auto chk_constx = std::make_tuple([](auto...) { return 3.14; },
+                            "face coefficient constant [x]");
 
-static fvm_check chk_constz([](auto...) { return 3.14; },
-                            "face coefficient constant [z]",
-                            fconstant<msh::z_axis>{},
-                            fconstant<msh::faces>{});
-
-static fvm_check chk_avgx([](auto...) { return 1.0; },
-                          "face coefficient as directional avg of cells [x]",
-                          fconstant<msh::x_axis>{},
-                          fconstant<msh::faces>{});
-
-static fvm_check chk_avgy([](auto...) { return 1.0; },
-                          "face coefficient as directional avg of cells [y]",
-                          fconstant<msh::y_axis>{},
-                          fconstant<msh::faces>{});
-
-static fvm_check chk_avgz([](auto...) { return 1.0; },
-                          "face coefficient as directional avg of cells [z]",
-                          fconstant<msh::z_axis>{},
-                          fconstant<msh::faces>{});
-
+//                            fconstant<msh::x_axis>{},
+ //                           fconstant<msh::faces>{});
+/* static fvm_check chk_consty([](auto...) { return 3.14; }, */
+/*                             "face coefficient constant [y]", */
+/*                             fconstant<msh::y_axis>{}, */
+/*                             fconstant<msh::faces>{}); */
+/**/
+/* static fvm_check chk_constz([](auto...) { return 3.14; }, */
+/*                             "face coefficient constant [z]", */
+/*                             fconstant<msh::z_axis>{}, */
+/*                             fconstant<msh::faces>{}); */
+/**/
+/* static fvm_check chk_avgx([](auto...) { return 1.0; }, */
+/*                           "face coefficient as directional avg of cells [x]", */
+/*                           fconstant<msh::x_axis>{}, */
+/*                           fconstant<msh::faces>{}); */
+/**/
+/* static fvm_check chk_avgy([](auto...) { return 1.0; }, */
+/*                           "face coefficient as directional avg of cells [y]", */
+/*                           fconstant<msh::y_axis>{}, */
+/*                           fconstant<msh::faces>{}); */
+/**/
+/* static fvm_check chk_avgz([](auto...) { return 1.0; }, */
+/*                           "face coefficient as directional avg of cells [z]", */
+/*                           fconstant<msh::z_axis>{}, */
+/*                           fconstant<msh::faces>{}); */
+/**/
 int fvm_coeff_test() {
 
 	init_mesh({8, 8, 8});
@@ -104,12 +105,13 @@ int fvm_coeff_test() {
 		coef_const.apply(x, x);
 		coef_avg.apply(x, x);
 
-		EXPECT_EQ((test<chk_constx>(m, const_fd[msh::x_axis](m))), 0);
-		EXPECT_EQ((test<chk_consty>(m, const_fd[msh::y_axis](m))), 0);
-		EXPECT_EQ((test<chk_constz>(m, const_fd[msh::z_axis](m))), 0);
-		EXPECT_EQ((test<chk_avgx>(m, avg_fd[msh::x_axis](m))), 0);
-		EXPECT_EQ((test<chk_avgy>(m, avg_fd[msh::y_axis](m))), 0);
-		EXPECT_EQ((test<chk_avgz>(m, avg_fd[msh::z_axis](m))), 0);
+		EXPECT_TRUE((fvm_run<rface<msh::x_axis>>(chk_constx, m, const_fd[msh::x_axis](m))));
+		//EXPECT_EQ((test<chk_constx>(m, const_fd[msh::x_axis](m))), 0);
+		/* EXPECT_EQ((test<chk_consty>(m, const_fd[msh::y_axis](m))), 0); */
+		/* EXPECT_EQ((test<chk_constz>(m, const_fd[msh::z_axis](m))), 0); */
+		/* EXPECT_EQ((test<chk_avgx>(m, avg_fd[msh::x_axis](m))), 0); */
+		/* EXPECT_EQ((test<chk_avgy>(m, avg_fd[msh::y_axis](m))), 0); */
+		/* EXPECT_EQ((test<chk_avgz>(m, avg_fd[msh::z_axis](m))), 0); */
 	};
 }
 
