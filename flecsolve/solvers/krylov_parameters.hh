@@ -4,6 +4,7 @@
 #include <tuple>
 #include <memory>
 
+#include "flecsolve/operators/storage.hh"
 #include "flecsolve/operators/shell.hh"
 #include "flecsolve/util/traits.hh"
 #include "flecsolve/util/config.hh"
@@ -28,7 +29,7 @@ template<class solver_type, class... Ops>
 struct krylov_parameters_gen {
 
 	template<class... O>
-	krylov_parameters_gen(O &&... o) : ops(std::forward<O>(o)...) {}
+	krylov_parameters_gen(O &&... o) : ops(storage{std::forward<O>(o)}...) {}
 
 	template<class T>
 	static bool default_diagnostic(const T &, double) {
@@ -39,11 +40,7 @@ struct krylov_parameters_gen {
 
 	template<krylov_oplabel lb>
 	auto & get_operator_ref() {
-		if constexpr (is_reference_wrapper_v<
-						  std::tuple_element_t<lb, decltype(ops)>>)
-			return std::get<lb>(ops).get();
-		else
-			return std::get<lb>(ops);
+		return std::get<lb>(ops).get();
 	}
 
 	template<krylov_oplabel lb>
@@ -63,14 +60,15 @@ struct krylov_parameters_gen {
 
 	template<krylov_oplabel lb>
 	void set_operator(
-		std::tuple_element_t<lb, std::tuple<std::decay_t<Ops>...>> new_op) {
+		std::tuple_element_t<lb, std::tuple<storage<std::decay_t<Ops>>...>>
+			new_op) {
 		std::get<lb>(ops) = new_op;
 	}
 
 	std::shared_ptr<solver_type> solver;
 
 protected:
-	std::tuple<std::decay_t<Ops>...> ops;
+	std::tuple<storage<std::decay_t<Ops>>...> ops;
 };
 
 template<bool precond_is_factory,
@@ -106,7 +104,9 @@ protected:
 		// operator and preconditioner types must be operators
 		static_assert(
 			(... &&
-		     (I > 1 || is_operator_v<std::tuple_element_t<I, decltype(ops)>>)));
+		     (I > 1 ||
+		      is_operator_v<
+				  typename std::tuple_element_t<I, decltype(ops)>::op_type>)));
 	}
 };
 
@@ -125,7 +125,9 @@ struct krylov_parameters_base<true, solver_type, Derived, Ops...>
 		static_assert(sizeof...(O) >= 2 &&
 		              sizeof...(O) <= krylov_oplabel::nops);
 		// assert A is an operator
-		static_assert(is_operator_v<std::tuple_element_t<0, decltype(ops)>>);
+		static_assert(
+			is_operator_v<
+				typename std::tuple_element_t<0, decltype(ops)>::op_type>);
 	}
 
 	template<krylov_oplabel lb>
@@ -183,7 +185,8 @@ struct precond_is_factory : std::false_type {};
 
 template<class O, class P, class... Rest>
 struct precond_is_factory<O, P, Rest...> {
-	static constexpr bool value = !is_operator_v<P>;
+	static constexpr bool value =
+		!is_operator_v<typename storage<std::decay_t<P>>::op_type>;
 };
 
 template<class... Ops>

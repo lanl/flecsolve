@@ -89,13 +89,6 @@ struct is_operator<
 	: std::true_type {};
 
 template<class T>
-struct is_operator<
-	std::reference_wrapper<T>,
-	typename std::enable_if_t<
-		std::is_base_of_v<base<std::decay_t<T>>, std::decay_t<T>>>>
-	: std::true_type {};
-
-template<class T>
 inline constexpr bool is_operator_v = is_operator<T>::value;
 
 }

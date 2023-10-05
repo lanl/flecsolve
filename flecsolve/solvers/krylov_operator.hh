@@ -61,17 +61,12 @@ private:
 		static constexpr auto output_var = traits<T>::output_var;
 	};
 
-	template<class T>
-	struct op_vars<std::reference_wrapper<T>> {
-		static constexpr auto input_var = op_vars<T>::input_var;
-		static constexpr auto output_var = op_vars<T>::output_var;
-	};
-
 public:
 	using parameters = P;
 	// krylov operators inherit variables from the operator they invert.
-	using vars =
-		op_vars<std::tuple_element_t<0, decltype(std::declval<P>().ops)>>;
+	using vars = op_vars<typename std::tuple_element_t<
+		0,
+		decltype(std::declval<P>().ops)>::op_type>;
 	static constexpr auto input_var = vars::input_var;
 	static constexpr auto output_var = vars::output_var;
 };
