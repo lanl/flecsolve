@@ -82,14 +82,6 @@ auto create_multivector(const fd_array & arr, std::index_sequence<Index...>) {
 	return vec::multi(vec::mesh(msh, arr[Index](msh))...);
 }
 
-template<class F, class T>
-struct check {
-	static constexpr F f;
-	static constexpr T name;
-};
-template<class F, class T>
-check(F &&, T &&) -> check<F, T>;
-
 static constexpr double ftol = 1e-8;
 
 template<class FN>
@@ -209,12 +201,12 @@ int vectest() {
 
 		tmp.copy(y);
 		tmp.axpby(4, 11, z);
-		/* EXPECT_TRUE(run<axpby>(tmp, msh)); */
-		/**/
-		/* tmp.add_scalar(y, -4.3); */
-		/* tmp.abs(tmp); */
-		/* EXPECT_TRUE(run<abs>(tmp, msh)); */
-		/**/
+		EXPECT_TRUE(run(tmp, msh, axpby));
+
+		tmp.add_scalar(y, -4.3);
+		tmp.abs(tmp);
+		EXPECT_TRUE(run(tmp, msh, abs));
+
 		tmp.add_scalar(y, -7);
 		EXPECT_EQ(tmp.min().get(), -7);
 
