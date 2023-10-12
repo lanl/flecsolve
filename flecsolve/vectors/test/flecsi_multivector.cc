@@ -11,30 +11,9 @@
 
 #include "flecsolve/util/test/mesh.hh"
 
-namespace flecsi::util {
-
-// F: Test class
-// Args...: The arguments, ex: int or none
-template<typename F, typename... Args>
-struct is_functor : std::is_constructible<std::function<void(Args...)>, F> {
-};
-
-}
-
 using namespace flecsi;
 
 namespace flecsolve {
-
-template<class T, class = void>
-struct function_traits : util::function_traits<T> {
-};
-
-template<class F, class... Args>
-struct function_traits<F, util::is_functor<F, Args...>> {
-	static constexpr bool nonthrowing = false;
-	using return_type = int;
-	using arguments_type = std::tuple<Args...>;
-};
 
 testmesh::slot msh;
 testmesh::cslot coloring;
