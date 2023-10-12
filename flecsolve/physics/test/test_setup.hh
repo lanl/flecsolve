@@ -126,7 +126,7 @@ int fvm_check_f(FT && ft,
                 msh::accessor<ro, ro> vm,
                 field<double>::accessor<ro, na> x) {
 	auto fn = std::get<0>(ft);
-  auto name = std::get<1>(ft);
+	auto name = std::get<1>(ft);
 	UNIT (name) {
 		auto xv = vm.mdspan<RT::sp>(x);
 		auto [kk, jj, ii] = vm.full_range<RT::sp, RT::ax, RT::dm>();
@@ -141,68 +141,32 @@ int fvm_check_f(FT && ft,
 	};
 }
 
-template<class RT, class FT, class ...Args>
-bool fvm_run(FT&& ft, Args&&...args)
-{
-  return test<fvm_check_f<RT, FT>>(ft, args...);
+template<class RT, class FT, class... Args>
+auto fvm_run(FT && ft, Args &&... args) {
+	return (test<fvm_check_f<RT, FT>>(ft, args...) == 0);
 }
 
+// some topo specifications
 template<auto A, auto S, auto D>
-struct ASD
-{
-static constexpr auto ax = A;
-static constexpr auto sp = S;
-  static constexpr auto dm = D;
+struct ASD {
+	static constexpr auto ax = A;
+	static constexpr auto sp = S;
+	static constexpr auto dm = D;
 };
 
 using rxcl = ASD<msh::x_axis, msh::cells, msh::domain::logical>;
 
-template<auto S>
-using rxlo = ASD<msh::x_axis, S, msh::domain::boundary_low>;
+template<auto A, auto D>
+using r_c_ = ASD<A, msh::cells, D>;
+
+template<auto A>
+using r_lo = r_c_<A, msh::domain::boundary_low>;
+
+template<auto A>
+using r_hi = r_c_<A, msh::domain::boundary_high>;
 
 template<auto A>
 using rface = ASD<A, msh::faces, msh::domain::logical>;
-
-template<class F, class T, class A, class S, class D>
-struct fvm_check {
-	F f;
-	T name;
-	fvm_check(F && fun,
-	          T && t,
-	          A = fconstant<msh::x_axis>{},
-	          S = fconstant<msh::cells>{},
-	          D = fconstant<msh::domain::logical>{})
-		: f(std::forward<F>(fun)), name(std::forward<T>(t)) {}
-
-	int operator()(msh::accessor<ro, ro> vm,
-	               field<double>::accessor<ro, na> x) {
-		UNIT (name) {
-			auto xv = vm.mdspan<S::value>(x);
-			auto [kk, jj, ii] = vm.full_range<S::value, A::value, D::value>();
-
-			for (auto k : kk) {
-				for (auto j : jj) {
-					for (auto i : ii) {
-						EXPECT_LT(std::abs(f(k, j, i) - xv[k][j][i]),
-						          DEFAULT_TOL);
-					}
-				}
-			}
-		};
-	}
-};
-
-template<class F,
-         class T,
-         msh::axis A = msh::x_axis,
-         msh::index_space S = msh::cells,
-         msh::domain D = msh::domain::logical>
-fvm_check(F &&,
-          T &&,
-          fconstant<A> = fconstant<A>{},
-          fconstant<S> = fconstant<S>{},
-          fconstant<D> = fconstant<D>{})
-	-> fvm_check<F, T, fconstant<A>, fconstant<S>, fconstant<D>>;
 
 } // namespace physics_testing
 } // namespace flecsolve
