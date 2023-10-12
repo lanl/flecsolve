@@ -1,7 +1,6 @@
 #include <array>
 
 #include <flecsi/flog.hh>
-#include <flecsi/util/function_traits.hh>
 #include <flecsi/util/unit.hh>
 #include <flecsi/util/unit/types.hh>
 #include <utility>
