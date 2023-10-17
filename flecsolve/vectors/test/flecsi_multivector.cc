@@ -57,6 +57,7 @@ void init_fields(const fd_array & arr,
 
 template<std::size_t... Index>
 auto create_multivector(const fd_array & arr, std::index_sequence<Index...>) {
+	static_assert(sizeof...(Index) > 0);
 	return vec::multi(vec::topo_view(msh, arr[Index](msh))...);
 }
 
@@ -84,7 +85,7 @@ bool run(MV & mv, S & msh, FN && fn) {
 						 fn, msh, v.data.ref(), ind++) == 0) and
 		            ...);
 		},
-		mv.data);
+		mv.data.components);
 }
 
 auto add = std::make_pair(

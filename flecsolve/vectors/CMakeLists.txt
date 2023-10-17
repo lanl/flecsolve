@@ -1,11 +1,13 @@
 set(vectors_HEADERS
   topo_view.hh
   seq.hh
+  core.hh
   multi.hh
   util.hh
   variable.hh
-  base.hh
+  traits.hh
   data/topo_view.hh
+  data/multi.hh
   operations/topo_view.hh
   operations/multi.hh
   operations/topo_tasks.hh

@@ -6,51 +6,67 @@
 #include "flecsi/execution.hh"
 #include "flecsi/util/array_ref.hh"
 
-#include "base.hh"
+#include "core.hh"
 #include "flecsolve/vectors/variable.hh"
 
 namespace flecsolve::vec {
 
-template<class Derived>
-struct seq : base<Derived> {
-	using base_t = base<Derived>;
-	using scalar = typename base_t::scalar;
-	using len_t = typename base_t::len_t;
-	using base_t::data;
+template<class Scalar, auto V = anon_var::anonymous>
+struct seq_config {
+	using scalar = Scalar;
+	using real = typename num_traits<scalar>::real;
+	static constexpr bool is_complex = num_traits<scalar>::is_complex;
+	using len_t = std::size_t;
+	static constexpr auto var = variable<V>;
+	using var_t = decltype(V);
+	static constexpr std::size_t num_components = 1;
+};
 
-	seq() {}
+template<class Config, template<class> class storage>
+struct seq_data {
+	using config = Config;
+	using scalar = typename Config::scalar;
+	using size_type = typename Config::len_t;
 
-	template<class D>
-	FLECSI_INLINE_TARGET seq(D && d) : base_t{std::forward<D>(d)} {}
+	seq_data() {}
 
-	constexpr scalar & operator[](len_t i) { return data[i]; }
+	seq_data(storage<scalar> s) : store(std::move(s)) {}
 
-	constexpr const scalar & operator[](len_t i) const { return data[i]; }
+	constexpr scalar & operator[](size_type i) { return store[i]; }
+
+	constexpr const scalar & operator[](size_type i) const { return store[i]; }
+
+	constexpr size_type size() const { return store.size(); }
+
+	void resize(std::size_t s) { store.resize(s); }
+
+	friend bool operator==(const seq_data & d1, const seq_data & d2) {
+		return d1.store == d2.store;
+	}
+	friend bool operator!=(const seq_data & d1, const seq_data & d2) {
+		return d1.store != d2.store;
+	}
+
+private:
+	storage<scalar> store;
 };
 
 template<class T>
-struct span_view {
-	using span_t = flecsi::util::span<T>;
-	using scalar = typename span_t::value_type;
-	using size_type = typename span_t::size_type;
+using vec_t = std::vector<T>;
+template<class Config>
+using seq_data_vec = seq_data<Config, vec_t>;
+template<class T>
+using span_t = flecsi::util::span<T>;
+template<class Config>
+using seq_data_span = seq_data<Config, span_t>;
 
-	span_view(span_t s) : span(s) {}
-
-	constexpr scalar & operator[](size_type i) { return span[i]; }
-
-	constexpr const scalar & operator[](size_type i) const { return span[i]; }
-
-	constexpr size_type size() const { return span.size(); }
-
-	span_t span;
-};
-
-template<class Scalar>
+template<class Data>
 struct seq_ops {
-	using scalar = Scalar;
-	using real = typename num_traits<Scalar>::real;
-	static constexpr bool is_complex = num_traits<scalar>::is_complex;
-	using len_t = std::size_t;
+	using config = typename Data::config;
+	using scalar = typename config::scalar;
+	using real = typename config::real;
+	static constexpr bool is_complex = config::is_complex;
+	using len_t = typename config::len_t;
 
 	template<class T>
 	struct fut {
@@ -60,17 +76,17 @@ struct seq_ops {
 	};
 
 	template<class Src, class Dest>
-	void copy(const Src & src, Dest & dest) const {
+	static void copy(const Src & src, Dest & dest) {
 		fordofs([&](len_t i) { dest[i] = src[i]; }, src, dest);
 	}
 
 	template<class D>
-	void zero(D & x) const {
+	static void zero(D & x) {
 		fordofs([&](len_t i) { x[i] = 0.; }, x);
 	}
 
 	template<class D>
-	void set_random(D & x, unsigned seed) const {
+	static void set_random(D & x, unsigned seed) {
 		std::mt19937 gen(seed);
 		std::uniform_real_distribution<real> dis(0., 1.);
 		fordofs(
@@ -84,47 +100,47 @@ struct seq_ops {
 	}
 
 	template<class D>
-	void set_to_scalar(scalar alpha, D & x) const {
+	static void set_to_scalar(scalar alpha, D & x) {
 		fordofs([&](len_t i) { x[i] = alpha; }, x);
 	}
 
 	template<class D>
-	void scale(scalar alpha, D & x) const {
+	static void scale(scalar alpha, D & x) {
 		fordofs([&](len_t i) { x[i] *= alpha; }, x);
 	}
 
 	template<class D0, class D1>
-	void scale(scalar alpha, const D0 & x, D1 & y) const {
+	static void scale(scalar alpha, const D0 & x, D1 & y) {
 		fordofs([&](len_t i) { y[i] = alpha * x[i]; }, x, y);
 	}
 
 	template<class X, class Y, class Z>
-	void add(const X & x, const Y & y, Z & z) const {
+	static void add(const X & x, const Y & y, Z & z) {
 		fordofs([&](len_t i) { z[i] = x[i] + y[i]; }, x, y, z);
 	}
 
 	template<class X, class Y, class Z>
-	void subtract(const X & x, const Y & y, Z & z) const {
+	static void subtract(const X & x, const Y & y, Z & z) {
 		fordofs([&](len_t i) { z[i] = x[i] - y[i]; }, x, y, z);
 	}
 
 	template<class X, class Y, class Z>
-	void multiply(const X & x, const Y & y, Z & z) const {
+	static void multiply(const X & x, const Y & y, Z & z) {
 		fordofs([&](len_t i) { z[i] = x[i] * y[i]; }, x, y, z);
 	}
 
 	template<class X, class Y, class Z>
-	void divide(const X & x, const Y & y, Z & z) const {
+	static void divide(const X & x, const Y & y, Z & z) {
 		fordofs([&](len_t i) { z[i] = x[i] / y[i]; }, x, y, z);
 	}
 
 	template<class X, class Y>
-	void reciprocal(const X & x, Y & y) const {
+	static void reciprocal(const X & x, Y & y) {
 		fordofs([&](len_t i) { x[i] = 1. / y[i]; }, x, y);
 	}
 
 	template<class X>
-	void dump(std::string_view pre, const X & x) const {
+	static void dump(std::string_view pre, const X & x) {
 		std::string fname{pre};
 		fname += "-" + std::to_string(flecsi::color());
 		std::ofstream ofile{fname};
@@ -132,33 +148,33 @@ struct seq_ops {
 	}
 
 	template<class X, class Y, class Z>
-	void linear_sum(scalar alpha, const X & x, scalar beta, const Y & y, Z & z)
-		const {
+	static void
+	linear_sum(scalar alpha, const X & x, scalar beta, const Y & y, Z & z) {
 		fordofs([&](len_t i) { z[i] = alpha * x[i] + beta * y[i]; }, x, y, z);
 	}
 
 	template<class X, class Y, class Z>
-	void axpy(scalar alpha, const X & x, const Y & y, Z & z) const {
+	static void axpy(scalar alpha, const X & x, const Y & y, Z & z) {
 		fordofs([&](len_t i) { z[i] = alpha * x[i] + y[i]; }, x, y, z);
 	}
 
 	template<class X, class Z>
-	void axpby(scalar alpha, scalar beta, const X & x, Z & z) const {
+	static void axpby(scalar alpha, scalar beta, const X & x, Z & z) {
 		fordofs([&](len_t i) { z[i] = alpha * x[i] + beta * z[i]; }, x, z);
 	}
 
 	template<class X, class Y>
-	void abs(const X & x, Y & y) const {
+	static void abs(const X & x, Y & y) {
 		fordofs([&](len_t i) { y[i] = std::abs(x[i]); }, x, y);
 	}
 
 	template<class X, class Y>
-	void add_scalar(const X & x, scalar alpha, Y & y) const {
+	static void add_scalar(const X & x, scalar alpha, Y & y) {
 		fordofs([&](len_t i) { y[i] = x[i] + alpha; }, x, y);
 	}
 
 	template<class X>
-	fut<real> min(const X & x) const {
+	static fut<real> min(const X & x) {
 		auto curr = std::numeric_limits<real>::max();
 		fordofs(
 			[&](len_t i) {
@@ -173,7 +189,7 @@ struct seq_ops {
 	}
 
 	template<class X>
-	fut<real> max(const X & x) const {
+	static fut<real> max(const X & x) {
 		auto curr = std::numeric_limits<real>::lowest();
 		fordofs(
 			[&](len_t i) {
@@ -188,7 +204,7 @@ struct seq_ops {
 	}
 
 	template<unsigned short p, class X>
-	fut<real> lp_norm(const X & x) const {
+	static fut<real> lp_norm(const X & x) {
 		real curr = 0;
 		if constexpr (p == 2) {
 			if constexpr (is_complex)
@@ -213,34 +229,43 @@ struct seq_ops {
 			return std::sqrt(curr);
 		else
 			return std::pow(curr, 1. / p);
-		;
 	}
 
 	template<class X>
-	fut<real> inf_norm(const X & x) const {
+	static fut<real> inf_norm(const X & x) {
 		auto ret = std::numeric_limits<real>::min();
 		fordofs([&](len_t i) { ret = std::max(std::abs(x[i]), ret); }, x);
 		return ret;
 	}
 
 	template<class X, class Y>
-	fut<scalar> dot(const X & x, const Y & y) const {
+	static fut<scalar> dot(const X & x, const Y & y) {
 		return scalar_prod(x, y);
 	}
 
 	template<class X>
-	len_t local_size(const X & x) const {
+	static len_t local_size(const X & x) {
 		return x.data.size();
 	}
 
 	template<class X>
-	fut<len_t> global_size(const X & x) const {
+	static fut<len_t> global_size(const X & x) {
 		return local_size(x);
+	}
+
+	template<class X>
+	static scalar & retreive(X & x, len_t i) {
+		return x[i];
+	}
+
+	template<class X>
+	static const scalar & retreive(const X & x, len_t i) {
+		return x[i];
 	}
 
 protected:
 	template<class X, class Y>
-	scalar scalar_prod(const X & x, const Y & y) const {
+	static scalar scalar_prod(const X & x, const Y & y) {
 		scalar res = 0.0;
 		fordofs(
 			[&](len_t i) {
@@ -255,7 +280,7 @@ protected:
 	}
 
 	template<class F, class A0, class... A>
-	void fordofs(F && f, const A0 & a0, const A &... arest) const {
+	static void fordofs(F && f, const A0 & a0, const A &... arest) {
 		len_t sz = a0.size();
 		([&](const auto & a) { flog_assert(a.size() == sz, ""); }(arest), ...);
 		for (len_t i = 0; i < sz; ++i) {
@@ -264,21 +289,25 @@ protected:
 	}
 };
 
+template<class T, auto V = anon_var::anonymous>
+struct seq_vec : core<seq_data_vec, seq_ops, seq_config<T, V>> {
+	using base = core<seq_data_vec, seq_ops, seq_config<T, V>>;
+	seq_vec(variable_t<V>) : base{vec_t<T>{}} {}
+	seq_vec() : base{vec_t<T>{}} {}
+	seq_vec(variable_t<V>, std::size_t sz) : base{vec_t<T>(sz)} {}
+	seq_vec(std::size_t sz) : base{vec_t<T>(sz)} {}
+};
+
+template<class T, auto V>
+struct seq_view : core<seq_data_span, seq_ops, seq_config<T, V>> {
+	using base = core<seq_data_span, seq_ops, seq_config<T, V>>;
+	seq_view(span_t<T> span) : base{span} {}
+	seq_view(variable_t<V>, span_t<T> span) : base{span} {}
+};
 template<class T>
-struct seq_view : seq<seq_view<T>> {
-	using base = seq<seq_view<T>>;
-	using data_t = typename base::data_t;
-
-	FLECSI_INLINE_TARGET seq_view(flecsi::util::span<T> span) : base{span} {}
-};
-
-template<class T, auto var = anon_var::anonymous>
-struct seq_vec : seq<seq_vec<T, var>> {
-	using base = seq<seq_vec<T, var>>;
-
-	seq_vec() : base{} {}
-	seq_vec(std::size_t sz) : base{sz} {}
-};
+seq_view(span_t<T>) -> seq_view<T, anon_var::anonymous>;
+template<auto V, class T>
+seq_view(variable_t<V>, span_t<T>) -> seq_view<T, V>;
 
 template<class T, std::size_t nwork, auto var = anon_var::anonymous>
 struct seq_work {
@@ -297,23 +326,6 @@ struct seq_work {
 protected:
 	std::size_t csize;
 	std::array<seq_vec<T, var>, nwork> vecs;
-};
-
-}
-
-namespace flecsolve {
-template<class T>
-struct traits<vec::seq_view<T>> {
-	static constexpr auto var = variable<anon_var::anonymous>;
-	using data_t = vec::span_view<T>;
-	using ops_t = vec::seq_ops<typename data_t::scalar>;
-};
-
-template<class T, auto V>
-struct traits<vec::seq_vec<T, V>> {
-	static constexpr auto var = variable<V>;
-	using data_t = std::vector<T>;
-	using ops_t = vec::seq_ops<T>;
 };
 
 }

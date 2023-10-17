@@ -18,8 +18,11 @@ struct krylov : op::base<krylov<Params>> {
 
 	krylov(Params p) : op::base<krylov<Params>>(std::move(p)) {}
 
-	template<class D, class R>
-	auto apply(const vec::base<D> & b, vec::base<R> & x) {
+	template<class D,
+	         class R,
+	         std::enable_if_t<is_vector_v<D>, bool> = true,
+	         std::enable_if_t<is_vector_v<R>, bool> = true>
+	auto apply(const D & b, R & x) {
 		decltype(auto) bs = b.subset(input_var);
 		decltype(auto) xs = x.subset(output_var);
 

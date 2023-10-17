@@ -9,12 +9,13 @@
 #include "flecsolve/vectors/seq.hh"
 #include "flecsolve/solvers/cg.hh"
 #include "flecsolve/util/config.hh"
+#include "flecsolve/vectors/traits.hh"
 
 namespace flecsolve {
 
 template<class Op, class Vec>
 struct diagnostic {
-	diagnostic(const Op & A, const vec::seq<Vec> & x0, double cond)
+	diagnostic(const Op & A, const Vec & x0, double cond)
 		: iter(0), cond(cond), A(A), Ax{x0.data.size()}, monotonic_fail(false),
 		  convergence_fail(false) {
 		A.apply(x0, Ax);
@@ -23,8 +24,9 @@ struct diagnostic {
 		e_prev = e_0;
 	}
 
-	bool operator()(const vec::base<Vec> & x, double) {
-		A.apply(x.derived(), Ax);
+	template<class T, std::enable_if_t<is_vector_v<T>, bool> = true>
+	bool operator()(const T & x, double) {
+		A.apply(x, Ax);
 		auto nrm = x.dot(Ax).get();
 		auto e_a = std::sqrt(nrm);
 		auto frac = (std::sqrt(cond) - 1) / (std::sqrt(cond) + 1);

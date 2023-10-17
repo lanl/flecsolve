@@ -34,14 +34,20 @@ struct sparse : with_derived<Derived>, op::base<Derived> {
 	constexpr size cols() const { return derived().cols(); }
 	constexpr size nnz() const { return derived().nnz(); }
 
-	template<class D, class R>
-	constexpr void apply(const vec::base<D> & x, vec::base<R> & y) const {
-		return mult(x.derived(), y.derived());
+	template<class D,
+	         class R,
+	         std::enable_if_t<is_vector_v<D>, bool> = true,
+	         std::enable_if_t<is_vector_v<R>, bool> = true>
+	constexpr void apply(const D & x, R & y) const {
+		return mult(x, y);
 	}
 
-	template<class X, class Y>
-	constexpr void mult(const vec::base<X> & x, vec::base<Y> & y) const {
-		return ops.spmv(x.derived(), data, y.derived());
+	template<class X,
+	         class Y,
+	         std::enable_if_t<is_vector_v<X>, bool> = true,
+	         std::enable_if_t<is_vector_v<Y>, bool> = true>
+	constexpr void mult(const X & x, Y & y) const {
+		return ops.spmv(x, data, y);
 	}
 
 	constexpr void resize(size nnz) { return derived().resize(nnz); }
@@ -150,14 +156,13 @@ struct compressed_ops<Data, major::row> {
 	using size = typename Data::size;
 
 	template<class X, class Y>
-	void spmv(const vec::seq<X> & x, const Data & data, vec::seq<Y> & y) const {
+	void spmv(const X & x, const Data & data, Y & y) const {
 		const size * rowptr = data.offsets_span().data();
 		const size * colind = data.indices_span().data();
 		const scalar * values = data.values_span().data();
-		for (std::remove_cv_t<size> i = 0; i < data.major_size(); ++i) {
+		for (std::size_t i = 0; i < data.major_size(); ++i) {
 			y[i] = 0.;
-			for (std::remove_cv_t<size> off = rowptr[i]; off < rowptr[i + 1];
-			     ++off) {
+			for (std::size_t off = rowptr[i]; off < rowptr[i + 1]; ++off) {
 				y[i] += values[off] * x[colind[off]];
 			}
 		}
@@ -320,7 +325,7 @@ struct traits<coo<scalar, size>> {
 	};
 	struct ops_t {
 		template<class X, class Y>
-		void spmv(const vec::seq<X> &, const data_t &, vec::seq<Y> &) {
+		void spmv(const X &, const data_t &, Y &) {
 			flog(error) << "Not implemented: COO SPMV" << std::endl;
 		}
 	};

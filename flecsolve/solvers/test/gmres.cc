@@ -29,7 +29,8 @@ struct diagnostic {
 		rnorm_prev = rnorm0;
 	}
 
-	bool operator()(const vec::base<Vec> &, double rnorm) {
+	template<class V, std::enable_if_t<is_vector_v<V>, bool> = true>
+	bool operator()(const V &, double rnorm) {
 		float n = ++iter;
 		auto bnd = std::pow(cfact, n / 2) * rnorm0;
 

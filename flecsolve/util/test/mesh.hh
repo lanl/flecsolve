@@ -4,7 +4,6 @@
 #include "flecsi/topo/narray/interface.hh"
 
 #include "flecsolve/vectors/variable.hh"
-#include "flecsolve/vectors/base.hh"
 #include "flecsolve/operators/base.hh"
 #include "flecsolve/matrices/seq.hh"
 
@@ -119,7 +118,7 @@ struct csr_op : op::base<csr_op> {
 	csr_op(CSR && m) : A(std::forward<CSR>(m)) {}
 
 	template<class D, class R>
-	void apply(const vec::base<D> & x, vec::base<R> & y) const {
+	void apply(const D & x, R & y) const {
 		flecsi::execute<spmv, flecsi::mpi>(
 			A, x.data.topo(), x.data.ref(), y.data.ref());
 	}

@@ -26,19 +26,16 @@ struct simple_factory : solver_factory<simple_factory> {
 	void set_solver_type(registry reg) { solver_type = reg; }
 
 	template<class V, class Op>
-	void create_parameters(vec::base<V> &, op::base<Op> &) {}
+	void create_parameters(V &, op::base<Op> &) {}
 
 	template<class V, class Op>
-	void create(vec::base<V> &, op::base<Op> & A) {
+	void create(V &, op::base<Op> & A) {
 		if (solver_type == registry::Dinv)
 			dinv.emplace(A.derived().Dinv());
 	}
 
 	template<class V, class D, class R, class Op>
-	void solve(const vec::base<D> & x,
-	           vec::base<R> & y,
-	           vec::base<V> &,
-	           op::base<Op> &) {
+	void solve(const D & x, R & y, V &, op::base<Op> &) {
 		if (solver_type == registry::identity)
 			op::I.apply(x, y);
 		else

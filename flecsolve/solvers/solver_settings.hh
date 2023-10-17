@@ -101,8 +101,8 @@ struct topo_work_base {
 		return topo_solver_state<Vec, NumWork, Version>::get_work(rhs);
 	}
 
-	template<class VarType, class... Vecs>
-	static auto get(const vec::multi<VarType, Vecs...> & rhs) {
+	template<class... Vecs>
+	static auto get(const vec::multi<Vecs...> & rhs) {
 		auto wv =
 			make_states(rhs.data, std::make_index_sequence<sizeof...(Vecs)>());
 		return make(std::move(wv), std::make_index_sequence<NumWork>());

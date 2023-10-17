@@ -1,8 +1,10 @@
 #ifndef FLECSOLVE_OP_BASE_H
 #define FLECSOLVE_OP_BASE_H
 
-#include "traits.hh"
 #include <functional>
+
+#include "traits.hh"
+#include "flecsolve/vectors/traits.hh"
 
 namespace flecsolve::op {
 
@@ -26,27 +28,31 @@ struct base {
 		return static_cast<const Derived &>(*this);
 	}
 
-	template<class D, class R>
-	decltype(auto) apply(const vec::base<D> & x, vec::base<R> & y) const {
-		return derived().apply(x.derived(), y.derived());
+	template<class D,
+	         class R,
+	         std::enable_if_t<is_vector_v<D>, bool> = true,
+	         std::enable_if_t<is_vector_v<R>, bool> = true>
+	decltype(auto) apply(const D & x, R & y) const {
+		return derived().apply(x, y);
+	}
+
+	template<class B,
+	         class X,
+	         class R,
+	         std::enable_if_t<is_vector_v<B>, bool> = true,
+	         std::enable_if_t<is_vector_v<X>, bool> = true,
+	         std::enable_if_t<is_vector_v<R>, bool> = true>
+	void residual(const B & b, const X & x, R & r) const {
+		derived().residual_impl(b, x, r);
 	}
 
 	template<class B, class X, class R>
-	void residual(const vec::base<B> & b,
-	              const vec::base<X> & x,
-	              vec::base<R> & r) const {
-		derived().residual_impl(b.derived(), x.derived(), r.derived());
-	}
-
-	template<class B, class X, class R>
-	void residual_impl(const vec::base<B> & b,
-	                   const vec::base<X> & x,
-	                   vec::base<R> & r) const {
-		apply(x.derived(), r.derived());
+	void residual_impl(const B & b, const X & x, R & r) const {
+		apply(x, r);
 
 		const auto & bs = b.subset(output_var);
 		auto & rs = r.subset(output_var);
-		rs.subtract(bs.derived(), rs.derived());
+		rs.subtract(bs, rs);
 	}
 
 	template<class T>

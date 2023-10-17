@@ -8,18 +8,20 @@
 
 namespace flecsolve::vec::ops {
 
-template<class Topo, typename Topo::index_space Space, class Scalar>
+template<class Data>
 struct topo_view {
-	using scalar = Scalar;
-	using real = typename num_traits<Scalar>::real;
+	using topo_t = typename Data::topo_t;
+	using scalar = typename Data::scalar;
+	static constexpr auto space = Data::space;
+	using real = typename num_traits<scalar>::real;
 	using len_t = flecsi::util::id;
 
-	using vec_data = data::topo_view<Topo, Space, scalar>;
+	using vec_data = Data;
 
 	using tasks = topo_tasks<vec_data, scalar, len_t>;
 
 	template<class Other>
-	void copy(const Other & x, vec_data & z) {
+	static void copy(const Other & x, vec_data & z) {
 		static_assert(
 			std::is_same_v<typename Other::topo_t, typename vec_data::topo_t>);
 		static_assert(Other::space == vec_data::space);
@@ -28,33 +30,33 @@ struct topo_view {
 			flecsi::default_accelerator>(x.topo(), z.ref(), x.ref());
 	}
 
-	void zero(vec_data & x) {
+	static void zero(vec_data & x) {
 		flecsi::execute<tasks::set_to_scalar, flecsi::default_accelerator>(
 			x.topo(), x.ref(), 0.0);
 	}
 
-	void set_random(vec_data & x, unsigned seed) {
+	static void set_random(vec_data & x, unsigned seed) {
 		flecsi::execute<tasks::set_random>(x.topo(), x.ref(), seed);
 	}
 
-	void set_to_scalar(scalar alpha, vec_data & x) {
+	static void set_to_scalar(scalar alpha, vec_data & x) {
 		flecsi::execute<tasks::set_to_scalar, flecsi::default_accelerator>(
 			x.topo(), x.ref(), alpha);
 	}
 
-	void scale(scalar alpha, vec_data & x) {
+	static void scale(scalar alpha, vec_data & x) {
 		flecsi::execute<tasks::scale_self, flecsi::default_accelerator>(
 			x.topo(), x.ref(), alpha);
 	}
 
-	void scale(scalar alpha, const vec_data & x, vec_data & y) {
+	static void scale(scalar alpha, const vec_data & x, vec_data & y) {
 		flog_assert(x.fid() != y.fid(),
 		            "scale operation: vector data cannot be the same");
 		flecsi::execute<tasks::scale, flecsi::default_accelerator>(
 			x.topo(), x.ref(), y.ref(), alpha);
 	}
 
-	void add(const vec_data & x, const vec_data & y, vec_data & z) {
+	static void add(const vec_data & x, const vec_data & y, vec_data & z) {
 		if (x.fid() == z.fid()) {
 			flecsi::execute<tasks::add_self, flecsi::default_accelerator>(
 				z.topo(), z.ref(), y.ref());
@@ -69,7 +71,7 @@ struct topo_view {
 		}
 	}
 
-	void subtract(const vec_data & x, const vec_data & y, vec_data & z) {
+	static void subtract(const vec_data & x, const vec_data & y, vec_data & z) {
 		if (x.fid() == z.fid()) {
 			flecsi::execute<tasks::template subtract_self<true>,
 			                flecsi::default_accelerator>(
@@ -86,7 +88,7 @@ struct topo_view {
 		}
 	}
 
-	void multiply(const vec_data & x, const vec_data & y, vec_data & z) {
+	static void multiply(const vec_data & x, const vec_data & y, vec_data & z) {
 		if (z.fid() == x.fid()) {
 			flecsi::execute<tasks::multiply_self, flecsi::default_accelerator>(
 				z.topo(), z.ref(), y.ref());
@@ -101,7 +103,7 @@ struct topo_view {
 		}
 	}
 
-	void divide(const vec_data & x, const vec_data & y, vec_data & z) {
+	static void divide(const vec_data & x, const vec_data & y, vec_data & z) {
 		if (z.fid() == x.fid()) {
 			flecsi::execute<tasks::template divide_self<true>,
 			                flecsi::default_accelerator>(
@@ -118,7 +120,7 @@ struct topo_view {
 		}
 	}
 
-	void reciprocal(const vec_data & x, vec_data & y) {
+	static void reciprocal(const vec_data & x, vec_data & y) {
 		if (x.fid() == y.fid()) {
 			flecsi::execute<tasks::reciprocal_self,
 			                flecsi::default_accelerator>(y.topo(), y.ref());
@@ -129,11 +131,11 @@ struct topo_view {
 		}
 	}
 
-	void linear_sum(scalar alpha,
-	                const vec_data & x,
-	                scalar beta,
-	                const vec_data & y,
-	                vec_data & z) {
+	static void linear_sum(scalar alpha,
+	                       const vec_data & x,
+	                       scalar beta,
+	                       const vec_data & y,
+	                       vec_data & z) {
 		if (z.fid() == x.fid()) {
 			flecsi::execute<tasks::template linear_sum_self<true>,
 			                flecsi::default_accelerator>(
@@ -150,7 +152,7 @@ struct topo_view {
 		}
 	}
 
-	void
+	static void
 	axpy(scalar alpha, const vec_data & x, const vec_data & y, vec_data & z) {
 		if (z.fid() == x.fid()) {
 			flecsi::execute<tasks::template axpy_self<true>,
@@ -168,12 +170,13 @@ struct topo_view {
 		}
 	}
 
-	void axpby(scalar alpha, scalar beta, const vec_data & x, vec_data & z) {
+	static void
+	axpby(scalar alpha, scalar beta, const vec_data & x, vec_data & z) {
 		flecsi::execute<tasks::axpby, flecsi::default_accelerator>(
 			z.topo(), z.ref(), x.ref(), alpha, beta);
 	}
 
-	void abs(const vec_data & x, vec_data & y) {
+	static void abs(const vec_data & x, vec_data & y) {
 		if (y.fid() == x.fid()) {
 			flecsi::execute<tasks::abs_self, flecsi::default_accelerator>(
 				y.topo(), y.ref());
@@ -184,7 +187,7 @@ struct topo_view {
 		}
 	}
 
-	void add_scalar(const vec_data & x, scalar alpha, vec_data & y) {
+	static void add_scalar(const vec_data & x, scalar alpha, vec_data & y) {
 		if (x.fid() == y.fid()) {
 			flecsi::execute<tasks::add_scalar_self,
 			                flecsi::default_accelerator>(
@@ -196,20 +199,20 @@ struct topo_view {
 		}
 	}
 
-	auto min(const vec_data & x) const {
+	static auto min(const vec_data & x) {
 		return flecsi::reduce<tasks::local_min,
 		                      flecsi::exec::fold::min,
 		                      flecsi::default_accelerator>(x.topo(), x.ref());
 	}
 
-	auto max(const vec_data & y) const {
+	static auto max(const vec_data & y) {
 		return flecsi::reduce<tasks::local_max,
 		                      flecsi::exec::fold::max,
 		                      flecsi::default_accelerator>(y.topo(), y.ref());
 	}
 
 	template<unsigned short p>
-	auto lp_norm_local(const vec_data & x) const {
+	static auto lp_norm_local(const vec_data & x) {
 		if constexpr (p == 1) {
 			return flecsi::reduce<tasks::l1_norm_local,
 			                      flecsi::exec::fold::sum,
@@ -232,7 +235,7 @@ struct topo_view {
 	}
 
 	template<unsigned short p>
-	auto lp_norm(const vec_data & x) const {
+	static auto lp_norm(const vec_data & x) {
 		auto fut = lp_norm_local<p>(x);
 		if constexpr (p == 1) {
 			return fut;
@@ -247,32 +250,32 @@ struct topo_view {
 		}
 	}
 
-	auto inf_norm(const vec_data & x) const {
+	static auto inf_norm(const vec_data & x) {
 		return flecsi::reduce<tasks::inf_norm_local,
 		                      flecsi::exec::fold::max,
 		                      flecsi::default_accelerator>(x.topo(), x.ref());
 	}
 
-	auto dot(const vec_data & x, const vec_data & y) const {
+	static auto dot(const vec_data & x, const vec_data & y) {
 		return flecsi::reduce<tasks::scalar_prod,
 		                      flecsi::exec::fold::sum,
 		                      flecsi::default_accelerator>(
 			x.topo(), x.ref(), y.ref());
 	}
 
-	auto global_size(const vec_data & x) const {
+	static auto global_size(const vec_data & x) {
 		return flecsi::reduce<tasks::local_size,
 		                      flecsi::exec::fold::sum,
 		                      flecsi::default_accelerator>(x.topo());
 	}
 
-	len_t local_size(const vec_data & x) const {
+	static len_t local_size(const vec_data & x) {
 		len_t length;
 		flecsi::execute<tasks::get_local_size, flecsi::mpi>(x.topo(), &length);
 		return length;
 	}
 
-	void dump(std::string_view pre, const vec_data & x) const {
+	static void dump(std::string_view pre, const vec_data & x) {
 		// TODO: update for multiaccessor
 		flecsi::execute<tasks::dump, flecsi::mpi>(pre, x.topo(), x.ref());
 	}
