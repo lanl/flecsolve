@@ -61,8 +61,8 @@ int gmres_test() {
 
 		auto & msh = mshs[0];
 		init_mesh(matrix.rows(), msh, colorings[0]);
-		csr_op A{std::move(matrix)};
-		auto Dinv = A.Dinv();
+		auto A = op::make(csr_op{std::move(matrix)});
+		auto Dinv = op::make(A.source().Dinv());
 
 		vec::topo_view x(msh, xd(msh)), b(msh, bd(msh));
 		b.set_random(0);

@@ -20,6 +20,7 @@
 #include "flecsolve/solvers/krylov_operator.hh"
 #include "flecsolve/solvers/cg.hh"
 #include "flecsolve/solvers/solver_settings.hh"
+#include "flecsolve/operators/core.hh"
 
 using namespace flecsi;
 
@@ -287,12 +288,13 @@ inline int driver() {
 
 	// build the full operator on the variables
 	// notice we can use both operator objects and previous expressions
-	auto A = flecsolve::physics::op_expr(
+	auto A = flecsolve::op::make(flecsolve::physics::op_expr(
 		flecsolve::multivariable<diffusion_var::v1, diffusion_var::v2>,
 		bnd_op_1,
 		make_volume_operator<0>(vec1, diff_param_beta[0], diff_param_alpha[0]),
 		bnd_op_2,
-		make_volume_operator<1>(vec2, diff_param_beta[1], diff_param_alpha[1]));
+		make_volume_operator<1>(
+			vec2, diff_param_beta[1], diff_param_alpha[1])));
 
 	//===================================================
 	//=============== solver ============================
@@ -306,7 +308,7 @@ inline int driver() {
 		flecsolve::cg::topo_work<>::get(RHS),
 		std::ref(A));
 
-	read_config("diffusion.cfg", params);
+	flecsolve::read_config("diffusion.cfg", params);
 
 	// create the solver
 	flecsolve::op::krylov slv(std::move(params));

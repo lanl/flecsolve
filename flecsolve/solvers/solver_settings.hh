@@ -103,8 +103,8 @@ struct topo_work_base {
 
 	template<class... Vecs>
 	static auto get(const vec::multi<Vecs...> & rhs) {
-		auto wv =
-			make_states(rhs.data, std::make_index_sequence<sizeof...(Vecs)>());
+		auto wv = make_states(rhs.data.components,
+		                      std::make_index_sequence<sizeof...(Vecs)>());
 		return make(std::move(wv), std::make_index_sequence<NumWork>());
 	}
 

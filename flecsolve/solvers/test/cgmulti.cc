@@ -7,7 +7,6 @@
 
 #include "flecsolve/vectors/topo_view.hh"
 #include "flecsolve/vectors/multi.hh"
-#include "flecsolve/operators/base.hh"
 #include "flecsolve/solvers/cg.hh"
 #include "flecsolve/util/config.hh"
 #include "flecsolve/matrices/io/matrix_market.hh"
@@ -25,7 +24,7 @@ enum class vars { var1, var2 };
 const std::array<realf::definition<testmesh, testmesh::cells>, 2> xmd, bmd;
 
 template<auto var, class Op>
-struct test_op : op::base<test_op<var, Op>> {
+struct test_op : op::base<std::nullptr_t, variable_t<var>, variable_t<var>> {
 	template<auto V>
 	test_op(variable_t<V>, const Op & op) : op(op) {}
 
@@ -40,21 +39,12 @@ protected:
 template<auto V, class Op>
 test_op(variable_t<V>, const Op &) -> test_op<V, Op>;
 
-namespace op {
-template<auto var, class Op>
-struct traits<test_op<var, Op>> {
-	static constexpr auto input_var = variable<var>;
-	static constexpr auto output_var = variable<var>;
-	using parameters = std::nullptr_t;
-};
-}
-
 int multicg() {
 	UNIT () {
 		auto mtx = mat::io::matrix_market<>::read("Chem97ZtZ.mtx").tocsr();
 
 		init_mesh(mtx.rows(), msh, coloring);
-		csr_op A{std::move(mtx)};
+		auto A = op::make(csr_op{std::move(mtx)});
 
 		vec::multi xm(vec::topo_view(variable<vars::var1>, msh, xmd[0](msh)),
 		              vec::topo_view(variable<vars::var2>, msh, xmd[1](msh)));
@@ -66,8 +56,8 @@ int multicg() {
 		xm.subset(variable<vars::var1>).set_random(7);
 		xm.subset(variable<vars::var2>).set_random(4);
 
-		test_op A1(variable<vars::var1>, A);
-		test_op A2(variable<vars::var2>, A);
+		auto A1 = op::make(test_op(variable<vars::var1>, A));
+		auto A2 = op::make(test_op(variable<vars::var2>, A));
 
 		cg::settings settings("solver");
 		read_config("cgmulti.cfg", settings);

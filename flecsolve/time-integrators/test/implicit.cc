@@ -8,6 +8,8 @@
 
 #include "flecsolve/util/test/mesh.hh"
 #include "flecsolve/solvers/cg.hh"
+#include "flecsolve/operators/core.hh"
+#include <optional>
 
 namespace flecsolve {
 
@@ -16,7 +18,7 @@ testmesh::cslot coloring;
 
 const flecsi::field<double>::definition<testmesh, testmesh::cells> xd, xnewd;
 
-struct rate {
+struct rate : op::base<> {
 	rate(double lambda) : lambda(lambda), gamma(1.) {}
 
 	template<class D, class R>
@@ -43,9 +45,6 @@ struct rate {
 		return true;
 	}
 
-	static constexpr auto input_var = variable<anon_var::anonymous>;
-	static constexpr auto output_var = variable<anon_var::anonymous>;
-
 	double get_scaling() const { return gamma; }
 	void set_scaling(double scaling) { gamma = scaling; }
 
@@ -60,7 +59,7 @@ struct rate_solver {
 	template<class D, class R>
 	solve_info apply(const D & b, R & x) const {
 		auto rhs = b.min().get();
-		const auto & op = F.get();
+		const auto & op = F.source();
 		auto sol = rhs / (1. - op.get_rate() * op.get_scaling());
 		x.set_scalar(sol);
 
@@ -69,7 +68,7 @@ struct rate_solver {
 		return info;
 	}
 
-	std::reference_wrapper<rate> F;
+	op::core<rate, op::shared_storage> F;
 };
 
 int bdftest() {
@@ -80,17 +79,13 @@ int bdftest() {
 
 		init_mesh(1, msh, coloring);
 
-		rate F(-1);
-
+		op::core<rate, op::shared_storage> F(-1.);
 		vec::topo_view x(msh, xd(msh)), xnew(msh, xnewd(msh));
 
-		rate_solver solver{std::ref(F)};
+		rate_solver solver{F};
 		bdf::parameters params2(
-			"bdf-2", std::ref(F), bdf::topo_work<>::get(x), std::ref(solver)),
-			params5("bdf-5",
-		            std::ref(F),
-		            bdf::topo_work<>::get(x),
-		            std::ref(solver));
+			"bdf-2", F, bdf::topo_work<>::get(x), std::ref(solver)),
+			params5("bdf-5", F, bdf::topo_work<>::get(x), std::ref(solver));
 		read_config("implicit.cfg", params2, params5);
 		bdf::integrator ti2(std::move(params2));
 		bdf::integrator ti5(std::move(params5));
@@ -111,7 +106,8 @@ int bdftest() {
 				dt = ti.get_next_dt(good_solution);
 			}
 
-			auto sol = ic * std::exp(F.get_rate() * ti.get_final_time());
+			auto sol =
+				ic * std::exp(F.source().get_rate() * ti.get_final_time());
 			auto approx = x.max().get();
 			return std::tuple(ti.get_final_time(),
 			                  std::abs(sol - approx),

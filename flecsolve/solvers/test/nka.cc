@@ -26,16 +26,16 @@ struct simple_factory : solver_factory<simple_factory> {
 	void set_solver_type(registry reg) { solver_type = reg; }
 
 	template<class V, class Op>
-	void create_parameters(V &, op::base<Op> &) {}
+	void create_parameters(V &, Op &) {}
 
 	template<class V, class Op>
-	void create(V &, op::base<Op> & A) {
+	void create(V &, Op & A) {
 		if (solver_type == registry::Dinv)
-			dinv.emplace(A.derived().Dinv());
+			dinv.emplace(A.source().Dinv());
 	}
 
 	template<class V, class D, class R, class Op>
-	void solve(const D & x, R & y, V &, op::base<Op> &) {
+	void solve(const D & x, R & y, V &, Op &) {
 		if (solver_type == registry::identity)
 			op::I.apply(x, y);
 		else
@@ -65,7 +65,7 @@ int nkatest() {
 		auto mtx = mat::io::matrix_market<>::read("Chem97ZtZ.mtx").tocsr();
 		init_mesh(mtx.rows(), msh, coloring);
 
-		csr_op A{std::move(mtx)};
+		auto A = op::make(csr_op{std::move(mtx)});
 		vec::topo_view x(msh, xd(msh)), b(msh, bd(msh));
 		{
 			b.set_scalar(1.);
@@ -75,8 +75,8 @@ int nkatest() {
 			nka::settings nnl_settings("solver");
 			read_config("nka.cfg", pre_settings, nnl_settings);
 
-			op::krylov P(op::krylov_parameters(
-				pre_settings, cg::topo_work<>::get(b), std::ref(A)));
+			auto P = op::make(op::krylov(op::krylov_parameters(
+				pre_settings, cg::topo_work<>::get(b), std::ref(A))));
 
 			op::krylov slv(op::krylov_parameters(nnl_settings,
 			                                     nka::topo_work<5>::get(b),

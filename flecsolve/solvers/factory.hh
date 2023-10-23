@@ -134,85 +134,85 @@ struct krylov_factory : solver_factory<krylov_factory<Ops...>> {
 	void set_solver_type(registry reg) { solver_type = reg; }
 
 	template<class V, class Op>
-	void create_parameters(V & v, op::base<Op> & A) {
+	void create_parameters(V & v, Op & A) {
 		if (!parameters) {
 			switch (solver_type) {
 				case registry::cg: {
 					parameters = make_params<krylov_con_types<registry::cg>>(
-						v, make_is(), A.derived());
+						v, make_is(), A);
 					break;
 				}
 				case registry::gmres: {
 					parameters = make_params<krylov_con_types<registry::gmres>>(
-						v, make_is(), A.derived());
+						v, make_is(), A);
 					break;
 				}
 				case registry::bicgstab: {
 					parameters =
 						make_params<krylov_con_types<registry::bicgstab>>(
-							v, make_is(), A.derived());
+							v, make_is(), A);
 					break;
 				}
 				case registry::nka: {
 					parameters = make_params<krylov_con_types<registry::nka>>(
-						v, make_is(), A.derived());
+						v, make_is(), A);
 				}
 			}
 		}
 	}
 
 	template<class V, class Op>
-	void create(V & v, op::base<Op> & A) {
+	void create(V & v, Op & A) {
 		assert(parameters);
 
 		if (!solver_storage) {
 			switch (solver_type) {
 				case registry::cg: {
 					make_storage<krylov_con_types<registry::cg>>(
-						v, make_is(), A.derived());
+						v, make_is(), A);
 					break;
 				}
 				case registry::gmres: {
 					make_storage<krylov_con_types<registry::gmres>>(
-						v, make_is(), A.derived());
+						v, make_is(), A);
 					break;
 				}
 				case registry::bicgstab: {
 					make_storage<krylov_con_types<registry::bicgstab>>(
-						v, make_is(), A.derived());
+						v, make_is(), A);
 					break;
 				}
 				case registry::nka: {
 					make_storage<krylov_con_types<registry::nka>>(
-						v, make_is(), A.derived());
+						v, make_is(), A);
 				}
 			}
 		}
 	}
 
 	template<class V, class D, class R, class Op>
-	decltype(auto) solve(const D & x, R & y, V & v, op::base<Op> & A) {
+	decltype(auto) solve(const D & x, R & y, V & v, Op & A) {
 		assert(solver_storage);
 
 		switch (solver_type) {
 			case registry::cg: {
 				return solve_impl<krylov_con_types<registry::cg>>(
-					x, y, v, make_is(), A.derived());
+					x, y, v, make_is(), A);
 				break;
 			}
 			case registry::gmres: {
 				return solve_impl<krylov_con_types<registry::gmres>>(
-					x, y, v, make_is(), A.derived());
+					x, y, v, make_is(), A);
 				break;
 			}
 			case registry::bicgstab: {
 				return solve_impl<krylov_con_types<registry::bicgstab>>(
-					x, y, v, make_is(), A.derived());
+					x, y, v, make_is(), A);
 				break;
 			}
 			default: { // case registry::nka: {
 				return solve_impl<krylov_con_types<registry::nka>>(
-					x, y, v, make_is(), A.derived());
+					x, y, v, make_is(), A);
 			}
 		}
 	}
@@ -346,7 +346,7 @@ struct factory_union : solver_factory<factory_union<Facts...>> {
 	void set_solver_type(registry reg) { solver_type.value = reg.value; }
 
 	template<class V, class Op>
-	void create_parameters(V & v, op::base<Op> & A) {
+	void create_parameters(V & v, Op & A) {
 		std::visit(
 			[&, this](auto reg_value) {
 				std::apply(
@@ -360,7 +360,7 @@ struct factory_union : solver_factory<factory_union<Facts...>> {
 													  decltype(fact)>::
 													  registry>) {
 									fact.set_solver_type(reg_value);
-									fact.create_parameters(v, A.derived());
+									fact.create_parameters(v, A);
 									this->parameters = fact.get_parameters();
 								}
 							}(facts),
@@ -372,7 +372,7 @@ struct factory_union : solver_factory<factory_union<Facts...>> {
 	}
 
 	template<class V, class Op>
-	void create(V & v, op::base<Op> & A) {
+	void create(V & v, Op & A) {
 		std::visit(
 			[&](auto reg_value) {
 				std::apply(
@@ -385,7 +385,7 @@ struct factory_union : solver_factory<factory_union<Facts...>> {
 												  typename std::decay_t<
 													  decltype(fact)>::
 													  registry>) {
-									fact.create(v, A.derived());
+									fact.create(v, A);
 								}
 							}(facts),
 							...);
@@ -396,7 +396,7 @@ struct factory_union : solver_factory<factory_union<Facts...>> {
 	}
 
 	template<class D, class R, class V, class Op>
-	decltype(auto) solve(const D & x, R & y, V & v, op::base<Op> & A) {
+	decltype(auto) solve(const D & x, R & y, V & v, Op & A) {
 		std::visit(
 			[&](auto reg_value) {
 				std::apply(
@@ -409,7 +409,7 @@ struct factory_union : solver_factory<factory_union<Facts...>> {
 												  typename std::decay_t<
 													  decltype(fact)>::
 													  registry>) {
-									return fact.solve(x, y, v, A.derived());
+									return fact.solve(x, y, v, A);
 								}
 							}(facts),
 							...);

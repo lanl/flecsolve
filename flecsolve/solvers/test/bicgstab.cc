@@ -37,7 +37,7 @@ int driver() {
 
 			init_mesh(mtx.rows(), msh, colorings[i]);
 
-			csr_op A{std::move(mtx)};
+			auto A = op::make(csr_op{std::move(mtx)});
 
 			vec::topo_view x(msh, xd(msh)), b(msh, bd(msh));
 			b.set_random(0);

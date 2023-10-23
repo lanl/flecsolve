@@ -4,7 +4,7 @@
 #include "flecsi/topo/narray/interface.hh"
 
 #include "flecsolve/vectors/variable.hh"
-#include "flecsolve/operators/base.hh"
+#include "flecsolve/operators/core.hh"
 #include "flecsolve/matrices/seq.hh"
 
 namespace flecsolve {
@@ -112,7 +112,7 @@ inline void spmv(const mat::csr<double> & A,
 	}
 }
 
-struct csr_op : op::base<csr_op> {
+struct csr_op : op::base<> {
 
 	template<class CSR>
 	csr_op(CSR && m) : A(std::forward<CSR>(m)) {}

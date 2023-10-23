@@ -147,11 +147,11 @@ multi(H &&, T &&... vs) -> multi<H, T...>;
 
 template<class... V0, class... V1>
 bool operator==(const multi<V0...> & v0, const multi<V1...> & v1) {
-	return v0.data == v1.data;
+	return v0.data.components == v1.data.components;
 }
 template<class... V0, class... V1>
 bool operator!=(const multi<V0...> & v0, const multi<V1...> & v1) {
-	return v0.data != v1.data;
+	return v0.data.components != v1.data.components;
 }
 
 }

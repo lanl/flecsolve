@@ -65,10 +65,10 @@ int cgtest() {
 
 	UNIT () {
 		for (const auto & cs : cases) {
-			auto A = mat::io::matrix_market<>::read(cs.fname).tocsr();
+			auto A = op::make(mat::io::matrix_market<>::read(cs.fname).tocsr());
 
-			vec::seq_vec<double> b{A.rows()};
-			vec::seq_vec<double> x{A.rows()};
+			vec::seq_vec<double> b{A.source().rows()};
+			vec::seq_vec<double> x{A.source().rows()};
 
 			b.set_scalar(0.0);
 			x.set_random(7);
