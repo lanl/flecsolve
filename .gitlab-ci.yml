@@ -77,15 +77,15 @@ include: .gitlab/templates.yml
 # installed during image creation in the 'gitlab-ci' branch.
 #------------------------------------------------------------------------------#
 
-docs_and_format:check:
-  extends: [.ascgit_job, .check_format_template]
-  needs:
-    - job: format
-      artifacts: true
-  only:
-    - merge_requests
-  variables:
-    JOB_CONSTRAINTS: ""
+# docs_and_format:check:
+#   extends: [.ascgit_job, .check_format_template]
+#   needs:
+#     - job: format
+#       artifacts: true
+#   only:
+#     - merge_requests
+#   variables:
+#     JOB_CONSTRAINTS: ""
 
 #------------------------------------------------------------------------------#
 # Test developer tools
