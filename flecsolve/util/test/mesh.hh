@@ -24,7 +24,8 @@ struct testmesh : flecsi::topo::specialization<flecsi::topo::narray, testmesh> {
 	using axis_definition = base::axis_definition;
 	using index_definition = base::index_definition;
 
-	struct meta_data {};
+	struct meta_data {
+	};
 
 	static constexpr std::size_t dimension = 1;
 
@@ -90,7 +91,7 @@ using flecsi::wo;
 
 inline void
 init_mesh(std::size_t nrows, testmesh::slot & msh, testmesh::cslot & coloring) {
-	std::vector<std::size_t> extents{nrows};
+	std::vector<flecsi::util::gid> extents{nrows};
 	coloring.allocate(flecsi::processes(), extents);
 	msh.allocate(coloring.get());
 }

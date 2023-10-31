@@ -99,7 +99,7 @@ make_volume_operator(const Vec &, scalar_t beta, scalar_t alpha) {
 		flecsolve::multivariable<Vec::var.value>, constant_coeff, voldiff);
 }
 
-static fvm_check zero_flux{[](auto...) { return 0.0; }, "flux is zero"};
+auto zero_flux = std::make_tuple([](auto...) { return 0.0; }, "flux is zero");
 
 static inline int source_only(msh::accessor<ro, ro> m,
                               field<scalar_t>::accessor<ro, na> xa,
@@ -187,7 +187,7 @@ int fvm_diffusion_test() {
 			x.set_scalar(1.0);
 			diff_op.apply(x, y);
 
-			EXPECT_EQ((test<zero_flux>(m, yd(m))), 0);
+			EXPECT_TRUE(fvm_run<rxcl>(zero_flux, m, yd(m)));
 		}
 		{
 			auto alpha = 1.0;
