@@ -147,215 +147,121 @@ mpich-legion-gnu:
     PARTITIONS: skylake-gold
     ARCHIVE_SPACK_ENV: "yes"
 
-mpich-legion-gnu:release:
+#------------------------------------------------------------------------------#
+# Build and unit tests for MPI backend with MPICH provider,
+# and GNU compiler toolchain.
+#------------------------------------------------------------------------------#
+
+mpich-mpi-gnu:
+  stage: MPI backend
+  extends: [.ascgit_job, .darwin_build_template]
+  needs: []
+  dependencies: []
+  only:
+    - merge_requests
+  variables:
+    FLECSI_VARIANTS: "backend=mpi build_type=Debug caliper_detail=low +flog +graphviz +hdf5 +kokkos ^${KOKKOS_SERIAL} ^mpich"
+    TOOLCHAIN: "gcc@${GCC_VERSION}"
+
+#------------------------------------------------------------------------------#
+# Build and unit tests for Legion backend with OpenMPI provider,
+# and GNU compiler toolchain.
+#------------------------------------------------------------------------------#
+
+openmpi-legion-gnu:
   stage: Legion backend
   extends: [.ascgit_job, .darwin_build_template]
   needs: []
   dependencies: []
-  rules:
-    - if: '$CI_MERGE_REQUEST_LABELS =~ /release_builds/'
-      when: always
-    - when: never
+  only:
+    - merge_requests
   variables:
-    VARIANTS: "backend=legion +flog +hdf5 +kokkos ^${LEGION_IBV} +kokkos ^${KOKKOS_SERIAL} ^mpich"
+    FLECSI_VARIANTS: "backend=legion build_type=Debug +flog +hdf5 ^${LEGION_IBV} build_type=Debug ^openmpi"
     TOOLCHAIN: "gcc@${GCC_VERSION}"
-#
-# #------------------------------------------------------------------------------#
-# # Build and unit tests for MPI backend with MPICH provider,
-# # and GNU compiler toolchain.
-# #------------------------------------------------------------------------------#
-#
-# mpich-mpi-gnu:
-#   stage: MPI backend
-#   extends: [.ascgit_job, .darwin_build_template]
-#   needs: []
-#   dependencies: []
-#   only:
-#     - merge_requests
-#   variables:
-#     VARIANTS: "backend=mpi build_type=Debug caliper_detail=low +flog +graphviz +hdf5 +kokkos ^${KOKKOS_SERIAL} ^mpich"
-#     TOOLCHAIN: "gcc@${GCC_VERSION}"
-#
-# mpich-mpi-gnu:release:
-#   stage: MPI backend
-#   extends: [.ascgit_job, .darwin_build_template]
-#   needs: []
-#   dependencies: []
-#   rules:
-#     - if: '$CI_MERGE_REQUEST_LABELS =~ /release_builds/'
-#       when: always
-#     - when: never
-#   variables:
-#     VARIANTS: "backend=mpi +flog +hdf5 +kokkos ^${KOKKOS_SERIAL} ^mpich"
-#     TOOLCHAIN: "gcc@${GCC_VERSION}"
-#
-# #------------------------------------------------------------------------------#
-# # Tutorial tests for Legion backend with MPICH provider,
-# # and GNU compiler toolchain.
-# #------------------------------------------------------------------------------#
-#
-# mpich-tutorial:legion:
-#   extends: [.ascgit_job, .darwin_standalone_template]
-#   needs:
-#     ["mpich-legion-gnu"]
-#   only:
-#     - merge_requests
-#   variables:
-#     LABEL: tutorial
-#     STDIR: tutorial
-#     BUILD_TYPE: Debug
-#     PARTITIONS: skylake-gold
-#
-# mpich-flaxpy:legion:
-#   extends: [.ascgit_job, .darwin_standalone_template]
-#   needs:
-#     ["mpich-legion-gnu"]
-#   only:
-#     - merge_requests
-#   variables:
-#     LABEL: standalone
-#     STDIR: tutorial/standalone/flaxpy
-#     BUILD_TYPE: Debug
-#     PARTITIONS: skylake-gold
-#
-# mpich-poisson:legion:
-#   extends: [.ascgit_job, .darwin_standalone_template]
-#   needs:
-#     ["mpich-legion-gnu"]
-#   only:
-#     - merge_requests
-#   variables:
-#     LABEL: standalone
-#     STDIR: tutorial/standalone/poisson
-#     BUILD_TYPE: Debug
-#     PARTITIONS: skylake-gold
-#
-# #------------------------------------------------------------------------------#
-# # Build and unit tests for Legion backend with OpenMPI provider,
-# # and GNU compiler toolchain.
-# #------------------------------------------------------------------------------#
-#
-# openmpi-legion-gnu:
-#   stage: Legion backend
-#   extends: [.ascgit_job, .darwin_build_template]
-#   needs: []
-#   dependencies: []
-#   only:
-#     - merge_requests
-#   variables:
-#     VARIANTS: "backend=legion build_type=Debug +flog +hdf5 ^${LEGION_IBV} build_type=Debug ^openmpi"
-#     TOOLCHAIN: "gcc@${GCC_VERSION}"
-#
-# openmpi-legion-gnu:release:
-#   stage: Legion backend
-#   extends: [.ascgit_job, .darwin_build_template]
-#   needs: []
-#   dependencies: []
-#   rules:
-#     - if: '$CI_MERGE_REQUEST_LABELS =~ /release_builds/'
-#       when: always
-#     - when: never
-#   variables:
-#     VARIANTS: "backend=legion +flog +hdf5 ^${LEGION_IBV} ^openmpi"
-#     TOOLCHAIN: "gcc@${GCC_VERSION}"
-#
-# #------------------------------------------------------------------------------#
-# # Build and unit tests for Legion backend with OpenMPI provider,
-# # and Clang + CUDA compiler toolchain.
-# #------------------------------------------------------------------------------#
-#
-# openmpi-legion-clang-cuda:
-#   stage: Legion backend
-#   extends: [.ascgit_job, .darwin_build_template]
-#   needs: []
-#   dependencies: []
-#   only:
-#     - merge_requests
-#   variables:
-#     VARIANTS: "backend=legion build_type=Debug +flog +hdf5 +kokkos +cuda cuda_arch=${CUDA_ARCH} ^${LEGION_IBV_CUDA} build_type=Debug ^${KOKKOS_CUDA} ^cuda@${CUDA_VERSION} ^openmpi"
-#     TOOLCHAIN: "clang@${CLANG_VERSION}"
-#     PARTITIONS: volta-x86
-#     ARCH_CONSTRAINT: "cpu_family:cascadelake"
-#     JOB_CONSTRAINTS: "${V100_CONSTRAINT}"
-#     ARCHIVE_SPACK_ENV: "yes"
-#
-# openmpi-legion-clang-cuda-mpi:
-#   stage: Legion backend
-#   extends: [.ascgit_job, .darwin_build_template]
-#   needs: []
-#   dependencies: []
-#   only:
-#     - merge_requests
-#   variables:
-#     VARIANTS: "backend=legion build_type=Debug +flog +hdf5 +kokkos +cuda cuda_arch=${CUDA_ARCH} ^${LEGION_MPI_CUDA} build_type=Debug ^${KOKKOS_CUDA} ^cuda@${CUDA_VERSION} ^openmpi"
-#     TOOLCHAIN: "clang@${CLANG_VERSION}"
-#     PARTITIONS: volta-x86
-#     JOB_CONSTRAINTS: "${V100_CONSTRAINT}"
-#
-# #------------------------------------------------------------------------------#
-# # Build and unit tests for MPI backend with OpenMPI provider,
-# # and GNU compiler toolchain. Intentionally does NOT use Kokkos to also test
-# # that kind of build.
-# #------------------------------------------------------------------------------#
-#
-# openmpi-mpi-gnu:
-#   stage: MPI backend
-#   extends: [.ascgit_job, .darwin_build_template]
-#   dependencies: []
-#   needs: []
-#   only:
-#     - merge_requests
-#   variables:
-#     <<: *openmpi-mpi-debug
-#     TOOLCHAIN: "gcc@${GCC_VERSION}"
-#
-# openmpi-mpi-gnu:release:
-#   stage: MPI backend
-#   extends: [.ascgit_job, .darwin_build_template]
-#   needs: []
-#   dependencies: []
-#   rules:
-#     - if: '$CI_MERGE_REQUEST_LABELS =~ /release_builds/'
-#       when: always
-#     - when: never
-#   variables:
-#     VARIANTS: "backend=mpi +flog +hdf5 ^openmpi"
-#     TOOLCHAIN: "gcc@${GCC_VERSION}"
-#
-#
-# #------------------------------------------------------------------------------#
-# # Build and unit tests for Legion backend with MPICH provider,
-# # and Clang compiler toolchain.
-# #------------------------------------------------------------------------------#
-#
-# mpich-legion-clang:
-#   stage: Legion backend
-#   extends: [.ascgit_job, .darwin_build_template]
-#   needs: []
-#   dependencies: []
-#   only:
-#     - merge_requests
-#   variables:
-#     <<: *mpich-legion-kokkos-debug
-#     TOOLCHAIN: "clang@${CLANG_VERSION}"
-#
-# #------------------------------------------------------------------------------#
-# # Build and unit tests for MPI backend with MPICH provider,
-# # and Clang compiler toolchain. Intentionally does NOT use Kokkos to also test
-# # that kind of build.
-# #------------------------------------------------------------------------------#
-#
-# mpich-mpi-clang:
-#   stage: MPI backend
-#   extends: [.ascgit_job, .darwin_build_template]
-#   needs: []
-#   dependencies: []
-#   only:
-#     - merge_requests
-#   variables:
-#     VARIANTS: "backend=mpi build_type=Debug caliper_detail=low +flog +graphviz +hdf5 ^mpich"
-#     TOOLCHAIN: "clang@${CLANG_VERSION}"
-#
+
+#------------------------------------------------------------------------------#
+# Build and unit tests for Legion backend with OpenMPI provider,
+# and Clang + CUDA compiler toolchain.
+#------------------------------------------------------------------------------#
+
+openmpi-legion-clang-cuda:
+  stage: Legion backend
+  extends: [.ascgit_job, .darwin_build_template]
+  needs: []
+  dependencies: []
+  only:
+    - merge_requests
+  variables:
+    FLECSI_VARIANTS: "backend=legion build_type=Debug +flog +hdf5 +kokkos +cuda cuda_arch=${CUDA_ARCH} ^${LEGION_IBV_CUDA} build_type=Debug ^${KOKKOS_CUDA} ^cuda@${CUDA_VERSION} ^openmpi"
+    TOOLCHAIN: "clang@${CLANG_VERSION}"
+    PARTITIONS: volta-x86
+    ARCH_CONSTRAINT: "cpu_family:cascadelake"
+    JOB_CONSTRAINTS: "${V100_CONSTRAINT}"
+    ARCHIVE_SPACK_ENV: "yes"
+
+openmpi-legion-clang-cuda-mpi:
+  stage: Legion backend
+  extends: [.ascgit_job, .darwin_build_template]
+  needs: []
+  dependencies: []
+  only:
+    - merge_requests
+  variables:
+    FLECSI_VARIANTS: "backend=legion build_type=Debug +flog +hdf5 +kokkos +cuda cuda_arch=${CUDA_ARCH} ^${LEGION_MPI_CUDA} build_type=Debug ^${KOKKOS_CUDA} ^cuda@${CUDA_VERSION} ^openmpi"
+    TOOLCHAIN: "clang@${CLANG_VERSION}"
+    PARTITIONS: volta-x86
+    JOB_CONSTRAINTS: "${V100_CONSTRAINT}"
+
+#------------------------------------------------------------------------------#
+# Build and unit tests for MPI backend with OpenMPI provider,
+# and GNU compiler toolchain. Intentionally does NOT use Kokkos to also test
+# that kind of build.
+#------------------------------------------------------------------------------#
+
+openmpi-mpi-gnu:
+  stage: MPI backend
+  extends: [.ascgit_job, .darwin_build_template]
+  dependencies: []
+  needs: []
+  only:
+    - merge_requests
+  variables:
+    <<: *openmpi-mpi-debug
+    TOOLCHAIN: "gcc@${GCC_VERSION}"
+
+#------------------------------------------------------------------------------#
+# Build and unit tests for Legion backend with MPICH provider,
+# and Clang compiler toolchain.
+#------------------------------------------------------------------------------#
+
+mpich-legion-clang:
+  stage: Legion backend
+  extends: [.ascgit_job, .darwin_build_template]
+  needs: []
+  dependencies: []
+  only:
+    - merge_requests
+  variables:
+    <<: *mpich-legion-kokkos-debug
+    TOOLCHAIN: "clang@${CLANG_VERSION}"
+
+#------------------------------------------------------------------------------#
+# Build and unit tests for MPI backend with MPICH provider,
+# and Clang compiler toolchain. Intentionally does NOT use Kokkos to also test
+# that kind of build.
+#------------------------------------------------------------------------------#
+
+mpich-mpi-clang:
+  stage: MPI backend
+  extends: [.ascgit_job, .darwin_build_template]
+  needs: []
+  dependencies: []
+  only:
+    - merge_requests
+  variables:
+    FLECSI_VARIANTS: "backend=mpi build_type=Debug caliper_detail=low +flog +graphviz +hdf5 ^mpich"
+    TOOLCHAIN: "clang@${CLANG_VERSION}"
+
 # #------------------------------------------------------------------------------#
 # # Documentation
 # #------------------------------------------------------------------------------#
@@ -371,22 +277,23 @@ mpich-legion-gnu:release:
 #     JOB_CONSTRAINTS: ""
 #   allow_failure: true
 #
-# #------------------------------------------------------------------------------#
-# # Build and unit tests for MPI backend with OpenMPI provider,
-# # and Clang compiler toolchain.
-# #------------------------------------------------------------------------------#
-#
-# openmpi-mpi-clang:
-#   stage: MPI backend
-#   extends: [.ascgit_job, .darwin_build_template]
-#   needs: []
-#   dependencies: []
-#   only:
-#     - merge_requests
-#   variables:
-#     <<: *openmpi-mpi-debug
-#     TOOLCHAIN: "clang@${CLANG_VERSION}"
-#
+
+#------------------------------------------------------------------------------#
+# Build and unit tests for MPI backend with OpenMPI provider,
+# and Clang compiler toolchain.
+#------------------------------------------------------------------------------#
+
+openmpi-mpi-clang:
+  stage: MPI backend
+  extends: [.ascgit_job, .darwin_build_template]
+  needs: []
+  dependencies: []
+  only:
+    - merge_requests
+  variables:
+    <<: *openmpi-mpi-debug
+    TOOLCHAIN: "clang@${CLANG_VERSION}"
+
 # #------------------------------------------------------------------------------#
 # # Build and unit tests for MPI backend with OpenMPI provider,
 # # and ROCM compiler toolchain.

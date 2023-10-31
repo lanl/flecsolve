@@ -167,9 +167,6 @@
     - export CTEST_OUTPUT_ON_FAILURE=1
     - ctest --timeout ${DEFAULT_TEST_TIMEOUT} --output-junit tests.xml
     - section end test
-    - section start install "Install"
-    - cmake --build . --target install
-    - section end install
     - *darwin_archive_spack_env
   artifacts:
     expire_in: 2 weeks
