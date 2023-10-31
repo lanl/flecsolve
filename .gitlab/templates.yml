@@ -193,122 +193,122 @@
 #   VARIANTS: Spack variants
 #------------------------------------------------------------------------------#
 
-.aux_darwin_print_defaults_build_info:
-  script: &darwin_print_defaults_build_info
-    - |-
-      header "Creating Build Environment"
-      variable ENVIRONMENT
-      variable PARTITIONS
-      which gcc
-      which cc
-      spack arch
-
-.darwin_defaults_build_template:
-  script:
-    - *darwin_env_init
-    - *darwin_env_spack_install_flecsi_deps
-    - *darwin_print_defaults_build_info
-    - section start build "Build"
-    - which gcc
-    - which cc
-    - cmake -DCMAKE_INSTALL_PREFIX=${CI_PROJECT_DIR}/state/install -B ${CI_PROJECT_DIR}/state/build -S .
-    - cd ${CI_PROJECT_DIR}/state/build
-    - cmake --build . -j $(nproc)
-    - section end build
-    - section start install "Install"
-    - cmake --build . --target install
-    - section end install
-  artifacts:
-    expire_in: 2 weeks
-    paths:
-      - ${CI_PROJECT_DIR}/state
-
-#------------------------------------------------------------------------------#
-# darwin_docs_and_format_template
+# .aux_darwin_print_defaults_build_info:
+#   script: &darwin_print_defaults_build_info
+#     - |-
+#       header "Creating Build Environment"
+#       variable ENVIRONMENT
+#       variable PARTITIONS
+#       which gcc
+#       which cc
+#       spack arch
 #
-# This template builds the flecsi docs on the Darwin cluster and checks 
-# formatting
+# .darwin_defaults_build_template:
+#   script:
+#     - *darwin_env_init
+#     - *darwin_env_spack_install_flecsi_deps
+#     - *darwin_print_defaults_build_info
+#     - section start build "Build"
+#     - which gcc
+#     - which cc
+#     - cmake -DCMAKE_INSTALL_PREFIX=${CI_PROJECT_DIR}/state/install -B ${CI_PROJECT_DIR}/state/build -S .
+#     - cd ${CI_PROJECT_DIR}/state/build
+#     - cmake --build . -j $(nproc)
+#     - section end build
+#     - section start install "Install"
+#     - cmake --build . --target install
+#     - section end install
+#   artifacts:
+#     expire_in: 2 weeks
+#     paths:
+#       - ${CI_PROJECT_DIR}/state
 #
-# Variables:
-#   ENVIRONMENT:  The target environment from the flecsi gitlab-ci project,
-#                 e.g., one of the primary branches, such as 'devel', or '1.4'.
-#   PARTITIONS:   Darwin cluster partitions
-#   FORMAT_VERSION: The required version of clang-format
-#------------------------------------------------------------------------------#
+# #------------------------------------------------------------------------------#
+# # darwin_docs_and_format_template
+# #
+# # This template builds the flecsi docs on the Darwin cluster and checks 
+# # formatting
+# #
+# # Variables:
+# #   ENVIRONMENT:  The target environment from the flecsi gitlab-ci project,
+# #                 e.g., one of the primary branches, such as 'devel', or '1.4'.
+# #   PARTITIONS:   Darwin cluster partitions
+# #   FORMAT_VERSION: The required version of clang-format
+# #------------------------------------------------------------------------------#
+# #
+# .aux_print_diff_format_info:
+#   script: &print_diff_format_info
+#     - |-
+#       header "Checking Formatting"
+#       value "Version (clang-format)" "${FORMAT_VERSION}"
 #
-.aux_print_diff_format_info:
-  script: &print_diff_format_info
-    - |-
-      header "Checking Formatting"
-      value "Version (clang-format)" "${FORMAT_VERSION}"
-
-.darwin_docs_and_format_template:
-  script:
-    - *darwin_env_init
-    - *darwin_python_env_init
-    - *darwin_clang_format_init
-    - *print_diff_format_info
-    - section start docs "Build Documentation"
-    - cmake -DENABLE_LIBRARY=OFF -DENABLE_DOCUMENTATION=ON -DENABLE_FORMAT=ON -DCLANG_FORMAT_VERSION=${FORMAT_VERSION} -B ${CI_PROJECT_DIR}/state/build -S .
-    - cd ${CI_PROJECT_DIR}/state/build
-    - fail=0
-    - |
-      if cmake --build . --target doc; then
-        touch ${CI_PROJECT_DIR}/state/docs-passed;
-      else fail=$?
-      fi
-    - section end docs
-    - section start format "Check Formatting"
-    - |
-      if cmake --build . --target format && cd ${CI_PROJECT_DIR} && git diff --exit-code --compact-summary; then
-        touch ${CI_PROJECT_DIR}/state/format-passed;
-      else fail=$?
-      fi
-    - date
-    - section end format
-    - exit $fail
-  artifacts:
-    expire_in: 2 weeks
-    paths:
-      - ${CI_PROJECT_DIR}/state
-
-#------------------------------------------------------------------------------#
-# darwin_standalone_template
+# .darwin_docs_and_format_template:
+#   script:
+#     - *darwin_env_init
+#     - *darwin_python_env_init
+#     - *darwin_clang_format_init
+#     - *print_diff_format_info
+#     - section start docs "Build Documentation"
+#     - cmake -DENABLE_LIBRARY=OFF -DENABLE_DOCUMENTATION=ON -DENABLE_FORMAT=ON -DCLANG_FORMAT_VERSION=${FORMAT_VERSION} -B ${CI_PROJECT_DIR}/state/build -S .
+#     - cd ${CI_PROJECT_DIR}/state/build
+#     - fail=0
+#     - |
+#       if cmake --build . --target doc; then
+#         touch ${CI_PROJECT_DIR}/state/docs-passed;
+#       else fail=$?
+#       fi
+#     - section end docs
+#     - section start format "Check Formatting"
+#     - |
+#       if cmake --build . --target format && cd ${CI_PROJECT_DIR} && git diff --exit-code --compact-summary; then
+#         touch ${CI_PROJECT_DIR}/state/format-passed;
+#       else fail=$?
+#       fi
+#     - date
+#     - section end format
+#     - exit $fail
+#   artifacts:
+#     expire_in: 2 weeks
+#     paths:
+#       - ${CI_PROJECT_DIR}/state
 #
-# This template builds the flecsi tutorial examples.
+# #------------------------------------------------------------------------------#
+# # darwin_standalone_template
+# #
+# # This template builds the flecsi tutorial examples.
+# #
+# # Variables:
+# #   LABEL:        This will be used to create unique temporary directories.
+# #   STDIR:        The source directory (containing CMakeLists.txt file).
+# #   ENVIRONMENT:  The target environment from the flecsi gitlab-ci project,
+# #                 e.g., one of the primary branches, such as 'devel', or '1.4'.
+# #------------------------------------------------------------------------------#
 #
-# Variables:
-#   LABEL:        This will be used to create unique temporary directories.
-#   STDIR:        The source directory (containing CMakeLists.txt file).
-#   ENVIRONMENT:  The target environment from the flecsi gitlab-ci project,
-#                 e.g., one of the primary branches, such as 'devel', or '1.4'.
-#------------------------------------------------------------------------------#
-
-.aux_print_build_standalone_info:
-  script: &print_build_standalone_info
-    - |-
-      header "Creating Build Environment"
-      variable ENVIRONMENT
-      variable LABEL
-      value "Source Directory" "${STDIR}"
-      variable PARTITIONS
-
-.darwin_standalone_template:
-  stage: Standalone
-  script:
-    - *darwin_restore_spack_env
-    - *darwin_env_shell
-    - *darwin_env_spack_environment
-    - export CMAKE_PREFIX_PATH=${CI_PROJECT_DIR}/state/install
-    - spack env activate ${SPACK_ENVIRONMENT}
-    - spack arch
-    - *darwin_setup_hip
-    - *print_build_standalone_info
-    - spack python ${CI_PROJECT_DIR}/tools/spack_cmake -B ${CI_PROJECT_DIR}/state/build-${LABEL} -S ${CI_PROJECT_DIR}/${STDIR} -c -i flecsi -- -DENABLE_UNIT_TESTS=ON -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
-    - cd ${CI_PROJECT_DIR}/state/build-${LABEL}
-    - cmake --build .
-    - export CTEST_OUTPUT_ON_FAILURE=1
-    - ctest --timeout ${DEFAULT_TEST_TIMEOUT}
+# .aux_print_build_standalone_info:
+#   script: &print_build_standalone_info
+#     - |-
+#       header "Creating Build Environment"
+#       variable ENVIRONMENT
+#       variable LABEL
+#       value "Source Directory" "${STDIR}"
+#       variable PARTITIONS
+#
+# .darwin_standalone_template:
+#   stage: Standalone
+#   script:
+#     - *darwin_restore_spack_env
+#     - *darwin_env_shell
+#     - *darwin_env_spack_environment
+#     - export CMAKE_PREFIX_PATH=${CI_PROJECT_DIR}/state/install
+#     - spack env activate ${SPACK_ENVIRONMENT}
+#     - spack arch
+#     - *darwin_setup_hip
+#     - *print_build_standalone_info
+#     - spack python ${CI_PROJECT_DIR}/tools/spack_cmake -B ${CI_PROJECT_DIR}/state/build-${LABEL} -S ${CI_PROJECT_DIR}/${STDIR} -c -i flecsi -- -DENABLE_UNIT_TESTS=ON -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
+#     - cd ${CI_PROJECT_DIR}/state/build-${LABEL}
+#     - cmake --build .
+#     - export CTEST_OUTPUT_ON_FAILURE=1
+#     - ctest --timeout ${DEFAULT_TEST_TIMEOUT}
 
 #------------------------------------------------------------------------------#
 # check_format_template
