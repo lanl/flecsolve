@@ -100,7 +100,6 @@
     - spack env create ${SPACK_ENVIRONMENT}
     - spack env activate ${SPACK_ENVIRONMENT}
     - spack config add upstreams:default:install_tree:${DARWIN_SPACK_UPSTREAM}/opt/spack/
-    #    - spack repo add spack-repo
     - section end spack_env_init
 
 .darwin_env_spack_install_flecsi:
