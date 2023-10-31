@@ -134,31 +134,31 @@ mpich-defaults:
 # and GNU compiler toolchain.
 #------------------------------------------------------------------------------#
 
-# mpich-legion-gnu:
-#   stage: Legion backend
-#   extends: [.ascgit_job, .darwin_build_template]
-#   needs: []
-#   dependencies: []
-#   only:
-#     - merge_requests
-#   variables:
-#     <<: *mpich-legion-kokkos-debug
-#     TOOLCHAIN: "gcc@${GCC_VERSION}"
-#     PARTITIONS: skylake-gold
-#     ARCHIVE_SPACK_ENV: "yes"
-#
-# mpich-legion-gnu:release:
-#   stage: Legion backend
-#   extends: [.ascgit_job, .darwin_build_template]
-#   needs: []
-#   dependencies: []
-#   rules:
-#     - if: '$CI_MERGE_REQUEST_LABELS =~ /release_builds/'
-#       when: always
-#     - when: never
-#   variables:
-#     VARIANTS: "backend=legion +flog +hdf5 +kokkos ^${LEGION_IBV} +kokkos ^${KOKKOS_SERIAL} ^mpich"
-#     TOOLCHAIN: "gcc@${GCC_VERSION}"
+mpich-legion-gnu:
+  stage: Legion backend
+  extends: [.ascgit_job, .darwin_build_template]
+  needs: []
+  dependencies: []
+  only:
+    - merge_requests
+  variables:
+    <<: *mpich-legion-kokkos-debug
+    TOOLCHAIN: "gcc@${GCC_VERSION}"
+    PARTITIONS: skylake-gold
+    ARCHIVE_SPACK_ENV: "yes"
+
+mpich-legion-gnu:release:
+  stage: Legion backend
+  extends: [.ascgit_job, .darwin_build_template]
+  needs: []
+  dependencies: []
+  rules:
+    - if: '$CI_MERGE_REQUEST_LABELS =~ /release_builds/'
+      when: always
+    - when: never
+  variables:
+    VARIANTS: "backend=legion +flog +hdf5 +kokkos ^${LEGION_IBV} +kokkos ^${KOKKOS_SERIAL} ^mpich"
+    TOOLCHAIN: "gcc@${GCC_VERSION}"
 #
 # #------------------------------------------------------------------------------#
 # # Build and unit tests for MPI backend with MPICH provider,
