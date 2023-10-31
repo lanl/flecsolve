@@ -80,7 +80,8 @@ bool run(MV & mv, S & msh, FN && fn) {
 	int ind = 0;
 	return std::apply(
 		[&](auto &... v) {
-			return ((test<check_f<FN>>(fn, msh, v.data.ref(), ind++) == 0) and
+			return ((test<check_f<FN>, flecsi::mpi>(
+						 fn, msh, v.data.ref(), ind++) == 0) and
 		            ...);
 		},
 		mv.data);

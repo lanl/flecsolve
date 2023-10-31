@@ -122,7 +122,7 @@ template<auto x>
 using fconstant = std::integral_constant<std::decay_t<decltype(x)>, x>;
 
 template<class RT, class FT>
-int fvm_check_f(FT && ft,
+int fvm_check_f(const FT & ft,
                 msh::accessor<ro, ro> vm,
                 field<double>::accessor<ro, na> x) {
 	auto fn = std::get<0>(ft);
@@ -143,7 +143,7 @@ int fvm_check_f(FT && ft,
 
 template<class RT, class FT, class... Args>
 auto fvm_run(FT && ft, Args &&... args) {
-	return (test<fvm_check_f<RT, FT>>(ft, args...) == 0);
+	return (test<fvm_check_f<RT, FT>, flecsi::mpi>(ft, args...) == 0);
 }
 
 // some topo specifications

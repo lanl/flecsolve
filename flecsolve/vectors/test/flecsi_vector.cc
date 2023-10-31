@@ -148,7 +148,7 @@ auto abs = std::make_pair(
 
 template<class FN, class M, class... FRS>
 int run(FN && fn, M & m, FRS &&... frs) {
-	return test<check_f<FN>>(fn, m, frs...);
+	return test<check_f<FN>, flecsi::mpi>(fn, m, frs...);
 }
 
 int vectest() {
