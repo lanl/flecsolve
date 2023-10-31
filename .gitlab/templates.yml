@@ -193,16 +193,16 @@
 #   VARIANTS: Spack variants
 #------------------------------------------------------------------------------#
 
-# .aux_darwin_print_defaults_build_info:
-#   script: &darwin_print_defaults_build_info
-#     - |-
-#       header "Creating Build Environment"
-#       variable ENVIRONMENT
-#       variable PARTITIONS
-#       which gcc
-#       which cc
-#       spack arch
-#
+.aux_darwin_print_defaults_build_info:
+  script: &darwin_print_defaults_build_info
+    - |-
+      header "Creating Build Environment"
+      variable ENVIRONMENT
+      variable PARTITIONS
+      which gcc
+      which cc
+      spack arch
+
 .darwin_defaults_build_template:
   script:
     - *darwin_env_init
