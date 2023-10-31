@@ -104,13 +104,13 @@
     - section end spack_env_init
 
 .darwin_env_spack_install_flecsi:
-  script: &darwin_env_spack_install_flecsi_deps
+  script: &darwin_env_spack_install_flecsi
     - section start "spack_env_install_flecsi[collapsed=true]" "Installing FleCSI"
     - echo "spack add ${FLECSI_VERSION} %${TOOLCHAIN} ${FLECSI_VARIANTS} ${ARCH_DEPS}"
     - spack add ${FLECSI_VERSION} %${TOOLCHAIN} ${FLECSI_VARIANTS} ${ARCH_DEPS}
     - spack install -j $(nproc)
     - spack find -v
-    - section end spack_env_install_flecsi_deps
+    - section end spack_env_install_flecsi
 
 #------------------------------------------------------------------------------#
 # darwin_build_template
