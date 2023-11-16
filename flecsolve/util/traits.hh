@@ -55,5 +55,37 @@ struct with_derived {
 	}
 };
 
+// https://stackoverflow.com/a/47906253
+namespace detail {
+template<typename Struct, typename = void, typename... T>
+struct is_direct_list_initializable_impl : std::false_type {};
+
+template<typename Struct, typename... T>
+struct is_direct_list_initializable_impl<
+	Struct,
+	std::void_t<decltype(Struct{std::declval<T>()...})>,
+	T...> : std::true_type {};
+}
+
+template<typename Struct, typename... T>
+using is_direct_list_initializable =
+	detail::is_direct_list_initializable_impl<Struct, void, T...>;
+
+template<typename Struct, typename... T>
+constexpr bool is_direct_list_initializable_v =
+	is_direct_list_initializable<Struct, T...>::value;
+template<typename Struct, typename... T>
+using is_aggregate_initializable = std::conjunction<
+	std::is_aggregate<Struct>,
+	is_direct_list_initializable<Struct, T...>,
+	std::negation<std::conjunction<
+		std::bool_constant<sizeof...(T) == 1>,
+		std::is_same<std::decay_t<std::tuple_element_t<0, std::tuple<T...>>>,
+                     Struct>>>>;
+
+template<typename Struct, typename... T>
+constexpr bool is_aggregate_initializable_v =
+	is_aggregate_initializable<Struct, T...>::value;
+
 }
 #endif

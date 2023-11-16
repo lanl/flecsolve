@@ -1,6 +1,7 @@
 #ifndef FLECSOLVE_OPERATORS_CORE_HH
 #define FLECSOLVE_OPERATORS_CORE_HH
 
+#include <initializer_list>
 #include <memory>
 #include <functional>
 #include <type_traits>
@@ -47,7 +48,9 @@ struct storage_policy {
 		class Head,
 		class... Tail,
 		std::enable_if_t<!std::is_same_v<std::decay_t<Head>, storage_policy>,
-	                     bool> = true>
+	                     bool> = true,
+		std::enable_if_t<std::is_constructible_v<T, Head, Tail...>, bool> =
+			true>
 	storage_policy(Head && h, Tail &&... t)
 		: storage(P<T>::make(std::forward<Head>(h), std::forward<Tail>(t)...)) {
 	}
@@ -90,9 +93,24 @@ struct base {
 	template<class Head,
 	         class... Tail,
 	         std::enable_if_t<!std::is_same_v<std::decay_t<Head>, base>, bool> =
-	             true>
+	             true,
+	         std::enable_if_t<
+				 std::is_constructible_v<params_t, Head, Tail...> ||
+					 is_aggregate_initializable_v<params_t, Head, Tail...>,
+				 bool> = true>
 	base(Head && h, Tail &&... t)
 		: params{std::forward<Head>(h), std::forward<Tail>(t)...} {}
+
+	template<
+		class Head,
+		class... Tail,
+		std::enable_if_t<std::is_constructible_v<params_t,
+	                                             std::initializer_list<Head>,
+	                                             Tail...>,
+	                     bool> = true>
+	base(std::initializer_list<Head> head, Tail &&... tail)
+		: params{head, std::forward<Tail>(tail)...} {}
+
 	template<class T = params_t,
 	         class = std::enable_if_t<std::is_null_pointer_v<T>>>
 	base() {}
@@ -126,9 +144,21 @@ struct core : StoragePolicy<P> {
 	         class... Tail,
 	         std::enable_if_t<
 				 !std::is_same_v<std::decay_t<Head>, core<P, StoragePolicy>>,
-				 bool> = true>
+				 bool> = true,
+	         std::enable_if_t<std::is_constructible_v<store, Head, Tail...>,
+	                          bool> = true>
 	core(Head && h, Tail &&... t)
-		: store(std::forward<Head>(h), std::forward<Tail>(t)...) {}
+		: store{std::forward<Head>(h), std::forward<Tail>(t)...} {}
+
+	template<
+		class Head,
+		class... Tail,
+		std::enable_if_t<std::is_constructible_v<store,
+	                                             std::initializer_list<Head>,
+	                                             Tail...>,
+	                     bool> = true>
+	core(std::initializer_list<Head> h, Tail &&... t)
+		: store{h, std::forward<Tail>(t)...} {}
 
 	P & source() { return store::get(); }
 	const P & source() const { return store::get(); }
