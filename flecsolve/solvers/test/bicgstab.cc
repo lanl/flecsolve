@@ -37,14 +37,14 @@ int driver() {
 
 			init_mesh(mtx.rows(), msh, colorings[i]);
 
-			auto A = op::make(csr_op{std::move(mtx)});
-
 			vec::topo_view x(msh, xd(msh)), b(msh, bd(msh));
 			b.set_random(0);
 			x.set_random(1);
 
-			op::krylov slv(op::krylov_parameters(
-				settings, bicgstab::topo_work<>::get(b), std::move(A)));
+			op::krylov slv(
+				op::krylov_parameters(settings,
+			                          bicgstab::topo_work<>::get(b),
+			                          op::core<csr_op>(std::move(mtx))));
 
 			auto info = slv.apply(b, x);
 

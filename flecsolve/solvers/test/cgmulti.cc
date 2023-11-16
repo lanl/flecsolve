@@ -23,10 +23,12 @@ const realf::definition<testmesh, testmesh::cells> xd, bd;
 enum class vars { var1, var2 };
 const std::array<realf::definition<testmesh, testmesh::cells>, 2> xmd, bmd;
 
-template<auto var, class Op>
+using full_op = op::core<csr_op, op::shared_storage>;
+
+template<auto var>
 struct test_op : op::base<std::nullptr_t, variable_t<var>, variable_t<var>> {
-	template<auto V>
-	test_op(variable_t<V>, const Op & op) : op(op) {}
+
+	explicit test_op(full_op op) : op(op) {}
 
 	template<class domain_vec, class range_vec>
 	void apply(const domain_vec & x, range_vec & y) const {
@@ -34,17 +36,15 @@ struct test_op : op::base<std::nullptr_t, variable_t<var>, variable_t<var>> {
 	}
 
 protected:
-	const Op & op;
+	full_op op;
 };
-template<auto V, class Op>
-test_op(variable_t<V>, const Op &) -> test_op<V, Op>;
 
 int multicg() {
 	UNIT () {
 		auto mtx = mat::io::matrix_market<>::read("Chem97ZtZ.mtx").tocsr();
 
 		init_mesh(mtx.rows(), msh, coloring);
-		auto A = op::make(csr_op{std::move(mtx)});
+		full_op A(std::move(mtx));
 
 		vec::multi xm(vec::topo_view(variable<vars::var1>, msh, xmd[0](msh)),
 		              vec::topo_view(variable<vars::var2>, msh, xmd[1](msh)));
@@ -56,22 +56,19 @@ int multicg() {
 		xm.subset(variable<vars::var1>).set_random(7);
 		xm.subset(variable<vars::var2>).set_random(4);
 
-		auto A1 = op::make(test_op(variable<vars::var1>, A));
-		auto A2 = op::make(test_op(variable<vars::var2>, A));
-
 		cg::settings settings("solver");
 		read_config("cgmulti.cfg", settings);
 
 		op::krylov slv1(op::krylov_parameters(
 			settings,
 			cg::topo_work<>::get(bm.subset(variable<vars::var1>)),
-			std::move(A1)));
+			op::core<test_op<vars::var1>>(A)));
 		auto info1 = slv1.apply(bm, xm);
 
 		op::krylov slv2(op::krylov_parameters(
 			settings,
 			cg::topo_work<>::get(bm.subset(variable<vars::var2>)),
-			std::move(A2)));
+			op::core<test_op<vars::var2>>(A)));
 		auto info2 = slv2.apply(bm, xm);
 
 		EXPECT_EQ(info1.iters, 161);

@@ -114,8 +114,7 @@ inline void spmv(const mat::csr<double> & A,
 
 struct csr_op : op::base<> {
 
-	template<class CSR>
-	csr_op(CSR && m) : A(std::forward<CSR>(m)) {}
+	explicit csr_op(mat::csr<double> m) : A(std::move(m)) {}
 
 	template<class D, class R>
 	void apply(const D & x, R & y) const {

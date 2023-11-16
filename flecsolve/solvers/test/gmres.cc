@@ -61,8 +61,8 @@ int gmres_test() {
 
 		auto & msh = mshs[0];
 		init_mesh(matrix.rows(), msh, colorings[0]);
-		auto A = op::make(csr_op{std::move(matrix)});
-		auto Dinv = op::make(A.source().Dinv());
+		op::core<csr_op, op::shared_storage> A(std::move(matrix));
+		op::core<csr_op, op::shared_storage> Dinv(A.source().Dinv());
 
 		vec::topo_view x(msh, xd(msh)), b(msh, bd(msh));
 		b.set_random(0);
@@ -72,12 +72,11 @@ int gmres_test() {
 		op::krylov_parameters params_norestart(
 			gmres::settings("gmres-norestart"),
 			gmres::topo_work<>::get(b),
-			std::ref(A),
+			A,
 			op::I,
 			std::ref(diag));
-		op::krylov_parameters params_restart(gmres::settings("gmres-restart"),
-		                                     gmres::topo_work<>::get(b),
-		                                     std::ref(A));
+		op::krylov_parameters params_restart(
+			gmres::settings("gmres-restart"), gmres::topo_work<>::get(b), A);
 		read_config("gmres.cfg", params_norestart, params_restart);
 		{
 			op::krylov slv(std::move(params_norestart));
@@ -87,7 +86,7 @@ int gmres_test() {
 			EXPECT_FALSE(diag.fail_monotonic);
 			EXPECT_FALSE(diag.fail_convergence);
 
-			auto slv_pre = op::rebind(slv, std::ref(A), std::ref(Dinv));
+			auto slv_pre = op::rebind(slv, A, Dinv);
 			x.set_random(1);
 			auto info_pre = slv_pre.apply(b, x);
 			EXPECT_EQ(info_pre.iters, 18);
