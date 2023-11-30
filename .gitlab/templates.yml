@@ -61,7 +61,7 @@
         export CLANG_CC=$(spack compiler info $CLANG_COMPILER_SPEC | grep "cc =" | grep $(uname -i) | cut -d= -f2 | head -n1)
         export CLANG_PATH=$(dirname ${CLANG_CC})
         export PATH=${CLANG_PATH}:${PATH}
-        export CMAKE_OPTIONS="CMAKE_CXX_COMPILER=clang++ CMAKE_C_COMPILER=clang"
+        export CMAKE_OPTIONS="CMAKE_CXX_COMPILER=clang++ CMAKE_C_COMPILER=clang":${CMAKE_OPTIONS}
         header "Using clang = ${CLANG_PATH}"
       fi
 
@@ -172,7 +172,7 @@
     - section start build "Build"
     - mkdir -p ${CI_PROJECT_DIR}/state/build
     - cd ${CI_PROJECT_DIR}/state/build
-    - cmake -DENABLE_UNIT_TESTS=ON ../..
+    - cmake -DENABLE_UNIT_TESTS=ON ../.. ${CMAKE_OPTIONS}
     - cmake --build . -j $(nproc)
     - section end build
     - section start test "Test"
