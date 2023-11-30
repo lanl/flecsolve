@@ -181,10 +181,10 @@ openmpi-legion-gnu:
 
 #------------------------------------------------------------------------------#
 # Build and unit tests for Legion backend with OpenMPI provider,
-# and Clang + CUDA compiler toolchain.
+# and GNU + CUDA compiler toolchain.
 #------------------------------------------------------------------------------#
 
-openmpi-legion-clang-cuda:
+openmpi-legion-gnu-cuda:
   stage: Legion backend
   extends: [.ascgit_job, .darwin_build_template]
   needs: []
@@ -193,13 +193,13 @@ openmpi-legion-clang-cuda:
     - merge_requests
   variables:
     FLECSI_VARIANTS: "backend=legion build_type=Debug +flog +hdf5 +kokkos +cuda cuda_arch=${CUDA_ARCH} ^${LEGION_IBV_CUDA} build_type=Debug ^${KOKKOS_CUDA} ^cuda@${CUDA_VERSION} ^openmpi"
-    TOOLCHAIN: "clang@${CLANG_VERSION}"
+    TOOLCHAIN: "gcc@${CLANG_VERSION}"
     PARTITIONS: volta-x86
     ARCH_CONSTRAINT: "cpu_family:cascadelake"
     JOB_CONSTRAINTS: "${V100_CONSTRAINT}"
     ARCHIVE_SPACK_ENV: "yes"
 
-openmpi-legion-clang-cuda-mpi:
+openmpi-legion-gnu-cuda-mpi:
   stage: Legion backend
   extends: [.ascgit_job, .darwin_build_template]
   needs: []
@@ -208,7 +208,7 @@ openmpi-legion-clang-cuda-mpi:
     - merge_requests
   variables:
     FLECSI_VARIANTS: "backend=legion build_type=Debug +flog +hdf5 +kokkos +cuda cuda_arch=${CUDA_ARCH} ^${LEGION_MPI_CUDA} build_type=Debug ^${KOKKOS_CUDA} ^cuda@${CUDA_VERSION} ^openmpi"
-    TOOLCHAIN: "clang@${CLANG_VERSION}"
+    TOOLCHAIN: "gcc@${CLANG_VERSION}"
     PARTITIONS: volta-x86
     JOB_CONSTRAINTS: "${V100_CONSTRAINT}"
 
