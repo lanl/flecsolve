@@ -59,8 +59,10 @@
       if [[ "${TOOLCHAIN}" =~ "clang" ]]; then
         export CLANG_COMPILER_SPEC=clang@${CLANG_VERSION}
         export CLANG_CC=$(spack compiler info $CLANG_COMPILER_SPEC | grep "cc =" | grep $(uname -i) | cut -d= -f2 | head -n1)
-        export PATH=$(dirname $CLANG_CC):${PATH}
-        header "Prefixed clang to path"
+        export CLANG_PATH=$(dirname ${CLANG_CC})
+        export PATH=${CLANG_PATH}:${PATH}
+        export CMAKE_OPTIONS="CMAKE_CXX_COMPILER=clang++ CMAKE_C_COMPILER=clang"
+        header "Using clang = ${CLANG_PATH}"
       fi
 
 .darwin_env_create:
