@@ -193,7 +193,7 @@ openmpi-legion-gnu-cuda:
     - merge_requests
   variables:
     FLECSI_VARIANTS: "backend=legion build_type=Debug +flog +hdf5 +kokkos +cuda cuda_arch=${CUDA_ARCH} ^${LEGION_IBV_CUDA} build_type=Debug ^${KOKKOS_CUDA} ^cuda@${CUDA_VERSION} ^openmpi"
-    TOOLCHAIN: "gcc@${CLANG_VERSION}"
+    TOOLCHAIN: "gcc@${GCC_VERSION}"
     PARTITIONS: volta-x86
     ARCH_CONSTRAINT: "cpu_family:cascadelake"
     JOB_CONSTRAINTS: "${V100_CONSTRAINT}"
@@ -208,7 +208,7 @@ openmpi-legion-gnu-cuda-mpi:
     - merge_requests
   variables:
     FLECSI_VARIANTS: "backend=legion build_type=Debug +flog +hdf5 +kokkos +cuda cuda_arch=${CUDA_ARCH} ^${LEGION_MPI_CUDA} build_type=Debug ^${KOKKOS_CUDA} ^cuda@${CUDA_VERSION} ^openmpi"
-    TOOLCHAIN: "gcc@${CLANG_VERSION}"
+    TOOLCHAIN: "gcc@${GCC_VERSION}"
     PARTITIONS: volta-x86
     JOB_CONSTRAINTS: "${V100_CONSTRAINT}"
 
