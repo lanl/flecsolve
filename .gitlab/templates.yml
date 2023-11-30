@@ -83,6 +83,7 @@
     - export SPACK_USER_CACHE_PATH=$TMPDIR/spack-local
     - source $TMPDIR/spack/share/spack/setup-env.sh
     - module load gcc/${GCC_VERSION}
+    - |
       if [[ "${TOOLCHAIN}" =~ "clang" ]]; then
         module load llvm/${CLANG_VERSION}
       fi
