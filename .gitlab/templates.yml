@@ -61,7 +61,7 @@
         export CLANG_CC=$(spack compiler info $CLANG_COMPILER_SPEC | grep "cc =" | grep $(uname -i) | cut -d= -f2 | head -n1)
         export CLANG_PATH=$(dirname ${CLANG_CC})
         export PATH=${CLANG_PATH}:${PATH}
-        export CMAKE_OPTIONS="CMAKE_CXX_COMPILER=clang++ CMAKE_C_COMPILER=clang":${CMAKE_OPTIONS}
+        export CMAKE_OPTIONS="-DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang"
         header "Using clang = ${CLANG_PATH}"
       fi
 
