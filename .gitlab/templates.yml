@@ -53,11 +53,15 @@
     - export CLANG_CC=$(spack compiler info $CLANG_COMPILER_SPEC | grep "cc =" | grep $(uname -i) | cut -d= -f2 | head -n1)
     - export PATH=$(dirname $CLANG_CC):${PATH}
 
-.darwin_clang_init:
-  script: &darwin_clang_init
-    - export CLANG_COMPILER_SPEC=clang@${CLANG_VERSION}
-    - export CLANG_CC=$(spack compiler info $CLANG_COMPILER_SPEC | grep "cc =" | grep $(uname -i) | cut -d= -f2 | head -n1)
-    - export PATH=$(dirname $CLANG_CC):${PATH}
+.darwin_setup_clang:
+  script: &darwin_setup_clang 
+    - |
+      if [[ "${TOOLCHAIN}" =~ "clang" ]]; then
+        export CLANG_COMPILER_SPEC=clang@${CLANG_VERSION}
+        export CLANG_CC=$(spack compiler info $CLANG_COMPILER_SPEC | grep "cc =" | grep $(uname -i) | cut -d= -f2 | head -n1)
+        export PATH=$(dirname $CLANG_CC):${PATH}
+        header "Prefixed clang to path"
+      fi
 
 .darwin_env_create:
   script: &darwin_env_create
@@ -83,10 +87,6 @@
     - export SPACK_USER_CACHE_PATH=$TMPDIR/spack-local
     - source $TMPDIR/spack/share/spack/setup-env.sh
     - module load gcc/${GCC_VERSION}
-    - |
-      if [[ "${TOOLCHAIN}" =~ "clang" ]]; then
-        module load llvm/${CLANG_VERSION}
-      fi
     - module load cuda/${CUDA_VERSION}
 
 .darwin_env_spack_environment:
@@ -164,6 +164,7 @@
     - *darwin_env_spack_install_flecsi
     - if [ -f /usr/bin/nvidia-smi ] ; then nvidia-smi || true; fi
     - spack env activate ${SPACK_ENVIRONMENT}
+    - *darwin_setup_clang
     - *darwin_setup_hip
     - *darwin_print_build_info
     - section start build "Build"
