@@ -46,10 +46,10 @@ int multicg() {
 		init_mesh(mtx.rows(), msh, coloring);
 		full_op A(std::move(mtx));
 
-		vec::multi xm(vec::topo_view(variable<vars::var1>, msh, xmd[0](msh)),
-		              vec::topo_view(variable<vars::var2>, msh, xmd[1](msh)));
-		vec::multi bm(vec::topo_view(variable<vars::var1>, msh, bmd[0](msh)),
-		              vec::topo_view(variable<vars::var2>, msh, bmd[1](msh)));
+		auto xm = vec::make(vec::make(variable<vars::var1>, msh, xmd[0](msh)),
+		                    vec::make(variable<vars::var2>, msh, xmd[1](msh)));
+		auto bm = vec::make(vec::make(variable<vars::var1>, msh, bmd[0](msh)),
+		                    vec::make(variable<vars::var2>, msh, bmd[1](msh)));
 
 		bm.set_scalar(0.0);
 		bm.subset(variable<vars::var2>).set_random(3);

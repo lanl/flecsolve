@@ -37,7 +37,7 @@ int driver() {
 
 			init_mesh(mtx.rows(), msh, colorings[i]);
 
-			vec::topo_view x(msh, xd(msh)), b(msh, bd(msh));
+			auto [x, b] = vec::make(msh)(xd, bd);
 			b.set_random(0);
 			x.set_random(1);
 

@@ -165,18 +165,14 @@ static inline int boundary_sink(msh::accessor<ro, ro> m,
 }
 
 int fvm_diffusion_test() {
-
-	init_mesh({8, 8, 8});
-	vec::topo_view x(m, xd(m));
-	vec::topo_view y(m, yd(m));
-	vec::topo_view a(m, ad(m));
-
-	a.set_scalar(1.0);
-
-	auto bc_dir = make_boundary_operator_dirichlet(x);
-	auto bc_neu = make_boundary_operator_neumann(x);
-
 	UNIT () {
+		init_mesh({8, 8, 8});
+		auto [x, y, a] = vec::make(m)(xd, yd, ad);
+
+		a.set_scalar(1.0);
+
+		auto bc_dir = make_boundary_operator_dirichlet(x);
+		auto bc_neu = make_boundary_operator_neumann(x);
 		{
 			auto beta = 1.0;
 			auto vol_op = make_volume_operator(x, beta, 0.0);

@@ -29,7 +29,7 @@ struct parcsr_data {
 	parcsr::cslot coloring;
 	parcsr::init coloring_input;
 
-	auto spmv_tmp() { return vec::topo_view(topo, spmv_tmp_def(topo)); }
+	auto spmv_tmp() { return vec::make(topo, spmv_tmp_def(topo)); }
 
 protected:
 	typename field<typename Config::scalar>::template definition<parcsr,
@@ -143,8 +143,8 @@ int csr_test() {
 
 		op::core<parcsr_op> A(MPI_COMM_WORLD, "Chem97ZtZ.mtx");
 		auto & topo = A.source().data.topo;
-		vec::topo_view x(topo, xd(topo));
-		vec::topo_view y(topo, yd(topo));
+		auto x = vec::make(topo, xd(topo));
+		auto y = vec::make(topo, yd(topo));
 
 		y.set_scalar(0.0);
 		x.set_scalar(2);

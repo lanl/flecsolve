@@ -23,7 +23,7 @@ struct diagnostic {
 	diagnostic(const Op & A, const Vec & x0, const Vec & b, double cfact)
 		: iter(0), cfact(cfact), fail_monotonic(false),
 		  fail_convergence(false) {
-		Vec r(x0.data.topo(), resdef(x0.data.topo()));
+		auto r = vec::make(x0.data.topo(), resdef(x0.data.topo()));
 		A.residual(b, x0, r);
 		rnorm0 = r.l2norm().get();
 		rnorm_prev = rnorm0;
@@ -64,7 +64,9 @@ int gmres_test() {
 		op::core<csr_op, op::shared_storage> A(std::move(matrix));
 		op::core<csr_op, op::shared_storage> Dinv(A.source().Dinv());
 
-		vec::topo_view x(msh, xd(msh)), b(msh, bd(msh));
+		auto [x, b] = [&](auto &... fd) {
+			return std::tuple(vec::make(msh, fd(msh))...);
+		}(xd, bd);
 		b.set_random(0);
 		x.set_random(1);
 

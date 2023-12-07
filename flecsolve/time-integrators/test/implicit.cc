@@ -80,7 +80,8 @@ int bdftest() {
 		init_mesh(1, msh, coloring);
 
 		op::core<rate, op::shared_storage> F(-1.);
-		vec::topo_view x(msh, xd(msh)), xnew(msh, xnewd(msh));
+		auto x = vec::make(msh)(xd);
+		auto xnew = vec::make(msh)(xnewd);
 
 		rate_solver solver{F};
 		bdf::parameters params2(

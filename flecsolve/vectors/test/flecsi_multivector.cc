@@ -58,7 +58,7 @@ void init_fields(const fd_array & arr,
 template<std::size_t... Index>
 auto create_multivector(const fd_array & arr, std::index_sequence<Index...>) {
 	static_assert(sizeof...(Index) > 0);
-	return vec::multi(vec::topo_view(msh, arr[Index](msh))...);
+	return vec::make(vec::make(msh, arr[Index](msh))...);
 }
 
 static constexpr double ftol = 1e-8;
@@ -222,14 +222,14 @@ int vectest() {
 			           x3.dot(y3).get()));
 		}
 
-		vec::topo_view pvec(
-			variable<vars::pressure>, msh, defs<vars::pressure>()(msh));
-		vec::topo_view tvec(
-			variable<vars::temperature>, msh, defs<vars::temperature>()(msh));
-		vec::topo_view dvec(
-			variable<vars::density>, msh, defs<vars::density>()(msh));
+		auto create = [&](auto var) {
+			return vec::make(var, msh, defs<var.value>()(msh));
+		};
+		auto pvec = create(variable<vars::pressure>);
+		auto tvec = create(variable<vars::temperature>);
+		auto dvec = create(variable<vars::density>);
 
-		vec::multi mv(pvec, tvec, dvec);
+		auto mv = vec::make(pvec, tvec, dvec);
 
 		auto subset = mv.subset(multivariable<vars::density, vars::pressure>);
 		auto & [dvec1, pvec1] = subset;

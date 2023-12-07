@@ -75,7 +75,7 @@ auto chk_avgz =
 int fvm_coeff_test() {
 
 	init_mesh({8, 8, 8});
-	vec::topo_view x(m, xd(m));
+	auto x = vec::make(m, xd(m));
 
 	UNIT () {
 		x.set_scalar(1.0);

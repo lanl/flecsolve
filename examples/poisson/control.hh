@@ -33,15 +33,15 @@ struct control_policy : flecsi::run::control_base {
 
 	double diffusivity;
 
-	using vec = decltype(flecsolve::vec::topo_view(m, ud[0](m)));
+	using vec = decltype(flecsolve::vec::make(m, ud[0](m)));
 	vec & u() { return u_.value(); }
 	vec & f() { return f_.value(); }
 	vec & sol() { return sol_.value(); }
 
 	void initialize_vectors() {
-		u_.emplace(m, ud[0](m));
-		f_.emplace(m, ud[1](m));
-		sol_.emplace(m, ud[2](m));
+		u_.emplace(flecsolve::vec::make(m, ud[0](m)));
+		f_.emplace(flecsolve::vec::make(m, ud[1](m)));
+		sol_.emplace(flecsolve::vec::make(m, ud[2](m)));
 	}
 
 	template<class T>

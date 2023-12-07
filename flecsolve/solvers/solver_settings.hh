@@ -6,6 +6,7 @@
 
 #include <boost/program_options/options_description.hpp>
 
+#include "flecsolve/vectors/topo_view.hh"
 #include "flecsolve/vectors/multi.hh"
 
 namespace flecsolve {
@@ -88,9 +89,9 @@ protected:
 	          std::array<const field_def, NumWork> & defs,
 	          std::index_sequence<Index...>) {
 		if constexpr (std::is_same_v<typename Vec::var_t, anon_var>)
-			return {Vec(slot, defs[Index](slot))...};
+			return {vec::make(slot, defs[Index](slot))...};
 		else
-			return {Vec(Vec::var, slot, defs[Index](slot))...};
+			return {vec::make(Vec::var, slot, defs[Index](slot))...};
 	}
 };
 

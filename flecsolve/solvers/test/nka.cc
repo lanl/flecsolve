@@ -66,7 +66,7 @@ int nkatest() {
 		init_mesh(mtx.rows(), msh, coloring);
 
 		auto A = op::make(csr_op{std::move(mtx)});
-		vec::topo_view x(msh, xd(msh)), b(msh, bd(msh));
+		auto [x, b] = vec::make(msh)(xd, bd);
 		{
 			b.set_scalar(1.);
 			x.set_scalar(3.);

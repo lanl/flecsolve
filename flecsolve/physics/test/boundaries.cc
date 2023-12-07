@@ -59,7 +59,7 @@ int boundary_test() {
 	execute<fill_field<msh::faces>>(m, bd[msh::y_axis](m), 1.0);
 	execute<fill_field<msh::faces>>(m, bd[msh::z_axis](m), 1.0);
 	UNIT () {
-		vec::topo_view x(m, xd(m));
+		auto x = vec::make(m, xd(m));
 
 		auto [bndry_xlo, bndry_xhi, bndry_ylo, bndry_yhi] = make_bcs(x);
 		x.set_scalar(1.0);

@@ -157,10 +157,11 @@ int vectest() {
 		msh, xd(msh), yd(msh), zd(msh), xd_c(msh), yd_c(msh), zd_c(msh));
 
 	UNIT () {
-		vec::topo_view x(msh, xd(msh)), y(msh, yd(msh)), z(msh, zd(msh)),
-			tmp(msh, tmpd(msh));
-		vec::topo_view x_c(msh, xd_c(msh)), y_c(msh, yd_c(msh)),
-			z_c(msh, zd_c(msh)), tmp_c(msh, tmpd_c(msh));
+		auto create = [&](auto &... defs) {
+			return std::tuple(vec::make(msh, defs(msh))...);
+		};
+		auto [x, y, z, tmp] = create(xd, yd, zd, tmpd);
+		auto [x_c, y_c, z_c, tmp_c] = create(xd_c, yd_c, zd_c, tmpd_c);
 
 		tmp.add(x, z);
 		tmp_c.add(x_c, z_c);

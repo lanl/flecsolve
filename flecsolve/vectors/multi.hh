@@ -5,6 +5,7 @@
 #include <type_traits>
 
 #include "core.hh"
+#include "traits.hh"
 #include "flecsolve/vectors/variable.hh"
 #include "operations/multi.hh"
 
@@ -154,6 +155,11 @@ bool operator!=(const multi<V0...> & v0, const multi<V1...> & v1) {
 	return v0.data.components != v1.data.components;
 }
 
+template<class... Vecs,
+         std::enable_if_t<(... && is_vector_v<Vecs>), bool> = true>
+auto make(Vecs &&... vecs) {
+	return multi(std::forward<Vecs>(vecs)...);
+}
 }
 
 namespace std {
