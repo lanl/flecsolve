@@ -24,11 +24,29 @@ flecsi_add_test(
   PROCS
   1)
 
-# flecsi_add_test(boundary_test SOURCES test/boundaries.cc LIBRARIES flecsolve
-# PROCS 1 )
-#
-# flecsi_add_test(fvm_coeff_test SOURCES test/fvm_coeff.cc LIBRARIES flecsolve
-# PROCS 1 )
-#
-# flecsi_add_test(fvm_diffusion_test SOURCES test/fvm_diffusion.cc LIBRARIES
-# flecsolve PROCS 1 )
+flecsi_add_test(
+  boundary_test
+  SOURCES
+  test/boundaries.cc
+  LIBRARIES
+  flecsolve
+  PROCS
+  1)
+
+flecsi_add_test(
+  fvm_coeff_test
+  SOURCES
+  test/fvm_coeff.cc
+  LIBRARIES
+  flecsolve
+  PROCS
+  1)
+
+flecsi_add_test(
+  fvm_diffusion_test
+  SOURCES
+  test/fvm_diffusion.cc
+  LIBRARIES
+  flecsolve
+  PROCS
+  1)
