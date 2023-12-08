@@ -1,54 +1,133 @@
+#------------------------------------------------------------------------------#
+# modified from FleCSI Gitlab CI: 
+# https://re-git.lanl.gov/flecsi/flecsi/-/blob/2.2/.gitlab-ci.yml
+# FleCSolve Gitlab CI: Main
+#------------------------------------------------------------------------------#
+
 stages:
   - Canary
-  - Environment
-  - Build + Unit Tests
+  - MPI backend
+  - Legion backend
+  - Standalone
   - Final
 
-include: .gitlab/environments.yml
+default:
+  interruptible: true
+  tags:
+    - darwin-slurm-shared
+  before_script:
+   - echo "Running on $(hostname)"
+   - section() { echo $'\e[0K'"section_$1:$(date +%s):$2"$'\r\e[0K'"${3+${COLOR_CYAN}$3${COLOR_PLAIN}}"; }
+   - header() { echo "${COLOR_MAGENTA}$1${COLOR_PLAIN}"; }
+   - value() { echo $'\t'"${COLOR_BLUE}$1:"" $2${COLOR_PLAIN}"; }
+   - variable() { value "${1:0:1}$(tr A-Z a-z <<<${1:1})" "${!1}"; }
 
+.ascgit_job:
+  id_tokens:
+    SITE_ID_TOKEN:
+      aud: https://asc-git.lanl.gov
 
-format:diff:
-  extends: .diff_format_template
-  dependencies: []
-  only:
-    - merge_requests
-  variables:
-    REGISTRY: gitlab.lanl.gov:5050/flecsi/flecsi-linalg
-    IMAGE: util-fedora-35
-    FORMAT_VERSION: 13.0.0
-    CXX_COMPILER: clang++
-    CXX_FLAGS: -fcolor-diagnostics
-    C_COMPILER: clang
-    C_FLAGS: ${CXX_FLAGS}
-  allow_failure: true
+variables:
+  USE_SPACK_UPSTREAM: develop-82d41a7be
+  DARWIN_SPACK_UPSTREAM: "/projects/flecsi-devel/gitlab/spack-upstream/${USE_SPACK_UPSTREAM}"
+  COLOR_BLUE: "\e[1;34m"
+  COLOR_MAGENTA: "\e[1;35m"
+  COLOR_CYAN: "\e[1;36m"
+  COLOR_PLAIN: "\e[0m"
+  # global defaults
+  GCC_VERSION: 11.1.0
+  CLANG_VERSION: 13.0.1
+  ROCM_VERSION: 5.4.3
+  CUDA_VERSION: 11.8.0
+  CUDA_ARCH: 70
+  PARTITIONS: general,skylake-gold,skylake-platinum
+  IB_CONSTRAINT: "--constraint=\"(ib:edr|ib:hdr)\""
+  ARCH_CONSTRAINT: "(cpu_family:haswell|cpu_family:cascadelake)"
+  V100_CONSTRAINT: "--constraint=\"${ARCH_CONSTRAINT}&(gpu1_model:Tesla_V100S-PCIE-32GB|gpu1_model:Tesla_V100-PCIE-32GB)\""
+  JOB_CONSTRAINTS: "${IB_CONSTRAINT}"
+  SCHEDULER_PARAMETERS: "-N1 --qos=debug -p ${PARTITIONS} ${JOB_CONSTRAINTS}"
+  LEGION_IBV: legion conduit=ibv
+  LEGION_MPI: legion conduit=mpi
+  LEGION_IBV_CUDA: "${LEGION_IBV} +cuda +cuda_unsupported_compiler"
+  LEGION_MPI_CUDA: "${LEGION_MPI} +cuda +cuda_unsupported_compiler"
+  LEGION_IBV_ROCM: "legion%rocmcc@${ROCM_VERSION} conduit=ibv"
+  LEGION_MPI_ROCM: "legion%rocmcc@${ROCM_VERSION} conduit=mpi"
+  KOKKOS_SERIAL: kokkos ~cuda
+  KOKKOS_CUDA: kokkos%clang@${CLANG_VERSION} +cuda +hwloc ~wrapper
+  # project version 
+  FLECSI_VERSION: "flecsi@2.2"
+  ENVIRONMENT: "${CI_MERGE_REQUEST_TARGET_BRANCH_NAME}"
+  DEFAULT_TEST_TIMEOUT: 600
 
-format:check:
-  extends: .check_format_template
-  needs:
-    - job: format:diff
-      artifacts: true
-  only:
-    - merge_requests
-  variables:
-    REGISTRY: gitlab.lanl.gov:5050/flecsi/flecsi-linalg
-    IMAGE: util-fedora-35
+#------------------------------------------------------------------------------#
+# Common build variants
+#------------------------------------------------------------------------------#
+.mpich-legion-kokkos-debug: &mpich-legion-kokkos-debug
+  FLECSI_VARIANTS: "backend=legion build_type=Debug +flog caliper_detail=low +graphviz +hdf5 +kokkos ^${LEGION_IBV} build_type=Debug +kokkos ^${KOKKOS_SERIAL} ^mpich"
 
+.openmpi-mpi-debug: &openmpi-mpi-debug
+  FLECSI_VARIANTS: "backend=mpi build_type=Debug +flog +hdf5 ^openmpi"
+
+include: .gitlab/templates.yml
+
+#------------------------------------------------------------------------------#
+# Formatting target.
+#
+# The selected image must have the required clang-format version
+# installed during image creation in the 'gitlab-ci' branch.
+#------------------------------------------------------------------------------#
+
+# docs_and_format:check:
+#   extends: [.ascgit_job, .check_format_template]
+#   needs:
+#     - job: format
+#       artifacts: true
+#   only:
+#     - merge_requests
+#   variables:
+#     JOB_CONSTRAINTS: ""
+
+#------------------------------------------------------------------------------#
+# Test developer tools
+#
+# Will first create a minimal copy of the Spack upstream checkout in
+# $TMPDIR/spack to avoid cloning from GitHub.
+#------------------------------------------------------------------------------#
+
+# tools:
+#   extends: [.ascgit_job]
+#   stage: Canary
+#   needs: []
+#   dependencies: []
+#   only:
+#     - merge_requests
+#   script:
+#     - export HOME=$TMPDIR
+#     - module load git
+#     - |
+#       rsync -rpl \
+#         --include="lib/spack/**" \
+#         --exclude-from=${DARWIN_SPACK_UPSTREAM}/.gitignore \
+#         ${DARWIN_SPACK_UPSTREAM}/ $TMPDIR/spack/
+#     - git -C $TMPDIR/spack reset --hard
+#     - git -C $TMPDIR/spack clean -x -f -d
+#     - tools/darwin.sh
+#
 
 #------------------------------------------------------------------------------#
 # Build and unit tests for default settings.
 #------------------------------------------------------------------------------#
 
 mpich-defaults:
-  extends: .defaults_build_template
-  needs:
-    ["mpich"]
+  stage: Legion backend
+  extends: [.ascgit_job, .darwin_defaults_build_template]
+  needs: []
+  dependencies: []
   only:
     - merge_requests
   variables:
-    ENVIRONMENT: '2'
-    MPI_PROVIDER: mpich
-    REGISTRY: gitlab.lanl.gov:5050/flecsi/flecsi
-    IMAGE: rockylinux
+    FLECSI_VARIANTS: "backend=legion +flog ^${LEGION_IBV} ^mpich"
+    TOOLCHAIN: "gcc@${GCC_VERSION}"
 
 #------------------------------------------------------------------------------#
 # Build and unit tests for Legion backend with MPICH provider,
@@ -56,42 +135,17 @@ mpich-defaults:
 #------------------------------------------------------------------------------#
 
 mpich-legion-gnu:
-  extends: .build_template
-  needs:
-    ["mpich-debug"]
+  stage: Legion backend
+  extends: [.ascgit_job, .darwin_build_template]
+  needs: []
+  dependencies: []
   only:
     - merge_requests
   variables:
-    ENVIRONMENT: '2'
-    MPI_PROVIDER: mpich
-    REGISTRY: gitlab.lanl.gov:5050/flecsi/flecsi
-    IMAGE: rockylinux
-    BUILD_TYPE: Debug
-    BACKEND: legion
-    CXX_COMPILER: g++
-    CXX_FLAGS: -Wall -W -Werror
-    C_COMPILER: gcc
-    C_FLAGS: ${CXX_FLAGS}
-    CMAKE_OPTIONS: ''
-
-mpich-legion-gnu:release:
-  extends: .build_template
-  needs:
-    ["mpich"]
-  only:
-    - merge_requests
-  variables:
-    ENVIRONMENT: '2'
-    MPI_PROVIDER: mpich
-    REGISTRY: gitlab.lanl.gov:5050/flecsi/flecsi
-    IMAGE: rockylinux
-    BUILD_TYPE: Release
-    BACKEND: legion
-    CXX_COMPILER: g++
-    CXX_FLAGS: -Wall -W -Werror
-    C_COMPILER: gcc
-    C_FLAGS: ${CXX_FLAGS}
-    CMAKE_OPTIONS: ''
+    <<: *mpich-legion-kokkos-debug
+    TOOLCHAIN: "gcc@${GCC_VERSION}"
+    PARTITIONS: skylake-gold
+    ARCHIVE_SPACK_ENV: "yes"
 
 #------------------------------------------------------------------------------#
 # Build and unit tests for MPI backend with MPICH provider,
@@ -99,42 +153,15 @@ mpich-legion-gnu:release:
 #------------------------------------------------------------------------------#
 
 mpich-mpi-gnu:
-  extends: .build_template
-  needs:
-    ["mpich-debug"]
+  stage: MPI backend
+  extends: [.ascgit_job, .darwin_build_template]
+  needs: []
+  dependencies: []
   only:
     - merge_requests
   variables:
-    ENVIRONMENT: '2'
-    MPI_PROVIDER: mpich
-    REGISTRY: gitlab.lanl.gov:5050/flecsi/flecsi
-    IMAGE: rockylinux
-    BUILD_TYPE: Debug
-    BACKEND: mpi
-    CXX_COMPILER: g++
-    CXX_FLAGS: -Wall -W -Werror
-    C_COMPILER: gcc
-    C_FLAGS: ${CXX_FLAGS}
-    CMAKE_OPTIONS: ''
-
-mpich-mpi-gnu:release:
-  extends: .build_template
-  needs:
-    ["mpich"]
-  only:
-    - merge_requests
-  variables:
-    ENVIRONMENT: '2'
-    MPI_PROVIDER: mpich
-    REGISTRY: gitlab.lanl.gov:5050/flecsi/flecsi
-    IMAGE: rockylinux
-    BUILD_TYPE: Release
-    BACKEND: mpi
-    CXX_COMPILER: g++
-    CXX_FLAGS: -Wall -W -Werror
-    C_COMPILER: gcc
-    C_FLAGS: ${CXX_FLAGS}
-    CMAKE_OPTIONS: ''
+    FLECSI_VARIANTS: "backend=mpi build_type=Debug caliper_detail=low +flog +graphviz +hdf5 +kokkos ^${KOKKOS_SERIAL} ^mpich"
+    TOOLCHAIN: "gcc@${GCC_VERSION}"
 
 #------------------------------------------------------------------------------#
 # Build and unit tests for Legion backend with OpenMPI provider,
@@ -142,85 +169,65 @@ mpich-mpi-gnu:release:
 #------------------------------------------------------------------------------#
 
 openmpi-legion-gnu:
-  extends: .build_template
-  needs:
-    ["openmpi-debug"]
+  stage: Legion backend
+  extends: [.ascgit_job, .darwin_build_template]
+  needs: []
+  dependencies: []
   only:
     - merge_requests
   variables:
-    ENVIRONMENT: '2'
-    MPI_PROVIDER: openmpi
-    REGISTRY: gitlab.lanl.gov:5050/flecsi/flecsi
-    IMAGE: rockylinux
-    BUILD_TYPE: Debug
-    BACKEND: legion
-    CXX_COMPILER: g++
-    CXX_FLAGS: -Wall -W -Werror
-    C_COMPILER: gcc
-    C_FLAGS: ${CXX_FLAGS}
-    CMAKE_OPTIONS: ''
-
-openmpi-legion-gnu:release:
-  extends: .build_template
-  needs:
-    ["openmpi"]
-  only:
-    - merge_requests
-  variables:
-    ENVIRONMENT: '2'
-    MPI_PROVIDER: openmpi
-    REGISTRY: gitlab.lanl.gov:5050/flecsi/flecsi
-    IMAGE: rockylinux
-    BUILD_TYPE: Release
-    BACKEND: legion
-    CXX_COMPILER: g++
-    CXX_FLAGS: -Wall -W -Werror
-    C_COMPILER: gcc
-    C_FLAGS: ${CXX_FLAGS}
-    CMAKE_OPTIONS: ''
+    FLECSI_VARIANTS: "backend=legion build_type=Debug +flog +hdf5 ^${LEGION_IBV} build_type=Debug ^openmpi"
+    TOOLCHAIN: "gcc@${GCC_VERSION}"
 
 #------------------------------------------------------------------------------#
+# Build and unit tests for Legion backend with OpenMPI provider,
+# and clang + CUDA compiler toolchain.
+#------------------------------------------------------------------------------#
+
+# openmpi-legion-clang-cuda:
+#   stage: Legion backend
+#   extends: [.ascgit_job, .darwin_build_template]
+#   needs: []
+#   dependencies: []
+#   only:
+#     - merge_requests
+#   variables:
+#     FLECSI_VARIANTS: "backend=legion build_type=Debug +flog +hdf5 +kokkos +cuda cuda_arch=${CUDA_ARCH} ^${LEGION_IBV_CUDA} build_type=Debug ^${KOKKOS_CUDA} ^cuda@${CUDA_VERSION} ^openmpi"
+#     TOOLCHAIN: "clang@${CLANG_VERSION}"
+#     PARTITIONS: volta-x86
+#     ARCH_CONSTRAINT: "cpu_family:cascadelake"
+#     JOB_CONSTRAINTS: "${V100_CONSTRAINT}"
+#     ARCHIVE_SPACK_ENV: "yes"
+#
+# openmpi-legion-clang-cuda-mpi:
+#   stage: Legion backend
+#   extends: [.ascgit_job, .darwin_build_template]
+#   needs: []
+#   dependencies: []
+#   only:
+#     - merge_requests
+#   variables:
+#     FLECSI_VARIANTS: "backend=legion build_type=Debug +flog +hdf5 +kokkos +cuda cuda_arch=${CUDA_ARCH} ^${LEGION_MPI_CUDA} build_type=Debug ^${KOKKOS_CUDA} ^cuda@${CUDA_VERSION} ^openmpi"
+#     TOOLCHAIN: "clang@${CLANG_VERSION}"
+#     PARTITIONS: volta-x86
+#     JOB_CONSTRAINTS: "${V100_CONSTRAINT}"
+#
+#------------------------------------------------------------------------------#
 # Build and unit tests for MPI backend with OpenMPI provider,
-# and GNU compiler toolchain.
+# and GNU compiler toolchain. Intentionally does NOT use Kokkos to also test
+# that kind of build.
 #------------------------------------------------------------------------------#
 
 openmpi-mpi-gnu:
-  extends: .build_template
-  needs:
-    ["openmpi-debug"]
+  stage: MPI backend
+  extends: [.ascgit_job, .darwin_build_template]
+  dependencies: []
+  needs: []
   only:
     - merge_requests
   variables:
-    ENVIRONMENT: '2'
-    MPI_PROVIDER: openmpi
-    REGISTRY: gitlab.lanl.gov:5050/flecsi/flecsi
-    IMAGE: rockylinux
-    BUILD_TYPE: Debug
-    BACKEND: mpi
-    CXX_COMPILER: g++
-    CXX_FLAGS: -Wall -W -Werror
-    C_COMPILER: gcc
-    C_FLAGS: ${CXX_FLAGS}
-    CMAKE_OPTIONS: ''
-
-openmpi-mpi-gnu:release:
-  extends: .build_template
-  needs:
-    ["openmpi"]
-  only:
-    - merge_requests
-  variables:
-    ENVIRONMENT: '2'
-    MPI_PROVIDER: openmpi
-    REGISTRY: gitlab.lanl.gov:5050/flecsi/flecsi
-    IMAGE: rockylinux
-    BUILD_TYPE: Release
-    BACKEND: mpi
-    CXX_COMPILER: g++
-    CXX_FLAGS: -Wall -W -Werror
-    C_COMPILER: gcc
-    C_FLAGS: ${CXX_FLAGS}
-    CMAKE_OPTIONS: ''
+    <<: *openmpi-mpi-debug
+    TOOLCHAIN: "gcc@${GCC_VERSION}"
 
 #------------------------------------------------------------------------------#
 # Build and unit tests for Legion backend with MPICH provider,
@@ -228,47 +235,48 @@ openmpi-mpi-gnu:release:
 #------------------------------------------------------------------------------#
 
 mpich-legion-clang:
-  extends: .build_template
-  needs:
-    ["mpich-clang-debug"]
+  stage: Legion backend
+  extends: [.ascgit_job, .darwin_build_template]
+  needs: []
+  dependencies: []
   only:
     - merge_requests
   variables:
-    ENVIRONMENT: '2'
-    MPI_PROVIDER: mpich
-    REGISTRY: gitlab.lanl.gov:5050/flecsi/flecsi
-    IMAGE: fedora-34
-    BUILD_TYPE: Debug
-    BACKEND: legion
-    CXX_COMPILER: clang++
-    CXX_FLAGS: -fcolor-diagnostics -Wall -W -Werror
-    C_COMPILER: clang
-    C_FLAGS: ${CXX_FLAGS}
-    CMAKE_OPTIONS: ''
+    <<: *mpich-legion-kokkos-debug
+    TOOLCHAIN: "clang@${CLANG_VERSION}"
 
 #------------------------------------------------------------------------------#
 # Build and unit tests for MPI backend with MPICH provider,
-# and Clang compiler toolchain.
+# and Clang compiler toolchain. Intentionally does NOT use Kokkos to also test
+# that kind of build.
 #------------------------------------------------------------------------------#
 
 mpich-mpi-clang:
-  extends: .build_template
-  needs:
-    ["mpich-clang-debug"]
+  stage: MPI backend
+  extends: [.ascgit_job, .darwin_build_template]
+  needs: []
+  dependencies: []
   only:
     - merge_requests
   variables:
-    ENVIRONMENT: '2'
-    MPI_PROVIDER: mpich
-    REGISTRY: gitlab.lanl.gov:5050/flecsi/flecsi
-    IMAGE: fedora-34
-    BUILD_TYPE: Debug
-    BACKEND: mpi
-    CXX_COMPILER: clang++
-    CXX_FLAGS: -fcolor-diagnostics -Wall -W -Werror
-    C_COMPILER: clang
-    C_FLAGS: ${CXX_FLAGS}
-    CMAKE_OPTIONS: ''
+    FLECSI_VARIANTS: "backend=mpi build_type=Debug caliper_detail=low +flog +graphviz +hdf5 ^mpich"
+    TOOLCHAIN: "clang@${CLANG_VERSION}"
+
+# #------------------------------------------------------------------------------#
+# # Documentation
+# #------------------------------------------------------------------------------#
+# docs_and_format:
+#   stage: Canary
+#   extends: [.ascgit_job, .darwin_docs_and_format_template]
+#   needs: []
+#   dependencies: []
+#   only:
+#     - merge_requests
+#   variables:
+#     FORMAT_VERSION: 13.0.1
+#     JOB_CONSTRAINTS: ""
+#   allow_failure: true
+#
 
 #------------------------------------------------------------------------------#
 # Build and unit tests for MPI backend with OpenMPI provider,
@@ -276,20 +284,95 @@ mpich-mpi-clang:
 #------------------------------------------------------------------------------#
 
 openmpi-mpi-clang:
-  extends: .build_template
-  needs:
-    ["openmpi-clang-debug"]
+  stage: MPI backend
+  extends: [.ascgit_job, .darwin_build_template]
+  needs: []
+  dependencies: []
   only:
     - merge_requests
   variables:
-    ENVIRONMENT: '2'
-    MPI_PROVIDER: openmpi
-    REGISTRY: gitlab.lanl.gov:5050/flecsi/flecsi
-    IMAGE: fedora-34
-    BUILD_TYPE: Debug
-    BACKEND: mpi
-    CXX_COMPILER: clang++
-    CXX_FLAGS: -fcolor-diagnostics -Wall -W -Werror
-    C_COMPILER: clang
-    C_FLAGS: ${CXX_FLAGS}
-    CMAKE_OPTIONS: ''
+    <<: *openmpi-mpi-debug
+    TOOLCHAIN: "clang@${CLANG_VERSION}"
+
+# #------------------------------------------------------------------------------#
+# # Build and unit tests for MPI backend with OpenMPI provider,
+# # and ROCM compiler toolchain.
+# #------------------------------------------------------------------------------#
+#
+# openmpi-mpi-rocm:
+#   stage: MPI backend
+#   extends: [.ascgit_job, .darwin_build_template]
+#   needs: []
+#   dependencies: []
+#   only:
+#     - merge_requests
+#   variables:
+#     AMDGPU_TARGET: gfx908
+#     VARIANTS: "backend=mpi build_type=Debug +flog +hdf5 +kokkos +rocm amdgpu_target=${AMDGPU_TARGET} ^kokkos+hwloc ^boost%rocmcc@${ROCM_VERSION} ^hip@${ROCM_VERSION} ^openmpi"
+#     TOOLCHAIN: "gcc@${GCC_VERSION}"
+#     PARTITIONS: shared-gpu-amd-mi100
+#     SCHEDULER_PARAMETERS: "-N 1 --qos=debug -p ${PARTITIONS}"
+#     ARCHIVE_SPACK_ENV: "yes"
+#
+# #------------------------------------------------------------------------------#
+# # Build and unit tests for Legion backend with OpenMPI provider,
+# # and ROCM compiler toolchain.
+# #------------------------------------------------------------------------------#
+#
+# openmpi-legion-rocm:
+#   stage: Legion backend
+#   extends: [.ascgit_job, .darwin_build_template]
+#   needs: []
+#   dependencies: []
+#   only:
+#     - merge_requests
+#   variables:
+#     AMDGPU_TARGET: gfx90a
+#     VARIANTS: "backend=legion build_type=Debug +flog +hdf5 +kokkos +rocm amdgpu_target=${AMDGPU_TARGET} ^${LEGION_MPI_ROCM} ^kokkos+hwloc ^boost%rocmcc@${ROCM_VERSION} ^hip@${ROCM_VERSION} ^openmpi"
+#     TOOLCHAIN: "gcc@${GCC_VERSION}"
+#     PARTITIONS: shared-gpu-amd-mi250
+#     SCHEDULER_PARAMETERS: "-N 1 --qos=debug -p ${PARTITIONS}"
+#     ARCHIVE_SPACK_ENV: "yes"
+#
+# #------------------------------------------------------------------------------#
+# # GPU standalone tests
+# #------------------------------------------------------------------------------#
+#
+# openmpi-poisson-cuda-clang:legion:
+#   extends: [.ascgit_job, .darwin_standalone_template]
+#   needs:
+#     ["openmpi-legion-clang-cuda"]
+#   only:
+#     - merge_requests
+#   variables:
+#     LABEL: standalone
+#     STDIR: tutorial/standalone/poisson
+#     BUILD_TYPE: Debug
+#     PARTITIONS: volta-x86
+#     ARCH_CONSTRAINT: "cpu_family:cascadelake"
+#     JOB_CONSTRAINTS: "${V100_CONSTRAINT}"
+#
+# openmpi-poisson-rocm:mpi:
+#   extends: [.ascgit_job, .darwin_standalone_template]
+#   needs:
+#     ["openmpi-mpi-rocm"]
+#   only:
+#     - merge_requests
+#   variables:
+#     LABEL: standalone
+#     STDIR: tutorial/standalone/poisson
+#     BUILD_TYPE: Debug
+#     PARTITIONS: shared-gpu-amd-mi100
+#
+# openmpi-poisson-rocm:legion:
+#   extends: [.ascgit_job, .darwin_standalone_template]
+#   needs:
+#     ["openmpi-legion-rocm"]
+#   only:
+#     - merge_requests
+#   variables:
+#     LABEL: standalone
+#     STDIR: tutorial/standalone/poisson
+#     BUILD_TYPE: Debug
+#     PARTITIONS: shared-gpu-amd-mi250
+#     SCHEDULER_PARAMETERS: "-N 1 --qos=debug -p ${PARTITIONS}"

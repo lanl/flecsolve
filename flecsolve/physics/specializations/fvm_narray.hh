@@ -262,7 +262,8 @@ struct fvm_narray
 
 	}; // interface
 
-	static auto distribute(std::size_t np, std::vector<std::size_t> indices) {
+	static auto distribute(std::size_t np,
+	                       std::vector<flecsi::util::gid> indices) {
 		return flecsi::topo::narray_utils::distribute(np, indices);
 	}
 
