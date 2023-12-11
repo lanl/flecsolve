@@ -8,7 +8,7 @@
 #include <type_traits>
 #include <utility>
 
-#include "flecsolve/vectors/data/mesh.hh"
+#include "flecsolve/vectors/data/topo_view.hh"
 
 namespace flecsolve {
 namespace physics {

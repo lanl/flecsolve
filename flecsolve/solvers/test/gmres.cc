@@ -4,7 +4,7 @@
 #include "flecsi/util/unit.hh"
 #include "flecsi/util/unit/types.hh"
 
-#include "flecsolve/vectors/mesh.hh"
+#include "flecsolve/vectors/topo_view.hh"
 #include "flecsolve/solvers/gmres.hh"
 #include "flecsolve/util/config.hh"
 #include "flecsolve/matrices/io/matrix_market.hh"
@@ -23,13 +23,14 @@ struct diagnostic {
 	diagnostic(const Op & A, const Vec & x0, const Vec & b, double cfact)
 		: iter(0), cfact(cfact), fail_monotonic(false),
 		  fail_convergence(false) {
-		Vec r(x0.data.topo(), resdef(x0.data.topo()));
+		auto r = vec::make(x0.data.topo(), resdef(x0.data.topo()));
 		A.residual(b, x0, r);
 		rnorm0 = r.l2norm().get();
 		rnorm_prev = rnorm0;
 	}
 
-	bool operator()(const vec::base<Vec> &, double rnorm) {
+	template<class V, std::enable_if_t<is_vector_v<V>, bool> = true>
+	bool operator()(const V &, double rnorm) {
 		float n = ++iter;
 		auto bnd = std::pow(cfact, n / 2) * rnorm0;
 
@@ -60,10 +61,12 @@ int gmres_test() {
 
 		auto & msh = mshs[0];
 		init_mesh(matrix.rows(), msh, colorings[0]);
-		csr_op A{std::move(matrix)};
-		auto Dinv = A.Dinv();
+		op::core<csr_op, op::shared_storage> A(std::move(matrix));
+		op::core<csr_op, op::shared_storage> Dinv(A.source().Dinv());
 
-		vec::mesh x(msh, xd(msh)), b(msh, bd(msh));
+		auto [x, b] = [&](auto &... fd) {
+			return std::tuple(vec::make(msh, fd(msh))...);
+		}(xd, bd);
 		b.set_random(0);
 		x.set_random(1);
 
@@ -71,12 +74,11 @@ int gmres_test() {
 		op::krylov_parameters params_norestart(
 			gmres::settings("gmres-norestart"),
 			gmres::topo_work<>::get(b),
-			std::ref(A),
+			A,
 			op::I,
 			std::ref(diag));
-		op::krylov_parameters params_restart(gmres::settings("gmres-restart"),
-		                                     gmres::topo_work<>::get(b),
-		                                     std::ref(A));
+		op::krylov_parameters params_restart(
+			gmres::settings("gmres-restart"), gmres::topo_work<>::get(b), A);
 		read_config("gmres.cfg", params_norestart, params_restart);
 		{
 			op::krylov slv(std::move(params_norestart));
@@ -86,7 +88,7 @@ int gmres_test() {
 			EXPECT_FALSE(diag.fail_monotonic);
 			EXPECT_FALSE(diag.fail_convergence);
 
-			auto slv_pre = op::rebind(slv, std::ref(A), std::ref(Dinv));
+			auto slv_pre = op::rebind(slv, A, Dinv);
 			x.set_random(1);
 			auto info_pre = slv_pre.apply(b, x);
 			EXPECT_EQ(info_pre.iters, 18);

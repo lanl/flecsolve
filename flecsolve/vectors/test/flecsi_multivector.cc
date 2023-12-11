@@ -5,7 +5,7 @@
 #include <flecsi/util/unit/types.hh>
 #include <utility>
 
-#include "flecsolve/vectors/mesh.hh"
+#include "flecsolve/vectors/topo_view.hh"
 #include "flecsolve/vectors/multi.hh"
 
 #include "flecsolve/util/test/mesh.hh"
@@ -57,7 +57,8 @@ void init_fields(const fd_array & arr,
 
 template<std::size_t... Index>
 auto create_multivector(const fd_array & arr, std::index_sequence<Index...>) {
-	return vec::multi(vec::mesh(msh, arr[Index](msh))...);
+	static_assert(sizeof...(Index) > 0);
+	return vec::make(vec::make(msh, arr[Index](msh))...);
 }
 
 static constexpr double ftol = 1e-8;
@@ -84,7 +85,7 @@ bool run(MV & mv, S & msh, FN && fn) {
 						 fn, msh, v.data.ref(), ind++) == 0) and
 		            ...);
 		},
-		mv.data);
+		mv.data.components);
 }
 
 auto add = std::make_pair(
@@ -221,14 +222,14 @@ int vectest() {
 			           x3.dot(y3).get()));
 		}
 
-		vec::mesh pvec(
-			variable<vars::pressure>, msh, defs<vars::pressure>()(msh));
-		vec::mesh tvec(
-			variable<vars::temperature>, msh, defs<vars::temperature>()(msh));
-		vec::mesh dvec(
-			variable<vars::density>, msh, defs<vars::density>()(msh));
+		auto create = [&](auto var) {
+			return vec::make(var, msh, defs<var.value>()(msh));
+		};
+		auto pvec = create(variable<vars::pressure>);
+		auto tvec = create(variable<vars::temperature>);
+		auto dvec = create(variable<vars::density>);
 
-		vec::multi mv(pvec, tvec, dvec);
+		auto mv = vec::make(pvec, tvec, dvec);
 
 		auto subset = mv.subset(multivariable<vars::density, vars::pressure>);
 		auto & [dvec1, pvec1] = subset;

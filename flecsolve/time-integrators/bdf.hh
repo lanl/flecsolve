@@ -147,13 +147,13 @@ struct integrator : base<parameters<O, W, S, use_factory>> {
 			evaluate_predictor();
 			auto & predict = getvec<workvec::predict>();
 			auto & op = params.get_operator();
-			bool valid_vector = op.is_valid(predict);
+			bool valid_vector = op.source().is_valid(predict);
 			if (!valid_vector) {
 				int number_of_predictor_precheck_events = 10;
 				for (int i = 0; i < number_of_predictor_precheck_events; ++i) {
 					current_dt = 0.5 * current_dt;
 					evaluate_predictor();
-					valid_vector = op.is_valid(predict);
+					valid_vector = op.source().is_valid(predict);
 				}
 			}
 		}
@@ -222,7 +222,7 @@ protected:
 		if (current_integrator == method::cn) {
 			auto & scratch = getvec<workvec::scratch>();
 			auto & prev_function = getvec<workvec::previous_function>();
-			auto & time_op = params.get_operator();
+			auto & time_op = params.get_operator().source();
 			scratch.copy(prev[0].solution);
 			time_op.apply_rhs(scratch, prev_function);
 		}
@@ -428,7 +428,7 @@ protected:
 		// 	f.axpy(-gamma, tdep_source, f);
 		// }
 
-		auto & time_op = params.get_operator();
+		auto & time_op = params.get_operator().source();
 		time_op.set_scaling(gamma);
 	}
 
@@ -532,7 +532,7 @@ protected:
 
 		auto & predict = getvec<workvec::predict>();
 		auto & op = params.get_operator();
-		if (!op.is_valid(predict)) {
+		if (!op.source().is_valid(predict)) {
 			// constant extrapolation in time for the predictor
 			evaluate_forward_euler_predictor();
 		}
@@ -570,7 +570,7 @@ protected:
 		double gamma = current_dt;
 
 		if (first_step) {
-			auto & time_op = params.get_operator();
+			auto & time_op = params.get_operator().source();
 			auto & scratch = getvec<workvec::scratch>();
 			auto & curr_func = getvec<workvec::current_function>();
 			auto & time_deriv = getvec<workvec::time_deriv>();

@@ -5,7 +5,7 @@
 #include <flecsi/flog.hh>
 #include <iostream>
 
-#include "flecsolve/vectors/mesh.hh"
+#include "flecsolve/vectors/topo_view.hh"
 #include "flecsolve/vectors/multi.hh"
 
 #include "flecsolve/physics/specializations/fvm_narray.hh"

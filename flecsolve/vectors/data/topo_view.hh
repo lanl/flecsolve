@@ -1,5 +1,5 @@
-#ifndef FLECSI_LINALG_VEC_DATA_MESH_H
-#define FLECSI_LINALG_VEC_DATA_MESH_H
+#ifndef FLECSI_LINALG_VEC_DATA_TOPO_VIEW_HH
+#define FLECSI_LINALG_VEC_DATA_TOPO_VIEW_HH
 
 #include <flecsi/data.hh>
 
@@ -8,17 +8,20 @@ namespace flecsolve::vec::data {
 template<typename T, flecsi::data::layout L = flecsi::data::layout::dense>
 using field = flecsi::field<T, L>;
 
-template<class Topo, typename Topo::index_space Space, class T>
-struct mesh {
-	using topo_t = Topo;
-	static constexpr typename Topo::index_space space = Space;
-	using topo_slot_t = flecsi::data::topology_slot<Topo>;
+template<class Config>
+struct topo_view {
+	using config = Config;
+	using scalar = typename Config::scalar;
+	using topo_t = typename Config::topo_t;
+	static constexpr typename topo_t::index_space space = Config::space;
+	using topo_slot_t = flecsi::data::topology_slot<topo_t>;
 	using field_definition =
-		typename field<T>::template definition<Topo, Space>;
-	using field_reference = typename field<T>::template Reference<Topo, Space>;
+		typename field<scalar>::template definition<topo_t, space>;
+	using field_reference =
+		typename field<scalar>::template Reference<topo_t, space>;
 
 	static inline constexpr flecsi::PrivilegeCount num_priv =
-		topo_t::template privilege_count<Space>;
+		topo_t::template privilege_count<space>;
 
 	template<flecsi::partition_privilege_t priv>
 	static inline constexpr flecsi::Privileges dofs_priv =
@@ -28,10 +31,10 @@ struct mesh {
 
 	using topo_acc = typename topo_t::template accessor<flecsi::ro>;
 	template<flecsi::partition_privilege_t priv>
-	using acc = typename field<T>::template accessor1<dofs_priv<priv>>;
+	using acc = typename field<scalar>::template accessor1<dofs_priv<priv>>;
 
 	template<flecsi::partition_privilege_t priv>
-	using acc_all = typename field<T>::template accessor1<
+	using acc_all = typename field<scalar>::template accessor1<
 		flecsi::privilege_repeat<priv, num_priv>>;
 
 	struct util {
@@ -49,19 +52,13 @@ struct mesh {
 	topo_slot_t & topo() const { return topo_slot; }
 };
 
-template<class Slot, class Ref>
-mesh(std::reference_wrapper<Slot>, Ref)
-	-> mesh<typename Ref::Base::Topology, Ref::space, typename Ref::value_type>;
-
-template<class Topo, typename Topo::index_space Space, class T>
-bool operator==(const mesh<Topo, Space, T> & d1,
-                const mesh<Topo, Space, T> & d2) {
+template<class Config>
+bool operator==(const topo_view<Config> & d1, const topo_view<Config> & d2) {
 	return d1.fid() == d2.fid();
 }
 
-template<class Topo, typename Topo::index_space Space, class T>
-bool operator!=(const mesh<Topo, Space, T> & d1,
-                const mesh<Topo, Space, T> & d2) {
+template<class Config>
+bool operator!=(const topo_view<Config> & d1, const topo_view<Config> & d2) {
 	return d1.fid() != d2.fid();
 }
 

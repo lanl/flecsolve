@@ -5,7 +5,7 @@
 
 #include "flecsi/run/control.hh"
 
-#include "flecsolve/vectors/mesh.hh"
+#include "flecsolve/vectors/topo_view.hh"
 
 #include "mesh.hh"
 
@@ -32,14 +32,14 @@ struct control_policy : flecsi::run::control_base {
 
 	double diffusivity;
 
-	using vec = decltype(flecsolve::vec::mesh(m, ud[0](m)));
+	using vec = decltype(flecsolve::vec::make(m, ud[0](m)));
 	vec & u() { return u_.value(); }
 
 	vec & unew() { return unew_.value(); }
 
 	void initialize_vectors() {
-		u_.emplace(m, ud[0](m));
-		unew_.emplace(m, ud[1](m));
+		u_.emplace(flecsolve::vec::make(m, ud[0](m)));
+		unew_.emplace(flecsolve::vec::make(m, ud[1](m)));
 	}
 
 	template<class T>

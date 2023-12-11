@@ -4,8 +4,7 @@
 #include "flecsi/topo/narray/interface.hh"
 
 #include "flecsolve/vectors/variable.hh"
-#include "flecsolve/vectors/base.hh"
-#include "flecsolve/operators/base.hh"
+#include "flecsolve/operators/core.hh"
 #include "flecsolve/matrices/seq.hh"
 
 namespace flecsolve {
@@ -113,13 +112,12 @@ inline void spmv(const mat::csr<double> & A,
 	}
 }
 
-struct csr_op : op::base<csr_op> {
+struct csr_op : op::base<> {
 
-	template<class CSR>
-	csr_op(CSR && m) : A(std::forward<CSR>(m)) {}
+	explicit csr_op(mat::csr<double> m) : A(std::move(m)) {}
 
 	template<class D, class R>
-	void apply(const vec::base<D> & x, vec::base<R> & y) const {
+	void apply(const D & x, R & y) const {
 		flecsi::execute<spmv, flecsi::mpi>(
 			A, x.data.topo(), x.data.ref(), y.data.ref());
 	}

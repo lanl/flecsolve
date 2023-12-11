@@ -207,7 +207,7 @@ struct mesh : flecsi::topo::specialization<flecsi::topo::narray, mesh> {
 		flog_assert(idef.colors() == flecsi::processes(),
 		            "current implementation is restricted to 1-to-1 mapping");
 
-		return {MPI_COMM_WORLD, {idef}};
+		return {{idef}};
 	}
 
 	using grect = std::array<std::array<double, 2>, 2>;

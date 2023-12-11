@@ -5,7 +5,6 @@
 #include <type_traits>
 #include <functional>
 
-#include "flecsolve/vectors/base.hh"
 #include "flecsolve/vectors/variable.hh"
 
 namespace flecsolve::op {

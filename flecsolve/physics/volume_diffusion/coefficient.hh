@@ -11,7 +11,7 @@
 #include "flecsolve/physics/common/operator_base.hh"
 #include "flecsolve/physics/common/vector_types.hh"
 #include "flecsolve/physics/specializations/fvm_narray.hh"
-#include "flecsolve/vectors/data/mesh.hh"
+#include "flecsolve/vectors/data/topo_view.hh"
 #include "flecsolve/vectors/variable.hh"
 
 namespace flecsolve {

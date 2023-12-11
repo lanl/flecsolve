@@ -2,7 +2,7 @@
 #include "flecsi/util/unit.hh"
 #include "flecsi/util/unit/types.hh"
 
-#include "flecsolve/vectors/mesh.hh"
+#include "flecsolve/vectors/topo_view.hh"
 #include "flecsolve/time-integrators/rk23.hh"
 #include "flecsolve/time-integrators/rk45.hh"
 #include "flecsolve/util/config.hh"
@@ -35,7 +35,8 @@ int extest() {
 
 		rate F{-1};
 
-		vec::mesh x(msh, xd(msh)), xnew(msh, xnewd(msh));
+		auto x = vec::make(msh)(xd);
+		auto xnew = vec::make(msh)(xnewd);
 
 		rk23::parameters params23_var(
 			"variable", std::ref(F), rk23::topo_work<>::get(x)),

@@ -5,16 +5,17 @@
 #include "flecsi/util/unit/types.hh"
 
 #include "flecsolve/matrices/io/matrix_market.hh"
-#include "flecsolve/vectors/mesh.hh"
+#include "flecsolve/vectors/topo_view.hh"
 #include "flecsolve/vectors/seq.hh"
 #include "flecsolve/solvers/cg.hh"
 #include "flecsolve/util/config.hh"
+#include "flecsolve/vectors/traits.hh"
 
 namespace flecsolve {
 
 template<class Op, class Vec>
 struct diagnostic {
-	diagnostic(const Op & A, const vec::seq<Vec> & x0, double cond)
+	diagnostic(const Op & A, const Vec & x0, double cond)
 		: iter(0), cond(cond), A(A), Ax{x0.data.size()}, monotonic_fail(false),
 		  convergence_fail(false) {
 		A.apply(x0, Ax);
@@ -23,8 +24,9 @@ struct diagnostic {
 		e_prev = e_0;
 	}
 
-	bool operator()(const vec::base<Vec> & x, double) {
-		A.apply(x.derived(), Ax);
+	template<class T, std::enable_if_t<is_vector_v<T>, bool> = true>
+	bool operator()(const T & x, double) {
+		A.apply(x, Ax);
 		auto nrm = x.dot(Ax).get();
 		auto e_a = std::sqrt(nrm);
 		auto frac = (std::sqrt(cond) - 1) / (std::sqrt(cond) + 1);
@@ -63,10 +65,11 @@ int cgtest() {
 
 	UNIT () {
 		for (const auto & cs : cases) {
-			auto A = mat::io::matrix_market<>::read(cs.fname).tocsr();
+			op::core<mat::csr<double>, op::shared_storage> A(
+				mat::io::matrix_market<>::read(cs.fname).tocsr());
 
-			vec::seq_vec<double> b{A.rows()};
-			vec::seq_vec<double> x{A.rows()};
+			vec::seq_vec<double> b{A.source().rows()};
+			vec::seq_vec<double> x{A.source().rows()};
 
 			b.set_scalar(0.0);
 			x.set_random(7);
@@ -74,12 +77,12 @@ int cgtest() {
 			diagnostic diag(A, x, cs.cond);
 			cg::settings settings{"cg-solver"};
 			read_config("cg.cfg", settings);
-			op::krylov_parameters params(std::move(settings),
-			                             vec::seq_work<double, cg::nwork>{b},
-			                             std::ref(A),
-			                             op::I,
-			                             std::ref(diag));
-			op::krylov slv(std::move(params));
+			op::krylov slv(
+				op::krylov_parameters(std::move(settings),
+			                          vec::seq_work<double, cg::nwork>{b},
+			                          A,
+			                          op::I,
+			                          std::ref(diag)));
 
 			auto info = slv.apply(b, x);
 

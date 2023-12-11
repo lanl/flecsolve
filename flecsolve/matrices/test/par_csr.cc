@@ -5,11 +5,11 @@
 #include <iomanip>
 
 #include "flecsolve/vectors/seq.hh"
-#include "flecsolve/operators/base.hh"
+#include "flecsolve/operators/core.hh"
 #include "flecsolve/solvers/factory.hh"
 #include "flecsolve/solvers/cg.hh"
 #include "flecsolve/solvers/krylov_operator.hh"
-#include "flecsolve/vectors/mesh.hh"
+#include "flecsolve/vectors/topo_view.hh"
 #include "flecsolve/matrices/io/matrix_market.hh"
 #include "flecsolve/matrices/parcsr.hh"
 
@@ -21,55 +21,65 @@ field<double>::definition<mat::parcsr, mat::parcsr::cols> xd;
 field<double>::definition<mat::parcsr, mat::parcsr::cols> yd;
 
 namespace mat {
-struct parcsr_op;
-template<>
-struct traits<parcsr_op> {
-	using scalar_t = double;
-	using size_t = std::size_t;
-	struct data_t {
-		parcsr::slot topo;
-		parcsr::cslot coloring;
-		parcsr::init coloring_input;
 
-		auto spmv_tmp() { return vec::mesh(topo, spmv_tmp_def(topo)); }
+template<class Config>
+struct parcsr_data {
+	using config = Config;
+	parcsr::slot topo;
+	parcsr::cslot coloring;
+	parcsr::init coloring_input;
 
-	protected:
-		field<scalar_t>::definition<parcsr, parcsr::cols> spmv_tmp_def;
-	};
+	auto spmv_tmp() { return vec::make(topo, spmv_tmp_def(topo)); }
 
-	struct ops_t {
-		template<class D, class R>
-		void spmv(const D & x, const data_t & data_c, R & y) const {
-			auto & data = const_cast<data_t &>(data_c);
-			auto tmpv = const_cast<data_t &>(data).spmv_tmp();
-			flecsi::execute<spmv_remote>(
-				data.topo, tmpv.data.ref(), x.data.ref());
-			flecsi::execute<spmv_local>(data.topo, y.data.ref(), x.data.ref());
-			y.add(y, tmpv);
-		}
-
-	protected:
-		static void
-		spmv_remote(parcsr::accessor<flecsi::ro> ma,
-		            field<scalar_t>::accessor<flecsi::wo, flecsi::na> ya,
-		            field<scalar_t>::accessor<flecsi::na, flecsi::ro> xa) {
-			vec::seq_view y{ya.span()};
-			vec::seq_view x{xa.span()};
-			ma.offd().mult(x, y);
-		}
-
-		static void
-		spmv_local(parcsr::accessor<flecsi::ro> ma,
-		           field<scalar_t>::accessor<flecsi::wo, flecsi::na> ya,
-		           field<scalar_t>::accessor<flecsi::ro, flecsi::na> xa) {
-			vec::seq_view y{ya.span()};
-			vec::seq_view x{xa.span()};
-			ma.diag().mult(x, y);
-		}
-	};
+protected:
+	typename field<typename Config::scalar>::template definition<parcsr,
+	                                                             parcsr::cols>
+		spmv_tmp_def;
 };
 
-struct parcsr_op : flecsolve::mat::sparse<parcsr_op> {
+template<class Data>
+struct parcsr_ops {
+	using data_t = Data;
+	using config = typename Data::config;
+	using scalar_t = typename config::scalar;
+	template<class D, class R>
+	static void spmv(const D & x, const data_t & data_c, R & y) {
+		auto & data = const_cast<data_t &>(data_c);
+		auto tmpv = const_cast<data_t &>(data).spmv_tmp();
+		flecsi::execute<spmv_remote>(data.topo, tmpv.data.ref(), x.data.ref());
+		flecsi::execute<spmv_local>(data.topo, y.data.ref(), x.data.ref());
+		y.add(y, tmpv);
+	}
+
+protected:
+	static void spmv_remote(
+		parcsr::accessor<flecsi::ro> ma,
+		typename field<scalar_t>::template accessor<flecsi::wo, flecsi::na> ya,
+		typename field<scalar_t>::template accessor<flecsi::na, flecsi::ro>
+			xa) {
+		vec::seq_view y{ya.span()};
+		vec::seq_view x{xa.span()};
+		ma.offd().mult(x, y);
+	}
+
+	static void spmv_local(
+		parcsr::accessor<flecsi::ro> ma,
+		typename field<scalar_t>::template accessor<flecsi::wo, flecsi::na> ya,
+		typename field<scalar_t>::template accessor<flecsi::ro, flecsi::na>
+			xa) {
+		vec::seq_view y{ya.span()};
+		vec::seq_view x{xa.span()};
+		ma.diag().mult(x, y);
+	}
+};
+
+struct parcsr_config {
+	using scalar = double;
+	using size = std::size_t;
+};
+struct parcsr_op
+	: flecsolve::mat::sparse<parcsr_data, parcsr_ops, parcsr_config> {
+	using base = flecsolve::mat::sparse<parcsr_data, parcsr_ops, parcsr_config>;
 	parcsr_op(MPI_Comm comm,
 	          const char * fname,
 	          Color colors = flecsi::processes())
@@ -131,9 +141,10 @@ int csr_test() {
 	UNIT () {
 		using namespace flecsolve::mat;
 
-		parcsr_op A{MPI_COMM_WORLD, "Chem97ZtZ.mtx"};
-		vec::mesh x(A.data.topo, xd(A.data.topo));
-		vec::mesh y(A.data.topo, yd(A.data.topo));
+		op::core<parcsr_op> A(MPI_COMM_WORLD, "Chem97ZtZ.mtx");
+		auto & topo = A.source().data.topo;
+		auto x = vec::make(topo, xd(topo));
+		auto y = vec::make(topo, yd(topo));
 
 		y.set_scalar(0.0);
 		x.set_scalar(2);
@@ -142,7 +153,7 @@ int csr_test() {
 			cg::settings("solver"), cg::topo_work<>::get(x), std::ref(A)};
 		read_config("parcsr.cfg", params);
 
-		op::krylov slv{std::move(params)};
+		auto slv = op::krylov_solver(std::move(params));
 
 		auto info = slv.apply(y, x);
 		EXPECT_TRUE(info.iters == 167);
