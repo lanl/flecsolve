@@ -149,11 +149,10 @@ int csr_test() {
 		y.set_scalar(0.0);
 		x.set_scalar(2);
 
-		op::krylov_parameters params{
-			cg::settings("solver"), cg::topo_work<>::get(x), std::ref(A)};
-		read_config("parcsr.cfg", params);
-
-		auto slv = op::krylov_solver(std::move(params));
+		auto slv = op::krylov_solver(op::krylov_parameters(
+			read_config("parcsr.cfg", cg::options("solver")),
+			cg::topo_work<>::get(x),
+			std::ref(A)));
 
 		auto info = slv.apply(y, x);
 		EXPECT_TRUE(info.iters == 167);

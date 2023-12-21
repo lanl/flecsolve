@@ -87,11 +87,7 @@ auto krylov_solver(P && p) {
 
 template<class Params, class... Ops>
 auto rebind(krylov<Params> & kr, Ops &&... ops) {
-	static_assert(!detail::precond_is_factory_v<Ops...>);
-	krylov_parameters_base<false,
-	                       typename Params::solver_type,
-	                       std::nullptr_t,
-	                       Ops...>
+	krylov_parameters_base<typename Params::solver_type, std::nullptr_t, Ops...>
 	new_params(std::forward<Ops>(ops)...);
 	new_params.solver = kr.params.solver;
 	return krylov(std::move(new_params));

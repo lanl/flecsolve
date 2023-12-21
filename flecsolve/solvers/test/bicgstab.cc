@@ -26,9 +26,8 @@ int driver() {
 	static_assert(cases.size() <= ncases);
 
 	UNIT () {
-		bicgstab::settings settings("solver");
-		read_config("bicgstab.cfg", settings);
-
+		auto settings =
+			read_config("bicgstab.cfg", bicgstab::options("solver"));
 		std::size_t i = 0;
 		for (const auto & cs : cases) {
 			auto mtx = mat::io::matrix_market<>::read(std::get<0>(cs)).tocsr();

@@ -38,18 +38,23 @@ int extest() {
 		auto x = vec::make(msh)(xd);
 		auto xnew = vec::make(msh)(xnewd);
 
-		rk23::parameters params23_var(
-			"variable", std::ref(F), rk23::topo_work<>::get(x)),
-			params23_fixed("fixed", std::ref(F), rk23::topo_work<>::get(x));
-		rk45::parameters params45_var(
-			"variable", std::ref(F), rk45::topo_work<>::get(x)),
-			params45_fixed("fixed", std::ref(F), rk45::topo_work<>::get(x));
-		read_config("explicit.cfg", params23_var, params23_fixed);
-		read_config("explicit.cfg", params45_var, params45_fixed);
-		rk23::integrator ti23_var(std::move(params23_var)),
-			ti23_fixed(std::move(params23_fixed));
-		rk45::integrator ti45_var(std::move(params45_var)),
-			ti45_fixed(std::move(params45_fixed));
+		auto [ti23_var, ti23_fixed] = std::apply(
+			[&](auto &&... s) {
+				return std::make_tuple(rk23::integrator(rk23::parameters(
+					s, std::ref(F), rk23::topo_work<>::get(x)))...);
+			},
+			read_config("explicit.cfg",
+		                rk23::options("variable"),
+		                rk23::options("fixed")));
+
+		auto [ti45_var, ti45_fixed] = std::apply(
+			[&](auto &&... s) {
+				return std::make_tuple(rk45::integrator(rk45::parameters(
+					s, std::ref(F), rk45::topo_work<>::get(x)))...);
+			},
+			read_config("explicit.cfg",
+		                rk45::options("variable"),
+		                rk45::options("fixed")));
 
 		auto run = [&](auto & ti) {
 			x.set_scalar(ic);

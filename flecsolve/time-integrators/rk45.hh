@@ -8,16 +8,21 @@
 
 namespace flecsolve::time_integrator::rk45 {
 
+struct settings : rk23::settings {};
+struct options : rk23::options {
+	using settings_type = settings;
+	explicit options(const char * pre) : rk23::options(pre) {}
+};
 template<class Op, class Work>
 struct parameters : rk23::parameters<Op, Work> {
 	template<class O, class W>
-	parameters(const char * pre, O && op, W && work)
-		: rk23::parameters<Op, Work>(pre,
+	parameters(const settings & s, O && op, W && work)
+		: rk23::parameters<Op, Work>(s,
 	                                 std::forward<O>(op),
 	                                 std::forward<W>(work)) {}
 };
 template<class O, class W>
-parameters(const char *, O &&, W &&) -> parameters<O, W>;
+parameters(const settings &, O &&, W &&) -> parameters<O, W>;
 
 enum workvecs : std::size_t { k1, k2, k3, k4, k5, k6, z, next, nvecs };
 

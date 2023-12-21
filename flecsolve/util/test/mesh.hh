@@ -23,8 +23,7 @@ struct testmesh : flecsi::topo::specialization<flecsi::topo::narray, testmesh> {
 	using axis_definition = base::axis_definition;
 	using index_definition = base::index_definition;
 
-	struct meta_data {
-	};
+	struct meta_data {};
 
 	static constexpr std::size_t dimension = 1;
 
