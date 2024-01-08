@@ -301,17 +301,14 @@ inline int driver() {
 	//===================================================
 
 	flog(info) << "constructing solver\n";
-	// get the solver parameters and workspace, & bind the operator to the
-	// solver
-	flecsolve::op::krylov_parameters params(
-		flecsolve::cg::settings("solver"),
-		flecsolve::cg::topo_work<>::get(RHS),
-		std::ref(A));
-
-	flecsolve::read_config("diffusion.cfg", params);
-
 	// create the solver
-	flecsolve::op::krylov slv(std::move(params));
+	flecsolve::op::krylov slv(
+		// get the solver parameters and workspace, & bind the operator to the
+		// solver
+		flecsolve::op::krylov_parameters(
+			flecsolve::read_config("diffusion.cfg", flecsolve::cg::options("solver")),
+			flecsolve::cg::topo_work<>::get(RHS),
+			std::ref(A)));
 
 	flog(info) << "applying the solver\n";
 	// run the solver
