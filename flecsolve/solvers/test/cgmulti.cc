@@ -56,8 +56,7 @@ int multicg() {
 		xm.subset(variable<vars::var1>).set_random(7);
 		xm.subset(variable<vars::var2>).set_random(4);
 
-		cg::settings settings("solver");
-		read_config("cgmulti.cfg", settings);
+		auto settings = read_config("cgmulti.cfg", cg::options("solver"));
 
 		op::krylov slv1(op::krylov_parameters(
 			settings,

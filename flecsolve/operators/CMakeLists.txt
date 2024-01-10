@@ -3,4 +3,5 @@ set(operators_HEADERS
   traits.hh
   shell.hh
   storage.hh
+  factory.hh
   PARENT_SCOPE)

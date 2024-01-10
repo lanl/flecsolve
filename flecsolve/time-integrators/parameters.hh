@@ -5,16 +5,45 @@
 #include <limits>
 
 #include "flecsolve/util/traits.hh"
+#include "flecsolve/util/config.hh"
 
 namespace flecsolve::time_integrator {
 
 namespace po = boost::program_options;
-template<class O, class W>
-struct parameters {
+
+struct base_settings {
+	double initial_time;
+	double final_time;
+	int max_steps;
+	double max_dt;
+	double min_dt;
+	double initial_dt;
+};
+
+struct base_options : with_label {
+	using settings_type = base_settings;
+	explicit base_options(const char * pre) : with_label(pre) {}
+
+	auto operator()(settings_type & s) {
+		po::options_description desc;
+		// clang-format off
+		desc.add_options()
+			(label("initial-time").c_str(), po::value<double>(&s.initial_time)->required(), "initial time for time integrator")
+			(label("final-time").c_str(), po::value<double>(&s.final_time)->required(), "final time for time integrator")
+			(label("max-steps").c_str(), po::value<int>(&s.max_steps)->required(), "maximum number of steps for time integrator")
+			(label("max-dt").c_str(), po::value<double>(&s.max_dt)->default_value(std::numeric_limits<double>::max()), "maximum time step")
+			(label("min-dt").c_str(), po::value<double>(&s.min_dt)->default_value(std::numeric_limits<double>::min()), "minimum time step")
+			(label("initial-dt").c_str(), po::value<double>(&s.initial_dt)->default_value(0), "initial time step");
+		// clang-format on
+		return desc;
+	}
+};
+
+template<class S, class O, class W>
+struct parameters : S {
 	template<class Op, class Work>
-	parameters(const char * pre, Op && op, Work && work)
-		: op(std::forward<Op>(op)), work(std::forward<Work>(work)),
-		  prefix(pre) {}
+	parameters(const S & s, Op && op, Work && work)
+		: S(s), op(std::forward<Op>(op)), work(std::forward<Work>(work)) {}
 
 	auto & get_operator() {
 		if constexpr (is_reference_wrapper_v<O>)
@@ -23,33 +52,10 @@ struct parameters {
 			return op;
 	}
 
-	auto options() {
-		po::options_description desc;
-		// clang-format off
-		desc.add_options()
-			(label("initial-time").c_str(), po::value<double>(&initial_time)->required(), "initial time for time integrator")
-			(label("final-time").c_str(), po::value<double>(&final_time)->required(), "final time for time integrator")
-			(label("max-steps").c_str(), po::value<int>(&max_steps)->required(), "maximum number of steps for time integrator")
-			(label("max-dt").c_str(), po::value<double>(&max_dt)->default_value(std::numeric_limits<double>::max()), "maximum time step")
-			(label("min-dt").c_str(), po::value<double>(&min_dt)->default_value(std::numeric_limits<double>::min()), "minimum time step")
-			(label("initial-dt").c_str(), po::value<double>(&initial_dt)->default_value(0), "initial time step");
-		// clang-format on
-		return desc;
-	}
+	auto options() {}
 
-	double initial_time;
-	double final_time;
-	int max_steps;
-	double max_dt;
-	double min_dt;
-	double initial_dt;
 	std::decay_t<O> op;
 	std::decay_t<W> work;
-
-protected:
-	std::string prefix;
-
-	std::string label(const char * suf) { return {prefix + "." + suf}; }
 };
 
 }

@@ -13,23 +13,6 @@ enum workvecs : std::size_t { sol, res, correction, nwork };
 
 struct settings : solver_settings {
 
-	settings(const char * pre) : solver_settings(pre) {}
-
-	auto options() {
-		auto desc = solver_settings::options();
-		// clang-format off
-		desc.add_options()
-			(label("max-dim").c_str(), po::value<int>(&max_dim)->required(), "maximum dimension")
-			(label("angle-tol").c_str(), po::value<double>(&angle_tol)->default_value(0.9), "angle tolerance")
-			(label("freeze-pc").c_str(), po::value<bool>(&freeze_pc)->default_value(true), "freeze preconditioner")
-			(label("use-qr").c_str(), po::value<bool>(&use_qr)->default_value(false), "use QR for factorization")
-			(label("use-damping").c_str(), po::value<bool>(&use_damping)->default_value(false), "use damping")
-			(label("adaptive-damping").c_str(), po::value<bool>(&adaptive_damping)->default_value(false), "use adaptive damping")
-			(label("damping-factor").c_str(), po::value<double>(&damping_factor)->default_value(1.), "daping factor");
-		// clang-format on
-		return desc;
-	}
-
 	void validate() {
 		if (adaptive_damping) {
 			flog_assert(use_damping,
@@ -47,6 +30,28 @@ struct settings : solver_settings {
 	bool use_damping;
 	bool adaptive_damping;
 	double damping_factor;
+};
+
+struct options : solver_options {
+	using settings_type = settings;
+	using base_t = solver_options;
+
+	options(const char * pre) : base_t(pre) {}
+
+	auto operator()(settings_type & s) {
+		auto desc = base_t::operator()(s);
+		// clang-format off
+		desc.add_options()
+			(label("max-dim").c_str(), po::value<int>(&s.max_dim)->required(), "maximum dimension")
+			(label("angle-tol").c_str(), po::value<double>(&s.angle_tol)->default_value(0.9), "angle tolerance")
+			(label("freeze-pc").c_str(), po::value<bool>(&s.freeze_pc)->default_value(true), "freeze preconditioner")
+			(label("use-qr").c_str(), po::value<bool>(&s.use_qr)->default_value(false), "use QR for factorization")
+			(label("use-damping").c_str(), po::value<bool>(&s.use_damping)->default_value(false), "use damping")
+			(label("adaptive-damping").c_str(), po::value<bool>(&s.adaptive_damping)->default_value(false), "use adaptive damping")
+			(label("damping-factor").c_str(), po::value<double>(&s.damping_factor)->default_value(1.), "daping factor");
+		// clang-format on
+		return desc;
+	}
 };
 
 template<std::size_t dim_bound = 10, std::size_t version = 0>

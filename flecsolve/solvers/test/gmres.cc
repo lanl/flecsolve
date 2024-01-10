@@ -64,24 +64,21 @@ int gmres_test() {
 		op::core<csr_op, op::shared_storage> A(std::move(matrix));
 		op::core<csr_op, op::shared_storage> Dinv(A.source().Dinv());
 
-		auto [x, b] = [&](auto &... fd) {
-			return std::tuple(vec::make(msh, fd(msh))...);
-		}(xd, bd);
+		auto [x, b] = vec::make(msh)(xd, bd);
 		b.set_random(0);
 		x.set_random(1);
 
 		diagnostic diag(A, x, b, cfact);
-		op::krylov_parameters params_norestart(
-			gmres::settings("gmres-norestart"),
-			gmres::topo_work<>::get(b),
-			A,
-			op::I,
-			std::ref(diag));
-		op::krylov_parameters params_restart(
-			gmres::settings("gmres-restart"), gmres::topo_work<>::get(b), A);
-		read_config("gmres.cfg", params_norestart, params_restart);
+		auto [settings_norestart, settings_restart] =
+			read_config("gmres.cfg",
+		                gmres::options("gmres-norestart"),
+		                gmres::options("gmres-restart"));
 		{
-			op::krylov slv(std::move(params_norestart));
+			op::krylov slv(op::krylov_parameters(settings_norestart,
+			                                     gmres::topo_work<>::get(b),
+			                                     A,
+			                                     op::I,
+			                                     std::ref(diag)));
 			auto info = slv.apply(b, x);
 
 			EXPECT_EQ(info.iters, 73);
@@ -94,6 +91,8 @@ int gmres_test() {
 			EXPECT_EQ(info_pre.iters, 18);
 		}
 		{ // test restart
+			op::krylov_parameters params_restart(
+				settings_restart, gmres::topo_work<>::get(b), A);
 			b.set_random(0);
 			x.set_random(1);
 

@@ -1,6 +1,7 @@
 #ifndef FLECSOLVE_TIME_INTEGRATOR_BDF_H
 #define FLECSOLVE_TIME_INTEGRATOR_BDF_H
 
+#include <functional>
 #include <limits>
 
 #include "flecsi/flog.hh"
@@ -32,9 +33,9 @@ using topo_work = topo_work_base<work_size, Version>;
 
 short order(method meth);
 
-template<class O, class W, class S, bool use_factory>
-struct integrator : base<parameters<O, W, S, use_factory>> {
-	using P = parameters<O, W, S, use_factory>;
+template<class O, class W, class S>
+struct integrator : base<parameters<O, W, S>> {
+	using P = parameters<O, W, S>;
 	using base<P>::params;
 	using base<P>::current_dt;
 	using base<P>::old_dt;
@@ -57,6 +58,8 @@ struct integrator : base<parameters<O, W, S, use_factory>> {
 		flog_assert(curr != out,
 		            "BDF integrator: curr cannot be the same as out");
 		assert_can_advance();
+
+		prev.seat(std::ref(params.work));
 
 		prev[0].solution.copy(curr);
 		current_dt = dt;
@@ -857,11 +860,11 @@ protected:
 
 	int total_steprejects;
 };
-template<class O, class W, class S, bool B>
-integrator(parameters<O, W, S, B>) -> integrator<O, W, S, B>;
+template<class O, class W, class S>
+integrator(parameters<O, W, S>) -> integrator<O, W, S>;
 
-template<class O, class W, class S, bool B>
-struct integrator<O, W, S, B>::history {
+template<class O, class W, class S>
+struct integrator<O, W, S>::history {
 	struct vec_arr {
 		using size_type = std::size_t;
 		using vec_t = typename std::remove_reference_t<W>::value_type;
@@ -908,6 +911,8 @@ struct integrator<O, W, S, B>::history {
 
 		pos %= len;
 	}
+
+	void seat(std::reference_wrapper<W> w) { work = w; }
 
 protected:
 	value_type operator()(size_type ind) {

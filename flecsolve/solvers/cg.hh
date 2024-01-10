@@ -12,7 +12,7 @@ namespace flecsolve::cg {
 static constexpr std::size_t nwork = 4;
 
 using settings = solver_settings;
-
+using options = solver_options;
 template<std::size_t Version = 0>
 using topo_work = topo_work_base<nwork, Version>;
 

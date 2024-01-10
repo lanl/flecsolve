@@ -2,6 +2,7 @@
 #define FLECSI_LINALG_UTIL_CONFIG_H
 
 #include <boost/program_options.hpp>
+#include <flecsi/util/constant.hh>
 
 namespace flecsolve {
 
@@ -14,16 +15,36 @@ protected:
 	std::string label(const char * suf) { return {prefix + "." + suf}; }
 };
 
-template<class... Params>
-void read_config(const char * fname, Params &... params) {
+template<auto V>
+struct null_settings {};
+
+template<auto V>
+struct null_options : with_label {
+	explicit null_options(const char * pre) : with_label(pre) {}
+	auto operator()(null_settings<V> s) {
+		return boost::program_options::options_description{};
+	}
+};
+
+template<auto... V>
+using includes = flecsi::util::constants<V...>;
+
+template<class... Options>
+auto read_config(const char * fname, Options &&... ops) {
 	namespace po = boost::program_options;
+	std::tuple<typename Options::settings_type...> settings;
 
 	std::vector<std::string> prev_opts{"-1"};
 	int depth = 0, depth_limit = 50;
-	bool done{false};
+	bool done = false;
 	while (!done) {
 		po::options_description desc;
-		([&](auto & p) { desc.add(p.options()); }(params), ...);
+
+		std::apply(
+			[&](auto &... spack) {
+				([&](auto & o, auto & s) { desc.add(o(s)); }(ops, spack), ...);
+			},
+			settings);
 
 		po::variables_map vm;
 		po::parsed_options parsed = po::parse_config_file(fname, desc, true);
@@ -47,6 +68,11 @@ void read_config(const char * fname, Params &... params) {
 			prev_opts = opts;
 		}
 	}
+
+	if constexpr (sizeof...(ops) == 1)
+		return std::get<0>(settings);
+	else
+		return settings;
 }
 
 }

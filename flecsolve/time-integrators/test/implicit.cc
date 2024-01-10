@@ -84,12 +84,13 @@ int bdftest() {
 		auto xnew = vec::make(msh)(xnewd);
 
 		rate_solver solver{F};
-		bdf::parameters params2(
-			"bdf-2", F, bdf::topo_work<>::get(x), std::ref(solver)),
-			params5("bdf-5", F, bdf::topo_work<>::get(x), std::ref(solver));
-		read_config("implicit.cfg", params2, params5);
-		bdf::integrator ti2(std::move(params2));
-		bdf::integrator ti5(std::move(params5));
+		auto [ti2, ti5] = std::apply(
+			[&](auto &&... s) {
+				return std::make_tuple(bdf::integrator(bdf::parameters(
+					s, F, bdf::topo_work<>::get(x), std::ref(solver)))...);
+			},
+			read_config(
+				"implicit.cfg", bdf::options("bdf-2"), bdf::options("bdf-5")));
 
 		auto run = [&](auto & ti) {
 			x.set_scalar(ic);

@@ -15,25 +15,34 @@ namespace flecsolve::gmres {
 
 enum class precond_side { left, right };
 
+inline std::istream & operator>>(std::istream & in, precond_side & s) {
+	std::string tok;
+	in >> tok;
+
+	if (tok == "left")
+		s = precond_side::left;
+	else if (tok == "right")
+		s = precond_side::right;
+	else
+		in.setstate(std::ios_base::failbit);
+
+	return in;
+}
+inline std::ostream & operator<<(std::ostream & os, const precond_side & s) {
+	if (s == precond_side::left)
+		os << "left";
+	else if (s == precond_side::right)
+		os << "right";
+	return os;
+}
+
 static constexpr int krylov_dim_bound = 100;
 static constexpr std::size_t nwork = (krylov_dim_bound + 1) + 3;
 
 struct settings : solver_settings {
-	using base_t = solver_settings;
-	settings(const char * pre) : solver_settings(pre) {}
-
-	auto options() {
-		auto desc = solver_settings::options();
-		// clang-format off
-		desc.add_options()
-			(label("max-krylov-dim").c_str(), po::value<int>(&max_krylov_dim)->default_value(-1), "maximum krylov dimension")
-			(label("pre-side").c_str(),
-			 po::value<std::string>()->default_value("right")->notifier(
-				 std::bind(std::mem_fn(&settings::set_preside), this, std::placeholders::_1)), "preconditioner side")
-			(label("restart").c_str(), po::value<bool>(&restart)->default_value(false), "should restart");
-		// clang-format on
-		return desc;
-	}
+	int max_krylov_dim;
+	precond_side pre_side;
+	bool restart;
 
 	void validate() {
 		if (max_krylov_dim < 0)
@@ -46,20 +55,22 @@ struct settings : solver_settings {
 			            "max_krylov_dim when not using restart");
 		}
 	}
+};
+struct options : solver_options {
+	using settings_type = settings;
+	using base_t = solver_options;
+	options(const char * pre) : solver_options(pre) {}
 
-	int max_krylov_dim;
-	precond_side pre_side;
-	bool restart;
-
-private:
-	void set_preside(std::string side) {
-		if (side == "left")
-			pre_side = precond_side::left;
-		else if (side == "right")
-			pre_side = precond_side::right;
-		else {
-			flog_error("GMRES: invalid preconditioner side: " << side);
-		}
+	auto operator()(settings_type & s) {
+		auto desc = solver_options::operator()(s);
+		// clang-format off
+		desc.add_options()
+			(label("max-krylov-dim").c_str(), po::value<int>(&s.max_krylov_dim)->default_value(-1), "maximum krylov dimension")
+			(label("pre-side").c_str(),
+			 po::value<precond_side>(&s.pre_side)->default_value(precond_side::right), "preconditioner side")
+			(label("restart").c_str(), po::value<bool>(&s.restart)->default_value(false), "should restart");
+		// clang-format on
+		return desc;
 	}
 };
 

@@ -20,68 +20,66 @@ testmesh::cslot coloring;
 
 const realf::definition<testmesh, testmesh::cells> xd, bd;
 
-struct simple_factory : solver_factory<simple_factory> {
-	enum class registry { identity, Dinv };
+enum class simple_target { identity, Dinv };
 
-	void set_solver_type(registry reg) { solver_type = reg; }
-
-	template<class V, class Op>
-	void create_parameters(V &, Op &) {}
-
-	template<class V, class Op>
-	void create(V &, Op & A) {
-		if (solver_type == registry::Dinv)
-			dinv.emplace(A.source().Dinv());
-	}
-
-	template<class V, class D, class R, class Op>
-	void solve(const D & x, R & y, V &, Op &) {
-		if (solver_type == registry::identity)
-			op::I.apply(x, y);
-		else
-			dinv->apply(x, y);
-	}
-
-	std::optional<csr_op> dinv;
-	registry solver_type;
-};
-
-std::istream & operator>>(std::istream & in, simple_factory::registry & reg) {
+std::istream & operator>>(std::istream & in, simple_target & reg) {
 	std::string tok;
 	in >> tok;
 
 	if (tok == "identity")
-		reg = simple_factory::registry::identity;
+		reg = simple_target::identity;
 	else if (tok == "Dinv")
-		reg = simple_factory::registry::Dinv;
+		reg = simple_target::Dinv;
 	else
 		in.setstate(std::ios_base::failbit);
 
 	return in;
 }
 
+template<simple_target V>
+struct simple_registry {
+	using settings = null_settings<V>;
+	using options = null_options<V>;
+	template<class Op>
+	static auto make(const settings & s, Op & A) {
+		if constexpr (V == simple_target::identity) {
+			return op::I;
+		}
+		else if constexpr (V == simple_target::Dinv) {
+			return A.source().Dinv();
+		}
+	}
+};
+
+struct simple_policy {
+	using target = simple_target;
+	using targets = includes<target::identity, target::Dinv>;
+	template<target V>
+	using registry = simple_registry<V>;
+};
+using simple_factory = op::factory<simple_policy>;
+
 int nkatest() {
 	UNIT () {
 		auto mtx = mat::io::matrix_market<>::read("Chem97ZtZ.mtx").tocsr();
 		init_mesh(mtx.rows(), msh, coloring);
 
-		auto A = op::make(csr_op{std::move(mtx)});
+		op::core<csr_op, op::shared_storage> A(std::move(mtx));
 		auto [x, b] = vec::make(msh)(xd, bd);
 		{
 			b.set_scalar(1.);
 			x.set_scalar(3.);
 
-			cg::settings pre_settings("preconditioner");
-			nka::settings nnl_settings("solver");
-			read_config("nka.cfg", pre_settings, nnl_settings);
+			auto [pre_settings, nnl_settings] =
+				read_config("nka.cfg",
+			                cg::options("preconditioner"),
+			                nka::options("solver"));
 
 			auto P = op::make(op::krylov(op::krylov_parameters(
-				pre_settings, cg::topo_work<>::get(b), std::ref(A))));
+				pre_settings, cg::topo_work<>::get(b), A)));
 
-			op::krylov slv(op::krylov_parameters(nnl_settings,
-			                                     nka::topo_work<5>::get(b),
-			                                     std::ref(A),
-			                                     std::move(P)));
+			op::krylov slv(op::krylov_parameters(
+				nnl_settings, nka::topo_work<5>::get(b), A, std::move(P)));
 			auto info = slv.apply(b, x);
 			EXPECT_EQ(info.iters, 17);
 		}
@@ -89,24 +87,22 @@ int nkatest() {
 			b.set_scalar(1.);
 			x.set_scalar(3.);
 
+			auto [nnl_settings, lin_settings, precond_settings] =
+				read_config("nka-factory.cfg",
+			                nka::options("nnl-solver"),
+			                krylov_factory::options("linear-solver"),
+			                simple_factory::options("inner"));
+
 			std::size_t iter{0}, inner{0};
 			op::krylov_parameters params(
-				nka::settings("nnl-solver"),
+				nnl_settings,
 				nka::topo_work<5>::get(b),
-				std::ref(A),
-				krylov_factory(factory_union(simple_factory(),
-			                                 krylov_factory(simple_factory())),
-			                   [&](const auto &, double rnorm) {
-								   std::cout << "inner: " << ++inner << " "
-											 << rnorm << std::endl;
-								   return false;
-							   }),
-				[&](const auto &, double rnorm) {
-					inner = 0;
-					std::cout << ++iter << " " << rnorm << std::endl;
-					return false;
-				});
-			read_config("nka-factory.cfg", params);
+				A,
+				krylov_factory::make(
+					lin_settings,
+					b,
+					A,
+					simple_factory::make(precond_settings, A)));
 
 			op::krylov slv(std::move(params));
 

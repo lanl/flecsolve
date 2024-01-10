@@ -7,32 +7,39 @@
 
 namespace flecsolve::time_integrator::rk23 {
 
-template<class Op, class Work>
-struct parameters : time_integrator::parameters<Op, Work> {
-	using base = time_integrator::parameters<Op, Work>;
-	using base::label;
-
-	template<class O, class W>
-	parameters(const char * pre, O && op, W && work)
-		: base(pre, std::forward<O>(op), std::forward<W>(work)) {}
-
-	auto options() {
-		auto desc = base::options();
-		// clang-format off
-		desc.add_options()
-			(label("safety-factor").c_str(), po::value<float>(&safety_factor)->default_value(0.9), "safety factor")
-			(label("atol").c_str(), po::value<float>(&atol)->default_value(1e-9), "absolute tolerance")
-			(label("use-fixed-dt").c_str(), po::value<bool>(&use_fixed_dt)->default_value(false), "use fixed dt");
-		// clang-format on
-		return desc;
-	}
-
+struct settings : base_settings {
 	float safety_factor;
 	float atol;
 	bool use_fixed_dt;
 };
+
+struct options : base_options {
+	using settings_type = settings;
+	explicit options(const char * pre) : base_options(pre) {}
+
+	auto operator()(settings & s) {
+		auto desc = base_options::operator()(s);
+
+		// clang-format off
+		desc.add_options()
+			(label("safety-factor").c_str(), po::value<float>(&s.safety_factor)->default_value(0.9), "safety factor")
+			(label("atol").c_str(), po::value<float>(&s.atol)->default_value(1e-9), "absolute tolerance")
+			(label("use-fixed-dt").c_str(), po::value<bool>(&s.use_fixed_dt)->default_value(false), "use fixed dt");
+		// clang-format on
+
+		return desc;
+	}
+};
+template<class Op, class Work>
+struct parameters : time_integrator::parameters<settings, Op, Work> {
+	using base = time_integrator::parameters<settings, Op, Work>;
+
+	template<class O, class W>
+	parameters(const settings & s, O && op, W && work)
+		: base(s, std::forward<O>(op), std::forward<W>(work)) {}
+};
 template<class O, class W>
-parameters(const char *, O &&, W &&) -> parameters<O, W>;
+parameters(const settings &, O &&, W &&) -> parameters<O, W>;
 
 enum workvecs : std::size_t { k1, k2, k3, k4, z, next, nvecs };
 
