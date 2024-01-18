@@ -36,16 +36,17 @@ inline void fill_box_slopex(msh::accessor<ro, ro> vm,
 }
 
 static scalar_t val_in = 3.14;
-//static std::tuple fvm_apply_args{[](auto...) { return val_in + 1.0; },
- //                               "fvm_apply_args"};
-//static std::tuple fvm_apply_xargs{
+// static std::tuple fvm_apply_args{[](auto...) { return val_in + 1.0; },
+//                                "fvm_apply_args"};
+// static std::tuple fvm_apply_xargs{
 //	[](std::size_t, std::size_t, std::size_t i) { return i; },
 //	"fvm_apply_extra_args"};
 
-auto fvm_apply_args = std::make_tuple([](auto...) { return val_in + 1.0; },
-                                "fvm_apply_args");
-auto fvm_apply_xargs = std::make_tuple([](std::size_t, std::size_t, std::size_t i) { return i; },
-	"fvm_apply_extra_args");
+auto fvm_apply_args =
+	std::make_tuple([](auto...) { return val_in + 1.0; }, "fvm_apply_args");
+auto fvm_apply_xargs =
+	std::make_tuple([](std::size_t, std::size_t, std::size_t i) { return i; },
+                    "fvm_apply_extra_args");
 
 inline int check_apply_to() {
 	UNIT ("fvm_apply") {
@@ -53,8 +54,9 @@ inline int check_apply_to() {
 		execute<fill_box_increment<msh::cells, msh::x_axis>>(m, xd(m), val_in);
 		EXPECT_TRUE(fvm_run<rxcl>(fvm_apply_args, m, xd(m)));
 
-//		execute<fill_box_slopex<msh::cells, msh::x_axis>>(m, xd(m));
-//		EXPECT_EQ((test<fvm_check_f<fvm_apply_xargs, fvm_range_XCL>>(m, xd(m))), 0);
+		//		execute<fill_box_slopex<msh::cells, msh::x_axis>>(m, xd(m));
+		//		EXPECT_EQ((test<fvm_check_f<fvm_apply_xargs, fvm_range_XCL>>(m,
+		//xd(m))), 0);
 	};
 }
 

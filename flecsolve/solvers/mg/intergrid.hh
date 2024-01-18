@@ -17,7 +17,6 @@ struct intergrid_params {
 	ref_t aggregates; // field representing the transpose of the aggregates
 };
 
-
 template<class scalar, class size>
 struct prolong : op::base<intergrid_params<scalar, size>> {
 	using base = op::base<intergrid_params<scalar, size>>;
@@ -54,7 +53,6 @@ protected:
 		}
 	}
 };
-
 
 template<class scalar, class size>
 struct restrict : op::base<intergrid_params<scalar, size>> {

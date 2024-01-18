@@ -14,18 +14,13 @@ namespace flecsolve {
 
 using namespace flecsi;
 
-using csr = topo::csr<double>;
-csr::vec_def<csr::cols> xd, yd;
-
-namespace mat {
-
-}
+using parcsr = mat::parcsr<double>;
+using csr_topo = parcsr::topo_t;
+csr_topo::vec_def<csr_topo::cols> xd, yd;
 
 int csr_test() {
 	UNIT () {
-		using namespace flecsolve::mat;
-
-		op::core<parcsr_op, op::shared_storage> A(MPI_COMM_WORLD, "Chem97ZtZ.mtx");
+		op::core<parcsr, op::shared_storage> A(MPI_COMM_WORLD, "Chem97ZtZ.mtx");
 		auto & topo = A.source().data.topo();
 		auto [x, y] = vec::make(topo)(xd, yd);
 

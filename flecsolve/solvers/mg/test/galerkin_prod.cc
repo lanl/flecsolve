@@ -13,24 +13,23 @@ namespace flecsolve {
 using namespace flecsi;
 
 using scalar = double;
-
-using csr = topo::csr<scalar>;
-field<util::id>::definition<csr, csr::cols> aggt_def;
-
-field<scalar>::definition<csr, csr::cols> xd, yd, y1d, zd, wd;
+using parcsr = mat::parcsr<scalar>;
+using csr_topo = parcsr::topo_t;
+field<util::id>::definition<csr_topo, csr_topo::cols> aggt_def;
+field<scalar>::definition<csr_topo, csr_topo::cols> xd, yd, y1d, zd, wd;
 
 namespace {
 
 constexpr float tol = 1e-9;
 
-void init(csr::accessor<ro> m, field<scalar>::accessor<wo, na> x) {
-	for (auto dof : m.dofs<csr::cols>()) {
+void init(csr_topo::accessor<ro> m, field<scalar>::accessor<wo, na> x) {
+	for (auto dof : m.dofs<csr_topo::cols>()) {
 		x[dof] = static_cast<scalar>(m.global_id(dof)) / m.meta().nrows;
 	}
 }
 
-void explicit_interp(csr::accessor<ro> mf,
-                     csr::accessor<ro> mc,
+void explicit_interp(csr_topo::accessor<ro> mf,
+                     csr_topo::accessor<ro> mc,
                      field<util::id>::accessor<ro, na> aggt,
                      field<scalar>::accessor<ro, na> xa,
                      field<scalar>::accessor<wo, na> za) {
@@ -57,8 +56,8 @@ void explicit_interp(csr::accessor<ro> mf,
 	P.apply(x, z);
 }
 
-void explicit_restrict(csr::accessor<ro> mf,
-                       csr::accessor<ro> mc,
+void explicit_restrict(csr_topo::accessor<ro> mf,
+                       csr_topo::accessor<ro> mc,
                        field<util::id>::accessor<ro, na> aggt,
                        field<scalar>::accessor<ro, na> wa,
                        field<scalar>::accessor<wo, na> ya) {
@@ -92,11 +91,11 @@ void explicit_restrict(csr::accessor<ro> mf,
 
 int coarsentest() {
 	UNIT () {
-		op::core<mat::parcsr_op, op::shared_storage> A(MPI_COMM_WORLD, "nos7.mtx");
+		op::core<parcsr, op::shared_storage> A(MPI_COMM_WORLD, "nos7.mtx");
 
 		auto & topof = A.source().data.topo();
 		auto aggt_ref = aggt_def(topof);
-		auto Ac = op::make(mg::ua::coarsen<scalar, std::size_t>(A.source(), aggt_ref));
+		auto Ac = op::make(mg::ua::coarsen(A.source(), aggt_ref));
 		auto & topoc = Ac.source().data.topo();
 
 		auto x = Ac.source().vec(xd);
@@ -106,21 +105,15 @@ int coarsentest() {
 		Ac.apply(x, y);
 
 		auto z = A.source().vec(zd);
-		execute<explicit_interp>(topof,
-		                         topoc,
-		                         aggt_ref,
-		                         x.data.ref(),
-		                         z.data.ref());
+		execute<explicit_interp>(
+			topof, topoc, aggt_ref, x.data.ref(), z.data.ref());
 
 		auto w = A.source().vec(wd);
 		A.apply(z, w);
 
 		auto y1 = Ac.source().vec(y1d);
-		execute<explicit_restrict>(topof,
-		                           topoc,
-		                           aggt_ref,
-		                           w.data.ref(),
-		                           y1.data.ref());
+		execute<explicit_restrict>(
+			topof, topoc, aggt_ref, w.data.ref(), y1.data.ref());
 
 		y.subtract(y, y1);
 		auto diff = y.inf_norm().get();

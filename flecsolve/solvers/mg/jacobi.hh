@@ -5,38 +5,38 @@
 
 namespace flecsolve::mg {
 
-template<template<class> class storage>
+template<class Scalar, class Size, template<class> class storage>
 struct jacobi_params {
-	op::core<mat::parcsr_op, storage> A;
+	using scalar = Scalar;
+	using size = Size;
+	op::core<mat::parcsr<Scalar, Size>, storage> A;
 	float omega;
 	std::size_t nrelax;
-	using scalar = mat::parcsr_op::scalar;
-	using size = mat::parcsr_op::size;
 
-	jacobi_params(op::core<mat::parcsr_op, storage> a,
+	jacobi_params(op::core<mat::parcsr<scalar, size>, storage> a,
 	              float o,
 	              std::size_t n)
 		: A(a), omega(o), nrelax(n) {}
 
-	using topo_t = topo::csr<mat::parcsr_op::scalar, mat::parcsr_op::size>;
+	using topo_t = typename mat::parcsr<scalar, size>::topo_t;
 	static inline const typename topo_t::template vec_def<topo_t::cols> tmpd;
 };
+template<class scalar, class size, template<class> class storage>
+jacobi_params(op::core<mat::parcsr<scalar, size>, storage>, float, std::size_t)
+	-> jacobi_params<scalar, size, storage>;
 
-template<template<class> class storage>
-jacobi_params(op::core<mat::parcsr_op, storage>, float, std::size_t)->jacobi_params<storage>;
-
-template<template<class> class storage>
-struct jacobi : op::base<jacobi_params<storage>> {
-	using base = op::base<jacobi_params<storage>>;
+template<class Scalar, class Size, template<class> class storage>
+struct jacobi : op::base<jacobi_params<Scalar, Size, storage>> {
+	using scalar = Scalar;
+	using size = Size;
+	using base = op::base<jacobi_params<Scalar, Size, storage>>;
 	using base::params;
-	using scalar = typename base::params_t::scalar;
-	using size = typename base::params_t::size;
 
-	jacobi(jacobi_params<storage> p) : base(std::move(p)) {}
+	jacobi(jacobi_params<scalar, size, storage> p) : base(std::move(p)) {}
 
 	template<class D, class R>
 	void apply(const D & b, R & x) const {
-		auto & p = const_cast<typename base::params_t&>(params);
+		auto & p = const_cast<typename base::params_t &>(params);
 		for (std::size_t i = 0; i < params.nrelax; ++i) {
 			flecsi::execute<relax>(params.omega,
 			                       p.A.source().data.topo(),

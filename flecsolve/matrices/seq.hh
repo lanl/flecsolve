@@ -126,14 +126,18 @@ struct compressed_view_data {
 		     size_element * offsets,
 		     size_element * indices,
 		     scalar_element * values)
-			: major_size_{msize}, nnz_{nnz}, offsets_{offsets}, indices_{indices},
-			  values_{values} {}
+			: major_size_{msize}, nnz_{nnz}, offsets_{offsets},
+			  indices_{indices}, values_{values} {}
 
 		constexpr span<size_element> offsets() const {
 			return {offsets_, major_size_ + 1};
 		}
-		constexpr span<size_element> indices() const { return {indices_, nnz_}; }
-		constexpr span<scalar_element> values() const { return {values_, nnz_}; }
+		constexpr span<size_element> indices() const {
+			return {indices_, nnz_};
+		}
+		constexpr span<scalar_element> values() const {
+			return {values_, nnz_};
+		}
 
 		constexpr size major_size() const { return major_size_; }
 		constexpr size nnz() const { return nnz_; }
@@ -199,8 +203,7 @@ struct compressed : sparse<Data, Ops, Config> {
 	compressed() : major_size_{0}, minor_size_{0}, nnz_{0} {}
 	compressed(size rows, size cols, data_t d = data_t())
 		: base{std::move(d)}, major_size_{is_row_major ? rows : cols},
-		  minor_size_{is_row_major ? cols : rows},
-		  nnz_{data.indices().size()} {
+		  minor_size_{is_row_major ? cols : rows}, nnz_{data.indices().size()} {
 		if constexpr (data_t::is_resizable)
 			data.resize_major(major_size_);
 	}
@@ -241,16 +244,20 @@ template<class scalar,
 using csr = compressed<compressed_config<scalar, size, major::row>, Data, Ops>;
 
 template<class R, class C, class V>
-struct csr_view : compressed<compressed_config<typename V::value_type,
-                                               typename R::value_type,
-                                               major::row>,
-                             compressed_view_data<typename V::element_type, typename R::element_type>::template type,
-                             compressed_ops> {
-	using base = compressed<compressed_config<typename V::value_type,
-	                                          typename R::value_type,
-	                                          major::row>,
-	                        compressed_view_data<typename V::element_type, typename R::element_type>::template type,
-	                        compressed_ops>;
+struct csr_view
+	: compressed<compressed_config<typename V::value_type,
+                                   typename R::value_type,
+                                   major::row>,
+                 compressed_view_data<typename V::element_type,
+                                      typename R::element_type>::template type,
+                 compressed_ops> {
+	using base = compressed<
+		compressed_config<typename V::value_type,
+	                      typename R::value_type,
+	                      major::row>,
+		compressed_view_data<typename V::element_type,
+	                         typename R::element_type>::template type,
+		compressed_ops>;
 	using data_t = typename base::data_t;
 
 	constexpr csr_view(R r, C c, V v)

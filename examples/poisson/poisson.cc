@@ -141,15 +141,14 @@ void solve(control_policy & cp) {
 
 	std::size_t iter{0};
 	op::krylov slv(op::krylov_parameters(
-		               read_config("poisson.cfg", cg::options("solver")),
-		               cg::topo_work<>::get(f),
-		               op::make(poisson_op{sod(m)}),
-		               op::I,
-		               [&](const auto &, double rnorm) {
-			               std::cout << ++iter << " " << rnorm
-			                         << std::endl;
-			               return false;
-		               }));
+		read_config("poisson.cfg", cg::options("solver")),
+		cg::topo_work<>::get(f),
+		op::make(poisson_op{sod(m)}),
+		op::I,
+		[&](const auto &, double rnorm) {
+			std::cout << ++iter << " " << rnorm << std::endl;
+			return false;
+		}));
 
 	slv.apply(f, u);
 }
