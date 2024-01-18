@@ -1,6 +1,7 @@
 #ifndef FLECSOLVE_TIME_INTEGRATOR_BDF_H
 #define FLECSOLVE_TIME_INTEGRATOR_BDF_H
 
+#include <functional>
 #include <limits>
 
 #include "flecsi/flog.hh"
@@ -32,9 +33,9 @@ using topo_work = topo_work_base<work_size, Version>;
 
 short order(method meth);
 
-template<class O, class W, class S, bool use_factory>
-struct integrator : base<parameters<O, W, S, use_factory>> {
-	using P = parameters<O, W, S, use_factory>;
+template<class O, class W, class S>
+struct integrator : base<parameters<O, W, S>> {
+	using P = parameters<O, W, S>;
 	using base<P>::params;
 	using base<P>::current_dt;
 	using base<P>::old_dt;
@@ -57,6 +58,8 @@ struct integrator : base<parameters<O, W, S, use_factory>> {
 		flog_assert(curr != out,
 		            "BDF integrator: curr cannot be the same as out");
 		assert_can_advance();
+
+		prev.seat(std::ref(params.work));
 
 		prev[0].solution.copy(curr);
 		current_dt = dt;
@@ -147,13 +150,13 @@ struct integrator : base<parameters<O, W, S, use_factory>> {
 			evaluate_predictor();
 			auto & predict = getvec<workvec::predict>();
 			auto & op = params.get_operator();
-			bool valid_vector = op.is_valid(predict);
+			bool valid_vector = op.source().is_valid(predict);
 			if (!valid_vector) {
 				int number_of_predictor_precheck_events = 10;
 				for (int i = 0; i < number_of_predictor_precheck_events; ++i) {
 					current_dt = 0.5 * current_dt;
 					evaluate_predictor();
-					valid_vector = op.is_valid(predict);
+					valid_vector = op.source().is_valid(predict);
 				}
 			}
 		}
@@ -222,7 +225,7 @@ protected:
 		if (current_integrator == method::cn) {
 			auto & scratch = getvec<workvec::scratch>();
 			auto & prev_function = getvec<workvec::previous_function>();
-			auto & time_op = params.get_operator();
+			auto & time_op = params.get_operator().source();
 			scratch.copy(prev[0].solution);
 			time_op.apply_rhs(scratch, prev_function);
 		}
@@ -428,7 +431,7 @@ protected:
 		// 	f.axpy(-gamma, tdep_source, f);
 		// }
 
-		auto & time_op = params.get_operator();
+		auto & time_op = params.get_operator().source();
 		time_op.set_scaling(gamma);
 	}
 
@@ -532,7 +535,7 @@ protected:
 
 		auto & predict = getvec<workvec::predict>();
 		auto & op = params.get_operator();
-		if (!op.is_valid(predict)) {
+		if (!op.source().is_valid(predict)) {
 			// constant extrapolation in time for the predictor
 			evaluate_forward_euler_predictor();
 		}
@@ -570,7 +573,7 @@ protected:
 		double gamma = current_dt;
 
 		if (first_step) {
-			auto & time_op = params.get_operator();
+			auto & time_op = params.get_operator().source();
 			auto & scratch = getvec<workvec::scratch>();
 			auto & curr_func = getvec<workvec::current_function>();
 			auto & time_deriv = getvec<workvec::time_deriv>();
@@ -857,11 +860,11 @@ protected:
 
 	int total_steprejects;
 };
-template<class O, class W, class S, bool B>
-integrator(parameters<O, W, S, B>) -> integrator<O, W, S, B>;
+template<class O, class W, class S>
+integrator(parameters<O, W, S>) -> integrator<O, W, S>;
 
-template<class O, class W, class S, bool B>
-struct integrator<O, W, S, B>::history {
+template<class O, class W, class S>
+struct integrator<O, W, S>::history {
 	struct vec_arr {
 		using size_type = std::size_t;
 		using vec_t = typename std::remove_reference_t<W>::value_type;
@@ -908,6 +911,8 @@ struct integrator<O, W, S, B>::history {
 
 		pos %= len;
 	}
+
+	void seat(std::reference_wrapper<W> w) { work = w; }
 
 protected:
 	value_type operator()(size_type ind) {

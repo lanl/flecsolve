@@ -3,12 +3,12 @@
 
 #include <algorithm>
 
-#include "flecsolve/operators/base.hh"
+#include "flecsolve/operators/core.hh"
 
 namespace flecsolve::op {
 
 template<class F>
-struct shell : base<shell<F>> {
+struct shell : base<> {
 
 	constexpr shell(F f) : f(std::move(f)) {}
 
@@ -23,7 +23,13 @@ protected:
 template<class F>
 shell(F) -> shell<F>;
 
-static inline const shell I([](const auto & x, auto & y) { y.copy(x); });
+template<class F, template<class> class StoragePolicy = value_storage>
+auto make_shell(F && f) {
+	return core<shell<F>, StoragePolicy>(std::forward<F>(f));
+}
+
+static inline const auto I =
+	make_shell([](const auto & x, auto & y) { y.copy(x); });
 
 }
 #endif

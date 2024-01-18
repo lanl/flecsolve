@@ -6,6 +6,7 @@
 
 #include <boost/program_options/options_description.hpp>
 
+#include "flecsolve/vectors/topo_view.hh"
 #include "flecsolve/vectors/multi.hh"
 
 namespace flecsolve {
@@ -13,25 +14,26 @@ namespace flecsolve {
 namespace po = boost::program_options;
 
 struct solver_settings {
-	solver_settings(const char * pre) : prefix(pre) {}
-
-	auto options() {
-		po::options_description desc;
-		// clang-format off
-		desc.add_options()
-			(label("maxiter").c_str(), po::value<int>(&maxiter)->required(), "maximum number of iterations")
-			(label("rtol").c_str(), po::value<float>(&rtol)->default_value(0), "relative tolerance")
-			(label("atol").c_str(), po::value<float>(&atol)->default_value(0), "absolute tolerance")
-			(label("use-zero-guess").c_str(), po::value<bool>(&use_zero_guess)->required(), "use zero inital guess");
-		// clang-format on
-		return desc;
-	}
-
 	int maxiter;
 	float rtol;
 	float atol;
 	bool use_zero_guess;
+};
+struct solver_options {
+	using settings_type = solver_settings;
+	solver_options(const char * pre) : prefix(pre) {}
 
+	auto operator()(settings_type & settings) {
+		po::options_description desc;
+		// clang-format off
+		desc.add_options()
+			(label("maxiter").c_str(), po::value<int>(&settings.maxiter)->required(), "maximum number of iterations")
+			(label("rtol").c_str(), po::value<float>(&settings.rtol)->default_value(0), "relative tolerance")
+			(label("atol").c_str(), po::value<float>(&settings.atol)->default_value(0), "absolute tolerance")
+			(label("use-zero-guess").c_str(), po::value<bool>(&settings.use_zero_guess)->required(), "use zero inital guess");
+		// clang-format on
+		return desc;
+	}
 	const std::string & get_prefix() const { return prefix; }
 
 protected:
@@ -88,9 +90,9 @@ protected:
 	          std::array<const field_def, NumWork> & defs,
 	          std::index_sequence<Index...>) {
 		if constexpr (std::is_same_v<typename Vec::var_t, anon_var>)
-			return {Vec(slot, defs[Index](slot))...};
+			return {vec::make(slot, defs[Index](slot))...};
 		else
-			return {Vec(Vec::var, slot, defs[Index](slot))...};
+			return {vec::make(Vec::var, slot, defs[Index](slot))...};
 	}
 };
 
@@ -101,10 +103,10 @@ struct topo_work_base {
 		return topo_solver_state<Vec, NumWork, Version>::get_work(rhs);
 	}
 
-	template<class VarType, class... Vecs>
-	static auto get(const vec::multi<VarType, Vecs...> & rhs) {
-		auto wv =
-			make_states(rhs.data, std::make_index_sequence<sizeof...(Vecs)>());
+	template<class... Vecs>
+	static auto get(const vec::multi<Vecs...> & rhs) {
+		auto wv = make_states(rhs.data.components,
+		                      std::make_index_sequence<sizeof...(Vecs)>());
 		return make(std::move(wv), std::make_index_sequence<NumWork>());
 	}
 

@@ -12,13 +12,13 @@ void time_integration(control_policy & cp) {
 	auto & u = cp.u();
 	auto & unew = cp.unew();
 
+	using namespace flecsolve;
 	using namespace flecsolve::time_integrator;
 
-	rk23::parameters params(
-		"time-integrator", heat_op{cp.diffusivity}, rk23::topo_work<>::get(u));
-	flecsolve::read_config("explicit.cfg", params);
-
-	rk23::integrator ti(std::move(params));
+	rk23::integrator ti(rk23::parameters(
+		                    read_config("explicit.cfg", rk23::options("time-integrator")),
+		                    op::core<heat_op, op::value_storage>(cp.diffusivity),
+		                    rk23::topo_work<>::get(u)));
 
 	auto output = [&]() {
 		if (output_steps.value()) {

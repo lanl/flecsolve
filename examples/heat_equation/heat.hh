@@ -1,7 +1,7 @@
 #ifndef FLECSOLVE_EXAMPLES_HEAT_HEAT_H
 #define FLECSOLVE_EXAMPLES_HEAT_HEAT_H
 
-#include "flecsolve/operators/base.hh"
+#include "flecsolve/operators/core.hh"
 
 #include "control.hh"
 #include "mesh.hh"
@@ -100,17 +100,18 @@ inline void laplace(mesh::accessor<ro> m,
 
 }
 
-struct heat_op : flecsolve::op::base<heat_op> {
+struct heat_params {
+	double diffusivity;
+};
+struct heat_op : flecsolve::op::base<heat_params> {
 
-	heat_op(double d) : diffusivity(d) {}
+	explicit heat_op(double d) : flecsolve::op::base<heat_params>(d) {}
 
 	template<class Domain, class Range>
 	void apply(const Domain & x, Range & y) const {
 		flecsi::execute<task::laplace>(
-			y.data.topo(), diffusivity, y.data.ref(), x.data.ref());
+			y.data.topo(), params.diffusivity, y.data.ref(), x.data.ref());
 	}
-
-	double diffusivity;
 };
 
 }

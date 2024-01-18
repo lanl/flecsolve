@@ -3,8 +3,9 @@
 #include <flecsi/flog.hh>
 #include <flecsi/util/unit.hh>
 #include <flecsi/util/unit/types.hh>
+#include <utility>
 
-#include "flecsolve/vectors/mesh.hh"
+#include "flecsolve/vectors/topo_view.hh"
 #include "flecsolve/vectors/multi.hh"
 
 #include "flecsolve/util/test/mesh.hh"
@@ -31,6 +32,13 @@ constexpr decltype(auto) defs() {
 
 enum class vars { pressure, temperature, density };
 
+void init_mesh() {
+	std::vector<flecsi::util::gid> extents{32};
+
+	coloring.allocate(flecsi::processes(), extents);
+	msh.allocate(coloring.get());
+}
+
 void init_field(testmesh::accessor<ro, ro> m,
                 field<double>::accessor<wo, na> xa,
                 int offset,
@@ -49,85 +57,88 @@ void init_fields(const fd_array & arr,
 
 template<std::size_t... Index>
 auto create_multivector(const fd_array & arr, std::index_sequence<Index...>) {
-	return vec::multi(vec::mesh(msh, arr[Index](msh))...);
+	static_assert(sizeof...(Index) > 0);
+	return vec::make(vec::make(msh, arr[Index](msh))...);
 }
 
-template<class F, class T>
-struct check {
-	static constexpr double ftol = 1e-8;
+static constexpr double ftol = 1e-8;
 
-	int operator()(testmesh::accessor<ro, ro> m,
-	               field<double>::accessor<ro, na> x,
-	               int index) {
-		UNIT (name) {
-			for (auto dof : m.dofs<testmesh::cells>()) {
-				auto gid = m.global_id(dof);
-				EXPECT_LT(std::abs(f(gid, index) - x[dof]), ftol);
-			}
-		};
-	}
+template<class FN>
+decltype(auto) check_f(FN && fn,
+                       testmesh::accessor<ro, ro> m,
+                       field<double>::accessor<ro, na> x,
+                       int index) {
+	UNIT (fn.second) {
+		for (auto dof : m.dofs<testmesh::cells>()) {
+			auto gid = m.global_id(dof);
+			EXPECT_LT(std::abs(fn.first(gid, index) - x[dof]), ftol);
+		}
+	};
+}
 
-	F f;
-	T name;
-};
-template<class F, class T>
-check(F &&, T &&) -> check<F, T>;
-
-template<auto & F, class MV, class S>
-bool run(MV & mv, S & msh) {
+template<class MV, class S, class FN>
+bool run(MV & mv, S & msh, FN && fn) {
 	int ind = 0;
 	return std::apply(
 		[&](auto &... v) {
-			return ((test<F>(msh, v.data.ref(), ind++) == 0) and ...);
+			return ((test<check_f<FN>, flecsi::mpi>(
+						 fn, msh, v.data.ref(), ind++) == 0) and
+		            ...);
 		},
-		mv.data);
+		mv.data.components);
 }
 
-static check add{[](std::size_t gid, int index) {
-					 return (index + 1) * gid + (index + 3) * gid;
-				 },
-                 "add"};
-static check sub{[](double gid, double index) {
-					 return (index + 2) * gid - (index + 3) * gid;
-				 },
-                 "subtract"};
-static check mult{[](std::size_t gid, int index) {
-					  return (index + 1) * gid * (index + 3) * gid;
-				  },
-                  "multiply"};
-static check scalar_add{
+auto add = std::make_pair(
+	[](std::size_t gid, int index) {
+		return (index + 1) * gid + (index + 3) * gid;
+	},
+	"add");
+auto sub = std::make_pair(
+	[](double gid, double index) {
+		return (index + 2) * gid - (index + 3) * gid;
+	},
+	"subtract");
+auto mult = std::make_pair(
+	[](std::size_t gid, int index) {
+		return (index + 1) * gid * (index + 3) * gid;
+	},
+	"multiply");
+auto scalar_add = std::make_pair(
 	[](std::size_t gid, int index) { return (index + 1) * gid + 1; },
-	"add scalar"};
-static check divide{[](double gid, double index) {
-						return ((index + 2) * gid) / ((index + 1) * gid + 1);
-					},
-                    "divide"};
-static check scale{
+	"add scalar");
+auto divide = std::make_pair(
+	[](double gid, double index) {
+		return ((index + 2) * gid) / ((index + 1) * gid + 1);
+	},
+	"divide");
+auto scale = std::make_pair(
 	[](double gid, double index) { return (index + 1) * gid * 3.5; },
-	"scale"};
-static check recip{
+	"scale");
+auto recip = std::make_pair(
 	[](double gid, double index) { return 1.0 / ((index + 2) * gid + 2); },
-	"reciprocal"};
-static check linsum{[](double gid, double index) {
-						return ((index + 2) * gid) * 8 +
-	                           ((index + 3) * gid) * 9;
-					},
-                    "linear sum"};
-static check axpy{[](double gid, double index) {
-					  return (index + 1) * gid * 7 + ((index + 2) * gid);
-				  },
-                  "axpy"};
-static check axpby{[](double gid, double index) {
-					   return ((index + 3) * gid) * 4 +
-	                          ((index + 2) * gid) * 11;
-				   },
-                   "axpby"};
-static check abs{
+	"reciprocal");
+auto linsum = std::make_pair(
+	[](double gid, double index) {
+		return ((index + 2) * gid) * 8 + ((index + 3) * gid) * 9;
+	},
+	"linear sum");
+
+auto axpy = std::make_pair(
+	[](double gid, double index) {
+		return (index + 1) * gid * 7 + ((index + 2) * gid);
+	},
+	"axpy");
+auto axpby = std::make_pair(
+	[](double gid, double index) {
+		return ((index + 3) * gid) * 4 + ((index + 2) * gid) * 11;
+	},
+	"axpby");
+auto abs = std::make_pair(
 	[](double gid, double index) { return std::abs((index + 2) * gid - 4.3); },
-	"abs"};
+	"abs");
 
 int vectest() {
-	init_mesh(32, msh, coloring);
+	init_mesh();
 	init_fields(xd, 0, make_is());
 	init_fields(yd, 1, make_is());
 	init_fields(zd, 2, make_is());
@@ -138,43 +149,43 @@ int vectest() {
 		auto tmp = create_multivector(tmpd, make_is());
 
 		tmp.add(x, z);
-		EXPECT_TRUE(run<add>(tmp, msh));
+		EXPECT_TRUE(run(tmp, msh, add));
 
 		tmp.subtract(y, z);
-		EXPECT_TRUE(run<sub>(tmp, msh));
+		EXPECT_TRUE(run(tmp, msh, sub));
 
 		tmp.multiply(x, z);
-		EXPECT_TRUE(run<mult>(tmp, msh));
+		EXPECT_TRUE(run(tmp, msh, mult));
 
 		x.add_scalar(x, 1);
-		EXPECT_TRUE(run<scalar_add>(x, msh));
+		EXPECT_TRUE(run(x, msh, scalar_add));
 
 		tmp.divide(y, x);
-		EXPECT_TRUE(run<divide>(tmp, msh));
+		EXPECT_TRUE(run(tmp, msh, divide));
 
 		x.add_scalar(x, -1);
 
 		tmp.scale(3.5, x);
-		EXPECT_TRUE(run<scale>(tmp, msh));
+		EXPECT_TRUE(run(tmp, msh, scale));
 
 		y.add_scalar(y, 2);
 		tmp.reciprocal(y);
-		EXPECT_TRUE(run<recip>(tmp, msh));
+		EXPECT_TRUE(run(tmp, msh, recip));
 		y.add_scalar(y, -2);
 
 		tmp.linear_sum(8, y, 9, z);
-		EXPECT_TRUE(run<linsum>(tmp, msh));
+		EXPECT_TRUE(run(tmp, msh, linsum));
 
 		tmp.axpy(7, x, y);
-		EXPECT_TRUE(run<axpy>(tmp, msh));
+		EXPECT_TRUE(run(tmp, msh, axpy));
 
 		tmp.copy(y);
 		tmp.axpby(4, 11, z);
-		EXPECT_TRUE(run<axpby>(tmp, msh));
+		EXPECT_TRUE(run(tmp, msh, axpby));
 
 		tmp.add_scalar(y, -4.3);
 		tmp.abs(tmp);
-		EXPECT_TRUE(run<abs>(tmp, msh));
+		EXPECT_TRUE(run(tmp, msh, abs));
 
 		tmp.add_scalar(y, -7);
 		EXPECT_EQ(tmp.min().get(), -7);
@@ -211,14 +222,14 @@ int vectest() {
 			           x3.dot(y3).get()));
 		}
 
-		vec::mesh pvec(
-			variable<vars::pressure>, msh, defs<vars::pressure>()(msh));
-		vec::mesh tvec(
-			variable<vars::temperature>, msh, defs<vars::temperature>()(msh));
-		vec::mesh dvec(
-			variable<vars::density>, msh, defs<vars::density>()(msh));
+		auto create = [&](auto var) {
+			return vec::make(var, msh, defs<var.value>()(msh));
+		};
+		auto pvec = create(variable<vars::pressure>);
+		auto tvec = create(variable<vars::temperature>);
+		auto dvec = create(variable<vars::density>);
 
-		vec::multi mv(pvec, tvec, dvec);
+		auto mv = vec::make(pvec, tvec, dvec);
 
 		auto subset = mv.subset(multivariable<vars::density, vars::pressure>);
 		auto & [dvec1, pvec1] = subset;
@@ -237,5 +248,4 @@ int vectest() {
 }
 
 flecsi::util::unit::driver<vectest> driver;
-
 }

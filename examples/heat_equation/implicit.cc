@@ -15,12 +15,15 @@ void time_integration(control_policy & cp) {
 
 	using namespace flecsolve;
 	using namespace flecsolve::time_integrator;
-	bdf::parameters params("time-integrator",
-	                       operator_adapter<heat_op>(cp.diffusivity),
-	                       bdf::topo_work<>::get(u),
-	                       krylov_factory());
-	read_config("implicit.cfg", params);
-	bdf::integrator ti(std::move(params));
+
+	auto [ti_settings, slv_settings] = read_config("implicit.cfg",
+	                                               bdf::options("time-integrator"),
+	                                               krylov_factory::options("linear-solver"));
+	op::core<operator_adapter<heat_op>, op::shared_storage> F(cp.diffusivity);
+	bdf::integrator ti(bdf::parameters(ti_settings,
+	                                   F,
+	                                   bdf::topo_work<>::get(u),
+	                                   krylov_factory::make(slv_settings, u, F)));
 
 	auto output = [&]() {
 		if (output_steps.value()) {

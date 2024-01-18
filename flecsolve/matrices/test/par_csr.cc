@@ -1,16 +1,13 @@
 #include <flecsi/flog.hh>
 #include <flecsi/util/unit.hh>
 #include <flecsi/util/unit/types.hh>
-#include <flecsi/execution.hh>
 #include <iomanip>
 
 #include "flecsolve/vectors/seq.hh"
-#include "flecsolve/operators/base.hh"
-#include "flecsolve/solvers/factory.hh"
+#include "flecsolve/operators/core.hh"
 #include "flecsolve/solvers/cg.hh"
 #include "flecsolve/solvers/krylov_operator.hh"
-#include "flecsolve/vectors/mesh.hh"
-#include "flecsolve/matrices/io/matrix_market.hh"
+#include "flecsolve/vectors/topo_view.hh"
 #include "flecsolve/matrices/parcsr.hh"
 
 namespace flecsolve {
@@ -18,26 +15,27 @@ namespace flecsolve {
 using namespace flecsi;
 
 using csr = topo::csr<double>;
+csr::vec_def<csr::cols> xd, yd;
 
-csr::vec_def<csr::cols> xd;
-csr::vec_def<csr::cols> yd;
+namespace mat {
+
+}
 
 int csr_test() {
 	UNIT () {
-		using parcsr = mat::parcsr<double>;
-		parcsr A{parcsr::parameters{
-			MPI_COMM_WORLD, flecsi::processes(), "Chem97ZtZ.mtx"}};
-		auto x = A.vec(xd);
-		auto y = A.vec(yd);
+		using namespace flecsolve::mat;
+
+		op::core<parcsr_op, op::shared_storage> A(MPI_COMM_WORLD, "Chem97ZtZ.mtx");
+		auto & topo = A.source().data.topo();
+		auto [x, y] = vec::make(topo)(xd, yd);
 
 		y.set_scalar(0.0);
 		x.set_scalar(2);
 
-		op::krylov_parameters params{
-			cg::settings("solver"), cg::topo_work<>::get(x), std::ref(A)};
-		read_config("parcsr.cfg", params);
-
-		op::krylov slv{std::move(params)};
+		auto slv = op::krylov_solver(op::krylov_parameters(
+			read_config("parcsr.cfg", cg::options("solver")),
+			cg::topo_work<>::get(x),
+			A));
 
 		auto info = slv.apply(y, x);
 		EXPECT_TRUE(info.iters == 167);

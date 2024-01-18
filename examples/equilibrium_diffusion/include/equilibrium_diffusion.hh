@@ -8,7 +8,7 @@
 #include <iomanip>
 #include <iostream>
 
-#include "flecsolve/vectors/mesh.hh"
+#include "flecsolve/vectors/topo_view.hh"
 #include "flecsolve/vectors/multi.hh"
 
 #include "flecsolve/util/config.hh"
@@ -20,6 +20,7 @@
 #include "flecsolve/solvers/krylov_operator.hh"
 #include "flecsolve/solvers/cg.hh"
 #include "flecsolve/solvers/solver_settings.hh"
+#include "flecsolve/operators/core.hh"
 
 using namespace flecsi;
 
@@ -185,8 +186,8 @@ template<class FieldDefArr, std::size_t... I>
 decltype(auto) make_multivector(const FieldDefArr & fd,
                                 std::index_sequence<I...>) {
 	using namespace flecsolve;
-	return vec::multi{
-		vec::mesh(variable<static_cast<diffusion_var>(I)>, m, fd[I](m))...};
+	return vec::make(
+		vec::make(variable<static_cast<diffusion_var>(I)>, m, fd[I](m))...);
 }
 
 template<std::size_t I>
@@ -287,29 +288,27 @@ inline int driver() {
 
 	// build the full operator on the variables
 	// notice we can use both operator objects and previous expressions
-	auto A = flecsolve::physics::op_expr(
+	auto A = flecsolve::op::make(flecsolve::physics::op_expr(
 		flecsolve::multivariable<diffusion_var::v1, diffusion_var::v2>,
 		bnd_op_1,
 		make_volume_operator<0>(vec1, diff_param_beta[0], diff_param_alpha[0]),
 		bnd_op_2,
-		make_volume_operator<1>(vec2, diff_param_beta[1], diff_param_alpha[1]));
+		make_volume_operator<1>(
+			vec2, diff_param_beta[1], diff_param_alpha[1])));
 
 	//===================================================
 	//=============== solver ============================
 	//===================================================
 
 	flog(info) << "constructing solver\n";
-	// get the solver parameters and workspace, & bind the operator to the
-	// solver
-	flecsolve::op::krylov_parameters params(
-		flecsolve::cg::settings("solver"),
-		flecsolve::cg::topo_work<>::get(RHS),
-		std::ref(A));
-
-	read_config("diffusion.cfg", params);
-
 	// create the solver
-	flecsolve::op::krylov slv(std::move(params));
+	flecsolve::op::krylov slv(
+		// get the solver parameters and workspace, & bind the operator to the
+		// solver
+		flecsolve::op::krylov_parameters(
+			flecsolve::read_config("diffusion.cfg", flecsolve::cg::options("solver")),
+			flecsolve::cg::topo_work<>::get(RHS),
+			std::ref(A)));
 
 	flog(info) << "applying the solver\n";
 	// run the solver

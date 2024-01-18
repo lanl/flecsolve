@@ -13,7 +13,6 @@ namespace {
 using namespace flecsi;
 using scalar = double;
 using csr = topo::csr<scalar>;
-using parcsr = mat::parcsr<scalar>;
 
 field<util::id>::definition<csr, csr::cols> aggt_def;
 field<scalar>::definition<csr, csr::cols> xd, yd;
@@ -60,34 +59,37 @@ int check_interp(csr::accessor<ro> fine,
 
 int intergridtest() {
 	UNIT () {
-		parcsr A{parcsr::parameters{
-			MPI_COMM_WORLD, flecsi::processes(), "nos7.mtx"}};
-		auto Ac = mg::ua::coarsen(A, aggt_def(A.data.topo()));
-		execute<init>(A.data.topo(), xd(A.data.topo()));
+		op::core<mat::parcsr_op, op::shared_storage> A(MPI_COMM_WORLD, "nos7.mtx");
+
+		auto & topof = A.source().data.topo();
+		auto aggt_ref = aggt_def(topof);
+		auto Ac = op::make(mg::ua::coarsen<scalar, std::size_t>(A.source(), aggt_ref));
+		execute<init>(topof, xd(topof));
 
 		mg::ua::intergrid_params<scalar, std::size_t> params{
-			aggt_def(A.data.topo())};
+			aggt_ref};
+
 		mg::ua::prolong<scalar, std::size_t> P(params);
 		mg::ua::restrict<scalar, std::size_t> R(params);
 
-		auto x = A.vec(xd);
-		auto y = Ac.vec(yd);
+		auto x = A.source().vec(xd);
+		auto y = Ac.source().vec(yd);
 
 		R.apply(x, y);
 
-		EXPECT_EQ(test<check_restrict>(A.data.topo(),
-		                               Ac.data.topo(),
-		                               aggt_def(A.data.topo()),
+		auto & topoc = Ac.source().data.topo();
+
+		EXPECT_EQ(test<check_restrict>(topof, topoc,
+		                               aggt_ref,
 		                               y.data.ref()),
 		          0);
 
-		execute<init>(Ac.data.topo(), y.data.ref());
+		execute<init>(topoc, y.data.ref());
 
 		P.apply(y, x);
 
-		EXPECT_EQ(test<check_interp>(A.data.topo(),
-		                             Ac.data.topo(),
-		                             aggt_def(A.data.topo()),
+		EXPECT_EQ(test<check_interp>(topof, topoc,
+		                             aggt_ref,
 		                             x.data.ref()),
 		          0);
 	};

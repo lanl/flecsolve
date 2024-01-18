@@ -2,7 +2,7 @@
 #include <flecsi/util/unit.hh>
 #include <flecsi/util/unit/types.hh>
 
-#include "flecsolve/vectors/mesh.hh"
+#include "flecsolve/vectors/topo_view.hh"
 #include "flecsolve/vectors/petsc.hh"
 
 namespace flecsolve {

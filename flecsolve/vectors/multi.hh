@@ -4,12 +4,41 @@
 #include <tuple>
 #include <type_traits>
 
-#include "base.hh"
+#include "core.hh"
+#include "traits.hh"
 #include "flecsolve/vectors/variable.hh"
 #include "operations/multi.hh"
 
 namespace flecsolve::vec {
 
+template<class... Vecs>
+struct multi_config {
+	// multivector scalar type is scalar type of first component vector
+	using scalar = typename std::tuple_element_t<
+		0,
+		std::tuple<std::remove_reference_t<Vecs>...>>::scalar;
+	using len_t = typename std::
+		tuple_element_t<0, std::tuple<std::remove_reference_t<Vecs>...>>::len_t;
+	using real = typename num_traits<scalar>::real;
+	static constexpr auto var =
+		multivariable<std::remove_reference_t<Vecs>::var.value...>;
+	using var_t = typename std::
+		tuple_element_t<0, std::tuple<std::remove_reference_t<Vecs>...>>::var_t;
+	using storage_type = std::tuple<Vecs...>;
+	static constexpr std::size_t num_components = sizeof...(Vecs);
+};
+
+namespace data {
+template<class Config>
+struct multi {
+	using config = Config;
+	template<class... V>
+	multi(V &&... v) : components(std::forward<V>(v)...) {}
+	typename Config::storage_type components;
+};
+}
+
+namespace detail {
 // https://stackoverflow.com/a/47369227
 template<typename T>
 constexpr T & as_mutable(T const & value) noexcept {
@@ -25,52 +54,42 @@ constexpr T * as_mutable(T * value) noexcept {
 }
 template<typename T>
 void as_mutable(T const &&) = delete;
+}
 
 template<class... Vecs>
-using multivector_scalar = typename std::tuple_element<
-	0,
-	std::tuple<std::remove_reference_t<Vecs>...>>::type::scalar;
-template<class... Vecs>
-using multivector_len = typename std::
-	tuple_element<0, std::tuple<std::remove_reference_t<Vecs>...>>::type::len_t;
-template<class... Vecs>
-using multivector_data = std::tuple<Vecs...>;
-template<class... Vecs>
-using multivector_ops = ops::multi<multivector_scalar<Vecs...>,
-                                   multivector_len<Vecs...>,
-                                   multivector_data<Vecs...>,
-                                   sizeof...(Vecs)>;
+struct multi : core<data::multi, ops::multi, multi_config<Vecs...>> {
+	using base = core<data::multi, ops::multi, multi_config<Vecs...>>;
+	using base::data;
+	using base::var;
+	using var_t = typename base::var_t;
+	using data_t = typename base::data_t;
 
-template<class VarType, class... Vecs>
-struct multi : base<multi<VarType, Vecs...>> {
-	using base_t = base<multi<VarType, Vecs...>>;
-	using base_t::data;
-	static constexpr std::size_t num_components = sizeof...(Vecs);
-
-	template<
-		class... VT,
-		typename = std::enable_if_t<
-			(... && std::is_same_v<typename std::remove_reference_t<VT>::var_t,
-	                               VarType>)>>
-	multi(VT &&... vs)
-		: base_t{multivector_data<Vecs...>{std::forward<VT>(vs)...}} {}
+	template<class Head,
+	         class... Tail,
+	         std::enable_if_t<
+				 (... && std::is_same_v<
+							 typename std::remove_reference_t<Head>::var_t,
+							 typename std::remove_reference_t<Tail>::var_t>),
+				 bool> = true>
+	multi(Head && head, Tail &&... tail)
+		: base{data_t{std::forward<Head>(head), std::forward<Tail>(tail)...}} {}
 
 	template<std::size_t I>
 	constexpr auto & get() & {
-		return std::get<I>(data);
+		return std::get<I>(data.components);
 	}
 
 	template<std::size_t I>
 	constexpr const auto & get() const & {
-		return std::get<I>(data);
+		return std::get<I>(data.components);
 	}
 
-	template<VarType var, std::size_t I>
+	template<var_t var, std::size_t I>
 	constexpr decltype(auto) get() const {
 		using tuple_t = std::tuple<std::remove_reference_t<Vecs>...>;
 		using curr = typename std::tuple_element<I, tuple_t>::type;
 		if constexpr (curr::var == variable<var>)
-			return std::get<I>(data);
+			return std::get<I>(data.components);
 		else if constexpr (I + 1 == sizeof...(Vecs)) {
 			static_assert(I + 1 < sizeof...(Vecs));
 			return nullptr;
@@ -79,101 +98,79 @@ struct multi : base<multi<VarType, Vecs...>> {
 			return get<var, I + 1>();
 	}
 
-	template<VarType var, std::size_t I>
+	template<var_t var, std::size_t I>
 	constexpr decltype(auto) get() {
-		return as_mutable(std::as_const(*this).template get<var, I>());
+		return detail::as_mutable(std::as_const(*this).template get<var, I>());
 	}
 
-	template<VarType var>
+	template<var_t var>
 	constexpr decltype(auto) getvar() const {
 		return get<var, 0>();
 	}
 
-	template<VarType var>
+	template<var_t var>
 	constexpr decltype(auto) getvar() {
 		return get<var, 0>();
 	}
 
-	template<VarType var>
-	constexpr decltype(auto) subset_impl(variable_t<var>) const {
+	template<var_t var>
+	constexpr decltype(auto) subset(variable_t<var>) const {
 		return getvar<var>();
 	}
 
-	template<VarType var>
-	constexpr decltype(auto) subset_impl(variable_t<var>) {
+	template<var_t var>
+	constexpr decltype(auto) subset(variable_t<var>) {
 		return getvar<var>();
 	}
 
-	template<VarType... vars>
-	constexpr decltype(auto) subset_impl(multivariable_t<vars...>) const {
+	template<var_t... vars>
+	constexpr decltype(auto) subset(multivariable_t<vars...>) const {
 		if constexpr (sizeof...(vars) == 1) {
 			return getvar<vars...>();
 		}
 		else {
-			return multi<VarType, decltype(getvar<vars>())...>(
-				getvar<vars>()...);
+			return multi<decltype(getvar<vars>())...>(getvar<vars>()...);
 		}
 	}
 
-	template<VarType... vars>
-	constexpr decltype(auto) subset_impl(multivariable_t<vars...>) {
+	template<var_t... vars>
+	constexpr decltype(auto) subset(multivariable_t<vars...>) {
 		if constexpr (sizeof...(vars) == 1) {
 			return getvar<vars...>();
 		}
 		else {
-			return multi<VarType, decltype(getvar<vars>())...>(
-				getvar<vars>()...);
+			return multi<decltype(getvar<vars>())...>(getvar<vars>()...);
 		}
 	}
-
-	template<class F>
-	constexpr decltype(auto) apply_impl(F && f) {
-		return std::apply(std::forward<F>(f), data);
-	}
-
-	static constexpr auto var =
-		multivariable<std::remove_reference_t<Vecs>::var.value...>;
 };
+template<class H, class... T>
+multi(H &&, T &&... vs) -> multi<H, T...>;
 
-template<class... VT>
-multi(VT &&... vs) -> multi<
-	typename std::tuple_element<0, std::tuple<std::remove_reference_t<VT>...>>::
-		type::var_t,
-	VT...>;
-
-template<class VarType, class... V0, class... V1>
-bool operator==(const multi<VarType, V0...> & v0,
-                const multi<VarType, V1...> & v1) {
-	return v0.data == v1.data;
+template<class... V0, class... V1>
+bool operator==(const multi<V0...> & v0, const multi<V1...> & v1) {
+	return v0.data.components == v1.data.components;
 }
-template<class VarType, class... V0, class... V1>
-bool operator!=(const multi<VarType, V0...> & v0,
-                const multi<VarType, V1...> & v1) {
-	return v0.data != v1.data;
+template<class... V0, class... V1>
+bool operator!=(const multi<V0...> & v0, const multi<V1...> & v1) {
+	return v0.data.components != v1.data.components;
 }
 
+template<class... Vecs,
+         std::enable_if_t<(... && is_vector_v<Vecs>), bool> = true>
+auto make(Vecs &&... vecs) {
+	return multi(std::forward<Vecs>(vecs)...);
 }
-
-namespace flecsolve {
-template<class VarType, class... Vecs>
-struct traits<vec::multi<VarType, Vecs...>> {
-	// static constexpr auto var =
-	// multivariable<std::remove_reference_t<Vecs>::var.value...>;
-	static constexpr auto var = variable<anon_var::anonymous>;
-	using data_t = vec::multivector_data<Vecs...>;
-	using ops_t = vec::multivector_ops<Vecs...>;
-};
 }
 
 namespace std {
 
-template<class VarType, class... Vecs>
-struct tuple_size<flecsolve::vec::multi<VarType, Vecs...>> {
+template<class... Vecs>
+struct tuple_size<flecsolve::vec::multi<Vecs...>> {
 	static constexpr size_t value = sizeof...(Vecs);
 };
 
-template<std::size_t I, class VarType, class... Vecs>
-struct tuple_element<I, flecsolve::vec::multi<VarType, Vecs...>> {
+template<std::size_t I, class... Vecs>
+struct tuple_element<I, flecsolve::vec::multi<Vecs...>> {
 	using type = typename tuple_element<I, tuple<Vecs...>>::type;
 };
 

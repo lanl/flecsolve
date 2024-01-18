@@ -3,53 +3,46 @@
 
 #include "flecsolve/matrices/parcsr.hh"
 
-namespace flecsolve {
+namespace flecsolve::mg {
 
-namespace mg {
-template<class scalar, class size>
+template<template<class> class storage>
 struct jacobi_params {
-	std::reference_wrapper<mat::parcsr<scalar, size>> A;
+	op::core<mat::parcsr_op, storage> A;
 	float omega;
 	std::size_t nrelax;
+	using scalar = mat::parcsr_op::scalar;
+	using size = mat::parcsr_op::size;
 
-	jacobi_params(std::reference_wrapper<mat::parcsr<scalar, size>> a,
+	jacobi_params(op::core<mat::parcsr_op, storage> a,
 	              float o,
 	              std::size_t n)
 		: A(a), omega(o), nrelax(n) {}
 
-	using topo_t = topo::csr<scalar, size>;
+	using topo_t = topo::csr<mat::parcsr_op::scalar, mat::parcsr_op::size>;
 	static inline const typename topo_t::template vec_def<topo_t::cols> tmpd;
 };
 
-template<class scalar, class size>
-struct jacobi;
-}
+template<template<class> class storage>
+jacobi_params(op::core<mat::parcsr_op, storage>, float, std::size_t)->jacobi_params<storage>;
 
-namespace op {
-template<class scalar, class size>
-struct traits<mg::jacobi<scalar, size>> {
-	static constexpr auto input_var = variable<anon_var::anonymous>;
-	static constexpr auto output_var = variable<anon_var::anonymous>;
-	using parameters = mg::jacobi_params<scalar, size>;
-};
-}
-
-namespace mg {
-
-template<class scalar, class size>
-struct jacobi : op::base<jacobi<scalar, size>> {
-	using base = op::base<jacobi<scalar, size>>;
+template<template<class> class storage>
+struct jacobi : op::base<jacobi_params<storage>> {
+	using base = op::base<jacobi_params<storage>>;
 	using base::params;
-	jacobi(mg::jacobi_params<scalar, size> p) : base(std::move(p)) {}
+	using scalar = typename base::params_t::scalar;
+	using size = typename base::params_t::size;
+
+	jacobi(jacobi_params<storage> p) : base(std::move(p)) {}
 
 	template<class D, class R>
-	void apply(const vec::base<D> & b, vec::base<R> & x) {
+	void apply(const D & b, R & x) const {
+		auto & p = const_cast<typename base::params_t&>(params);
 		for (std::size_t i = 0; i < params.nrelax; ++i) {
 			flecsi::execute<relax>(params.omega,
-			                       params.A.get().data.topo(),
+			                       p.A.source().data.topo(),
 			                       x.data.ref(),
 			                       b.data.ref(),
-			                       params.tmpd(x.data.topo()));
+			                       p.tmpd(x.data.topo()));
 		}
 	}
 
@@ -94,7 +87,6 @@ struct jacobi : op::base<jacobi<scalar, size>> {
 		}
 	}
 };
-}
 }
 
 #endif

@@ -15,7 +15,6 @@ using namespace flecsi;
 using scalar = double;
 
 using csr = topo::csr<scalar>;
-using parcsr = mat::parcsr<scalar>;
 field<util::id>::definition<csr, csr::cols> aggt_def;
 
 field<scalar>::definition<csr, csr::cols> xd, yd, y1d, zd, wd;
@@ -93,30 +92,33 @@ void explicit_restrict(csr::accessor<ro> mf,
 
 int coarsentest() {
 	UNIT () {
-		parcsr A{parcsr::parameters{
-			MPI_COMM_WORLD, flecsi::processes(), "nos7.mtx"}};
-		auto Ac = mg::ua::coarsen(A, aggt_def(A.data.topo()));
+		op::core<mat::parcsr_op, op::shared_storage> A(MPI_COMM_WORLD, "nos7.mtx");
 
-		auto x = Ac.vec(xd);
-		auto y = Ac.vec(yd);
+		auto & topof = A.source().data.topo();
+		auto aggt_ref = aggt_def(topof);
+		auto Ac = op::make(mg::ua::coarsen<scalar, std::size_t>(A.source(), aggt_ref));
+		auto & topoc = Ac.source().data.topo();
+
+		auto x = Ac.source().vec(xd);
+		auto y = Ac.source().vec(yd);
 
 		execute<init>(x.data.topo(), x.data.ref());
 		Ac.apply(x, y);
 
-		auto z = A.vec(zd);
-		execute<explicit_interp>(A.data.topo(),
-		                         Ac.data.topo(),
-		                         aggt_def(A.data.topo()),
+		auto z = A.source().vec(zd);
+		execute<explicit_interp>(topof,
+		                         topoc,
+		                         aggt_ref,
 		                         x.data.ref(),
 		                         z.data.ref());
 
-		auto w = A.vec(wd);
+		auto w = A.source().vec(wd);
 		A.apply(z, w);
 
-		auto y1 = Ac.vec(y1d);
-		execute<explicit_restrict>(A.data.topo(),
-		                           Ac.data.topo(),
-		                           aggt_def(A.data.topo()),
+		auto y1 = Ac.source().vec(y1d);
+		execute<explicit_restrict>(topof,
+		                           topoc,
+		                           aggt_ref,
 		                           w.data.ref(),
 		                           y1.data.ref());
 

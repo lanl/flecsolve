@@ -11,8 +11,10 @@ namespace flecsolve::bicgstab {
 
 static constexpr std::size_t nwork = 8;
 
-struct settings : solver_settings {
-	settings(const char * pre) : solver_settings(pre) {}
+struct settings : solver_settings {};
+struct options : solver_options {
+	using settings_type = settings;
+	options(const char * pre) : solver_options(pre) {}
 };
 
 template<std::size_t Version = 0>

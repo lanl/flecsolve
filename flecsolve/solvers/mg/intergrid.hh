@@ -2,7 +2,7 @@
 #define FLECSOLVE_SOLVERS_MG_INTERGRID_H
 
 #include "flecsolve/topo/csr.hh"
-#include "flecsolve/operators/base.hh"
+#include "flecsolve/operators/core.hh"
 #include <limits>
 
 namespace flecsolve {
@@ -17,37 +17,12 @@ struct intergrid_params {
 	ref_t aggregates; // field representing the transpose of the aggregates
 };
 
-template<class scalar, class size>
-struct prolong;
 
 template<class scalar, class size>
-struct restrict;
-}
-
-namespace op {
-template<class scalar, class size>
-struct traits<mg::ua::prolong<scalar, size>> {
-	static constexpr auto input_var = variable<anon_var::anonymous>;
-	static constexpr auto output_var = variable<anon_var::anonymous>;
-	using parameters = mg::ua::intergrid_params<scalar, size>;
-};
-
-template<class scalar, class size>
-struct traits<mg::ua::restrict<scalar, size>> {
-	static constexpr auto input_var = variable<anon_var::anonymous>;
-	static constexpr auto output_var = variable<anon_var::anonymous>;
-	using parameters = mg::ua::intergrid_params<scalar, size>;
-};
-
-}
-
-namespace mg::ua {
-
-template<class scalar, class size>
-struct prolong : op::base<prolong<scalar, size>> {
-	using base = op::base<prolong<scalar, size>>;
+struct prolong : op::base<intergrid_params<scalar, size>> {
+	using base = op::base<intergrid_params<scalar, size>>;
 	using base::params;
-	using parameters = typename base::params_type;
+	using parameters = typename base::params_t;
 	prolong(parameters p) : base(std::move(p)) {}
 
 	template<class D, class R>
@@ -80,11 +55,12 @@ protected:
 	}
 };
 
+
 template<class scalar, class size>
-struct restrict : op::base<restrict<scalar, size>> {
-	using base = op::base<restrict<scalar, size>>;
+struct restrict : op::base<intergrid_params<scalar, size>> {
+	using base = op::base<intergrid_params<scalar, size>>;
 	using base::params;
-	using parameters = typename base::params_type;
+	using parameters = typename base::params_t;
 	restrict(parameters p) : base(std::move(p)) {}
 
 	template<class D, class R>

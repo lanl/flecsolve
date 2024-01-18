@@ -1,7 +1,6 @@
 #include "flecsi/execution.hh"
 #include "flecsi/flog.hh"
 
-#include "flecsolve/operators/base.hh"
 #include "flecsolve/solvers/factory.hh"
 #include "flecsolve/solvers/cg.hh"
 #include "flecsolve/solvers/krylov_operator.hh"
@@ -141,18 +140,16 @@ void solve(control_policy & cp) {
 	auto & u = cp.u();
 
 	std::size_t iter{0};
-	op::krylov_parameters params(cg::settings("solver"),
-	                             cg::topo_work<>::get(f),
-	                             poisson_op{{{sod(m)}}},
-	                             op::I,
-	                             [&](const auto &, double rnorm) {
-									 std::cout << ++iter << " " << rnorm
-											   << std::endl;
-									 return false;
-								 });
-	read_config("poisson.cfg", params);
-
-	op::krylov slv(std::move(params));
+	op::krylov slv(op::krylov_parameters(
+		               read_config("poisson.cfg", cg::options("solver")),
+		               cg::topo_work<>::get(f),
+		               op::make(poisson_op{sod(m)}),
+		               op::I,
+		               [&](const auto &, double rnorm) {
+			               std::cout << ++iter << " " << rnorm
+			                         << std::endl;
+			               return false;
+		               }));
 
 	slv.apply(f, u);
 }

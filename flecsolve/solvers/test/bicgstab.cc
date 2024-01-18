@@ -4,7 +4,7 @@
 #include "flecsi/util/unit.hh"
 #include "flecsi/util/unit/types.hh"
 
-#include "flecsolve/vectors/mesh.hh"
+#include "flecsolve/vectors/topo_view.hh"
 #include "flecsolve/solvers/bicgstab.hh"
 #include "flecsolve/util/config.hh"
 #include "flecsolve/matrices/io/matrix_market.hh"
@@ -26,9 +26,8 @@ int driver() {
 	static_assert(cases.size() <= ncases);
 
 	UNIT () {
-		bicgstab::settings settings("solver");
-		read_config("bicgstab.cfg", settings);
-
+		auto settings =
+			read_config("bicgstab.cfg", bicgstab::options("solver"));
 		std::size_t i = 0;
 		for (const auto & cs : cases) {
 			auto mtx = mat::io::matrix_market<>::read(std::get<0>(cs)).tocsr();
@@ -37,14 +36,14 @@ int driver() {
 
 			init_mesh(mtx.rows(), msh, colorings[i]);
 
-			csr_op A{std::move(mtx)};
-
-			vec::mesh x(msh, xd(msh)), b(msh, bd(msh));
+			auto [x, b] = vec::make(msh)(xd, bd);
 			b.set_random(0);
 			x.set_random(1);
 
-			op::krylov slv(op::krylov_parameters(
-				settings, bicgstab::topo_work<>::get(b), std::move(A)));
+			op::krylov slv(
+				op::krylov_parameters(settings,
+			                          bicgstab::topo_work<>::get(b),
+			                          op::core<csr_op>(std::move(mtx))));
 
 			auto info = slv.apply(b, x);
 

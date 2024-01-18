@@ -4,32 +4,20 @@
 #include "flecsi/execution.hh"
 #include "flecsi/flog.hh"
 
-#include "flecsolve/operators/base.hh"
+#include "flecsolve/operators/core.hh"
 
 #include "mesh.hh"
 
 namespace poisson {
-struct poisson_op;
-}
 
-template<>
-struct flecsolve::op::traits<poisson::poisson_op> {
-	struct parameters {
-		using ref_t = poisson::template stencil_field<poisson::five_pt>::
-			Reference<poisson::mesh, poisson::mesh::vertices>;
-		ref_t op_reference;
-	};
-
-	static constexpr auto input_var =
-		flecsolve::variable<flecsolve::anon_var::anonymous>;
-	static constexpr auto output_var =
-		flecsolve::variable<flecsolve::anon_var::anonymous>;
+struct parameters {
+	using ref_t = poisson::template stencil_field<
+		poisson::five_pt>::Reference<poisson::mesh, poisson::mesh::vertices>;
+	ref_t op_reference;
 };
 
-namespace poisson {
-
-struct poisson_op : flecsolve::op::base<poisson_op> {
-	using base = flecsolve::op::base<poisson_op>;
+struct poisson_op : flecsolve::op::base<parameters> {
+	using base = flecsolve::op::base<parameters>;
 	using base::params;
 
 	template<class D, class R>

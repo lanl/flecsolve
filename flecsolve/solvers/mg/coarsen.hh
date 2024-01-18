@@ -107,7 +107,7 @@ protected:
 	bool needs_rebuild;
 };
 
-template<class scalar, class size, class data>
+template<class scalar, class size, template<class> class data>
 soc_t soc_graph(float beta,
                 const mat::csr<scalar, size, data> & diag,
                 const mat::csr<scalar, size, data> & offd,
@@ -147,7 +147,7 @@ soc_t soc_graph(float beta,
 	return soc;
 }
 
-template<class scalar, class size, class data>
+template<class scalar, class size, template<class> class data>
 auto get_unmarked(const mat::csr<scalar, size, data> & diag,
                   const mat::csr<scalar, size, data> & offd,
                   bool checkdd) {
@@ -182,7 +182,7 @@ auto get_unmarked(const mat::csr<scalar, size, data> & diag,
 	return unmarked;
 }
 
-template<class scalar, class size, class data>
+template<class scalar, class size, template<class> class data>
 auto find_pair(std::size_t r,
                const prospect & unmarked,
                const mat::csr<scalar, size, data> & diag) {
@@ -203,7 +203,7 @@ auto find_pair(std::size_t r,
 	return curr.second;
 }
 
-template<class scalar, class size, class data>
+template<class scalar, class size, template<class> class data>
 aggregate_t pairwise_agg(float beta,
                          const mat::csr<scalar, size, data> & diag,
                          const mat::csr<scalar, size, data> & offd,
@@ -253,7 +253,7 @@ inline auto local_aggregate_transpose(const aggregate_t & agg) {
 	return aggt;
 }
 
-template<class scalar, class size, class data>
+template<class scalar, class size, template<class> class data>
 auto create_aux(const mat::csr<scalar, size, data> & diag,
                 const mat::csr<scalar, size, data> & offd,
                 const aggregate_t & agg) {
@@ -322,7 +322,7 @@ inline aggregate_t agg_union(const aggregate_t & agg1,
 	return agg;
 }
 
-template<class scalar, class size, class data>
+template<class scalar, class size, template<class> class data>
 auto double_pairwise_agg(float beta,
                          const mat::csr<scalar, size, data> & diag,
                          const mat::csr<scalar, size, data> & offd,
@@ -412,7 +412,7 @@ void coarsen_with_aggregates(
 }
 
 template<class scalar, class size, class Ref>
-auto coarsen(const mat::parcsr<scalar, size> & Af, Ref aggt) {
+auto coarsen(const mat::parcsr_op & Af, Ref aggt) {
 	typename topo::csr<scalar, size>::init topo_init;
 	task::aggregate_t agg;
 	flecsi::execute<task::aggregate_and_partition<scalar, size>, flecsi::mpi>(
@@ -420,8 +420,7 @@ auto coarsen(const mat::parcsr<scalar, size> & Af, Ref aggt) {
 	flecsi::execute<task::coarsen_with_aggregates<scalar, size>, flecsi::mpi>(
 		Af.data.topo(), agg, aggt, topo_init);
 
-	using parcsr = mat::parcsr<scalar, size>;
-	return parcsr{typename parcsr::parameters(std::move(topo_init))};
+	return mat::parcsr_op(std::move(topo_init));
 }
 
 }

@@ -268,7 +268,7 @@ struct mesh : flecsi::topo::specialization<flecsi::topo::narray, mesh> {
 		flog_assert(idef.colors() == flecsi::processes(),
 		            "current implementation is restricted to 1-to-1 mapping");
 
-		return {MPI_COMM_WORLD, {idef}};
+		return {{idef}};
 	}
 
 	static void set_geometry(mesh::accessor<flecsi::rw> sm, grect const & g) {

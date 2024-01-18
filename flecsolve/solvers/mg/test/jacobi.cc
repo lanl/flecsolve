@@ -4,6 +4,7 @@
 #include "flecsi/util/unit.hh"
 #include "flecsi/util/unit/types.hh"
 
+#include "flecsolve/matrices/parcsr.hh"
 #include "flecsolve/solvers/mg/jacobi.hh"
 
 namespace flecsolve {
@@ -18,16 +19,14 @@ namespace {
 int jacobitest() {
 
 	UNIT () {
-		using parcsr = mat::parcsr<double>;
-		parcsr A{parcsr::parameters(
-			MPI_COMM_WORLD, flecsi::processes(), "diag-diff.mtx")};
-		auto u = A.vec(ud);
-		auto f = A.vec(fd);
+		op::core<mat::parcsr_op, op::shared_storage> A(MPI_COMM_WORLD, "nos7.mtx");
+		auto & topo = A.source().data.topo();
+		auto [u, f] = vec::make(topo)(ud, fd);
 
 		u.set_random();
 		f.zero();
 
-		mg::jacobi relax{mg::jacobi_params{std::ref(A), 2 / 3., 50}};
+		auto relax = op::make(mg::jacobi(mg::jacobi_params(A, 2/3., 50)));
 		relax.apply(f, u);
 	};
 	return 0;

@@ -13,50 +13,45 @@
 
 #include "flecsolve/util/traits.hh"
 #include "flecsolve/vectors/seq.hh"
-#include "flecsolve/operators/base.hh"
+#include "flecsolve/operators/core.hh"
 
 namespace flecsolve::mat {
 
-template<class T>
-struct traits {};
-
-template<class Derived>
-struct sparse : with_derived<Derived>, op::base<Derived> {
-	using scalar = typename traits<Derived>::scalar_t;
-	using size = typename traits<Derived>::size_t;
-	using data_t = typename traits<Derived>::data_t;
-	using ops_t = typename traits<Derived>::ops_t;
-	using with_derived<Derived>::derived;
+template<template<class> class Data, template<class> class Ops, class Config>
+struct sparse : op::base<> {
+	using config = Config;
+	using scalar = typename config::scalar;
+	using size = typename config::size;
+	using data_t = Data<Config>;
+	using ops = Ops<Data<Config>>;
 
 	sparse() {}
-	sparse(typename op::traits<Derived>::parameters p)
-		: op::base<Derived>(std::move(p)) {}
 	sparse(data_t && d) : data{std::move(d)} {}
 
-	constexpr size rows() const { return derived().rows(); }
-	constexpr size cols() const { return derived().cols(); }
-	constexpr size nnz() const { return derived().nnz(); }
-
-	template<class D, class R>
-	constexpr void apply(const vec::base<D> & x, vec::base<R> & y) const {
-		return mult(x.derived(), y.derived());
+	template<class D,
+	         class R,
+	         std::enable_if_t<is_vector_v<D>, bool> = true,
+	         std::enable_if_t<is_vector_v<R>, bool> = true>
+	constexpr void apply(const D & x, R & y) const {
+		return mult(x, y);
 	}
 
-	template<class X, class Y>
-	constexpr void mult(const vec::base<X> & x, vec::base<Y> & y) const {
-		return ops.spmv(x.derived(), data, y.derived());
+	template<class X,
+	         class Y,
+	         std::enable_if_t<is_vector_v<X>, bool> = true,
+	         std::enable_if_t<is_vector_v<Y>, bool> = true>
+	constexpr void mult(const X & x, Y & y) const {
+		return ops::spmv(x, data, y);
 	}
-
-	constexpr void resize(size nnz) { return derived().resize(nnz); }
 
 	data_t data;
-	ops_t ops;
 };
 
-template<class Scalar, class Size>
+template<class Config>
 struct compressed_vector_data {
-	using scalar = Scalar;
-	using size = Size;
+	using config = Config;
+	using scalar = typename config::scalar;
+	using size = typename config::size;
 	template<class T>
 	using span = flecsi::util::span<T>;
 	static constexpr bool is_resizable = true;
@@ -113,86 +108,100 @@ protected:
 	std::vector<scalar> values_;
 };
 
-template<class scalar_element, class size_element>
+template<class ScalarElement, class SizeElement>
 struct compressed_view_data {
-	using scalar = std::remove_cv_t<scalar_element>;
-	using size = std::remove_cv_t<size_element>;
-	template<class T>
-	using span = flecsi::util::span<T>;
-	static constexpr bool is_resizable = false;
+	template<class Config>
+	struct type {
+		using scalar_element = ScalarElement;
+		using size_element = SizeElement;
+		using config = Config;
+		using scalar = typename config::scalar;
+		using size = typename config::size;
+		template<class T>
+		using span = flecsi::util::span<T>;
+		static constexpr bool is_resizable = false;
 
-	compressed_view_data(size msize,
-	                     size nnz,
-	                     size_element * offsets,
-	                     size_element * indices,
-	                     scalar_element * values)
-		: major_size_{msize}, nnz_{nnz}, offsets_{offsets}, indices_{indices},
-		  values_{values} {}
+		type(size msize,
+		     size nnz,
+		     size_element * offsets,
+		     size_element * indices,
+		     scalar_element * values)
+			: major_size_{msize}, nnz_{nnz}, offsets_{offsets}, indices_{indices},
+			  values_{values} {}
 
-	constexpr span<size_element> offsets() const {
-		return {offsets_, major_size_ + 1};
-	}
-	constexpr span<size_element> indices() const { return {indices_, nnz_}; }
-	constexpr span<scalar_element> values() const { return {values_, nnz_}; }
+		constexpr span<size_element> offsets() const {
+			return {offsets_, major_size_ + 1};
+		}
+		constexpr span<size_element> indices() const { return {indices_, nnz_}; }
+		constexpr span<scalar_element> values() const { return {values_, nnz_}; }
 
-	constexpr size major_size() const { return major_size_; }
+		constexpr size major_size() const { return major_size_; }
+		constexpr size nnz() const { return nnz_; }
 
-protected:
-	size major_size_;
-	size nnz_;
-	size_element * offsets_;
-	size_element * indices_;
-	scalar_element * values_;
+	protected:
+		size major_size_;
+		size nnz_;
+		size_element * offsets_;
+		size_element * indices_;
+		scalar_element * values_;
+	};
 };
 
 enum class major { col, row };
 
-template<class Data, major format>
+template<class Data>
 struct compressed_ops {
 	using scalar = typename Data::scalar;
-	void spmv(const scalar *, const Data &, scalar *) const {
-		flog(error) << "Not implemented" << std::endl;
-	}
-};
-
-template<class Data>
-struct compressed_ops<Data, major::row> {
-	using scalar = typename Data::scalar;
 	using size = typename Data::size;
+	using config = typename Data::config;
 
 	template<class X, class Y>
-	void spmv(const vec::seq<X> & x, const Data & data, vec::seq<Y> & y) const {
-		const size * rowptr = data.offsets().data();
-		const size * colind = data.indices().data();
-		const scalar * values = data.values().data();
-		for (size i = 0; i < data.major_size(); ++i) {
-			y[i] = 0.;
-			for (size off = rowptr[i]; off < rowptr[i + 1]; ++off) {
-				y[i] += values[off] * x[colind[off]];
+	static void spmv(const X & x, const Data & data, Y & y) {
+		if constexpr (config::format == major::row) {
+			const size * rowptr = data.offsets().data();
+			const size * colind = data.indices().data();
+			const scalar * values = data.values().data();
+			for (std::size_t i = 0; i < data.major_size(); ++i) {
+				y[i] = 0.;
+				for (std::size_t off = rowptr[i]; off < rowptr[i + 1]; ++off) {
+					y[i] += values[off] * x[colind[off]];
+				}
 			}
+		}
+		else {
+			flog(error) << "Not implemented" << std::endl;
 		}
 	}
 };
 
-template<class scalar,
-         major format = major::row,
-         class size = std::size_t,
-         class Data = compressed_vector_data<scalar, size>,
-         class Ops = compressed_ops<Data, format>>
-struct compressed : sparse<compressed<scalar, format, size, Data, Ops>> {
-	static constexpr bool is_row_major = format == major::row;
+template<class Scalar, class Size, major Format>
+struct compressed_config {
+	static constexpr major format = Format;
+	using scalar = Scalar;
+	using size = Size;
+};
+using compressed_defaults = compressed_config<double, std::size_t, major::row>;
 
-	using base = sparse<compressed<scalar, format, size, Data, Ops>>;
+template<class Config = compressed_defaults,
+         template<class> class Data = compressed_vector_data,
+         template<class> class Ops = compressed_ops>
+struct compressed : sparse<Data, Ops, Config> {
+	static constexpr bool is_row_major = Config::format == major::row;
+	using base = sparse<Data, Ops, Config>;
 	using base::data;
+	using data_t = typename base::data_t;
+	using size = typename Config::size;
+	using scalar = typename Config::scalar;
 
 	template<class T>
 	using span = flecsi::util::span<T>;
 
 	compressed() : major_size_{0}, minor_size_{0}, nnz_{0} {}
-	compressed(size rows, size cols, Data d = Data())
+	compressed(size rows, size cols, data_t d = data_t())
 		: base{std::move(d)}, major_size_{is_row_major ? rows : cols},
-		  minor_size_{is_row_major ? cols : rows}, nnz_{data.indices().size()} {
-		if constexpr (Data::is_resizable)
+		  minor_size_{is_row_major ? cols : rows},
+		  nnz_{data.indices().size()} {
+		if constexpr (data_t::is_resizable)
 			data.resize_major(major_size_);
 	}
 
@@ -212,7 +221,7 @@ struct compressed : sparse<compressed<scalar, format, size, Data, Ops>> {
 	}
 
 	void resize(size nnz) {
-		static_assert(Data::is_resizable);
+		static_assert(data_t::is_resizable);
 		data.resize_nnz(nnz);
 		nnz_ = nnz;
 	}
@@ -225,37 +234,57 @@ protected:
 	size nnz_;
 };
 
-template<class scalar, major format, class size, class data, class ops>
-struct traits<compressed<scalar, format, size, data, ops>> {
-	using ops_t = ops;
-	using data_t = data;
-	using scalar_t = scalar;
-	using size_t = size;
-};
-
 template<class scalar,
          class size = std::size_t,
-         class Data = compressed_vector_data<scalar, size>,
-         class Ops = compressed_ops<Data, major::row>>
-using csr = compressed<scalar, major::row, size, Data, Ops>;
+         template<class> class Data = compressed_vector_data,
+         template<class> class Ops = compressed_ops>
+using csr = compressed<compressed_config<scalar, size, major::row>, Data, Ops>;
 
 template<class R, class C, class V>
-auto csr_view(R r, C c, V v) {
-	using csr_t = compressed<typename V::value_type,
-	                         major::row,
-	                         typename R::value_type,
-	                         compressed_view_data<typename V::element_type,
-	                                              typename R::element_type>>;
+struct csr_view : compressed<compressed_config<typename V::value_type,
+                                               typename R::value_type,
+                                               major::row>,
+                             compressed_view_data<typename V::element_type, typename R::element_type>::template type,
+                             compressed_ops> {
+	using base = compressed<compressed_config<typename V::value_type,
+	                                          typename R::value_type,
+	                                          major::row>,
+	                        compressed_view_data<typename V::element_type, typename R::element_type>::template type,
+	                        compressed_ops>;
+	using data_t = typename base::data_t;
 
-	using data_t = typename csr_t::data_t;
-	return csr_t{r.size() - 1,
-	             r.size() - 1,
-	             data_t{r.size() - 1, v.size(), r.data(), c.data(), v.data()}};
-}
+	constexpr csr_view(R r, C c, V v)
+		: base{r.size() - 1,
+	           r.size() - 1,
+	           data_t{r.size() - 1, v.size(), r.data(), c.data(), v.data()}} {}
+};
+
+template<class Scalar, class Size>
+struct coo_config {
+	using scalar = Scalar;
+	using size = Size;
+};
+
+template<class Config>
+struct coo_data {
+	using size = typename Config::size;
+	using scalar = typename Config::scalar;
+
+	std::vector<size> I, J;
+	std::vector<scalar> V;
+};
+
+template<class Data>
+struct not_implemented {
+	template<class X, class Y>
+	static constexpr void spmv(const X &, const Data &, Y &) {
+		flog(error) << "SPMV not implemented" << std::endl;
+	}
+};
 
 template<class scalar, class size = std::size_t>
-struct coo : sparse<coo<scalar, size>> {
-	using base = sparse<coo>;
+struct coo : sparse<coo_data, not_implemented, coo_config<scalar, size>> {
+	using base = sparse<coo_data, not_implemented, coo_config<scalar, size>>;
 	using base::data;
 
 	coo(size n, size m) : rows_{n}, cols_{m} {}
@@ -303,29 +332,15 @@ protected:
 	size cols_;
 };
 
-template<class scalar, class size>
-struct traits<coo<scalar, size>> {
-	using type = coo<scalar, size>;
-	struct data_t {
-		std::vector<size> I, J;
-		std::vector<scalar> V;
-	};
-	struct ops_t {
-		template<class X, class Y>
-		void spmv(const vec::seq<X> &, const data_t &, vec::seq<Y> &) {
-			flog(error) << "Not implemented: COO SPMV" << std::endl;
-		}
-	};
-	using scalar_t = scalar;
-	using size_t = size;
-};
 }
 
 namespace flecsi::util::serial {
 
-template<class scalar, class size>
-struct traits<flecsolve::mat::compressed_vector_data<scalar, size>> {
-	using type = flecsolve::mat::compressed_vector_data<scalar, size>;
+template<class Config>
+struct traits<flecsolve::mat::compressed_vector_data<Config>> {
+	using type = flecsolve::mat::compressed_vector_data<Config>;
+	using size = typename Config::size;
+	using scalar = typename Config::scalar;
 
 	template<class P>
 	static void put(P & p, const type & c) {
@@ -343,13 +358,12 @@ struct traits<flecsolve::mat::compressed_vector_data<scalar, size>> {
 	}
 };
 
-template<class scalar,
-         flecsolve::mat::major format,
-         class size,
-         class data,
-         class ops>
-struct traits<flecsolve::mat::compressed<scalar, format, size, data, ops>> {
-	using type = flecsolve::mat::compressed<scalar, format, size, data, ops>;
+template<class Config, template<class> class Data, template<class> class Ops>
+struct traits<flecsolve::mat::compressed<Config, Data, Ops>> {
+	using type = flecsolve::mat::compressed<Config, Data, Ops>;
+	using size = typename Config::size;
+	using scalar = typename Config::scalar;
+	using data = Data<Config>;
 
 	template<class P>
 	static void put(P & p, const type & c) {

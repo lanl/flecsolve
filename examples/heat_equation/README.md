@@ -46,7 +46,7 @@ field definitions that will be used to store $`u^k`$ and $`u^{k+1}`$.
 **Control Policy** The control policy for this example can be found in
 [control policy](./control.hh). `initialize`,`advance`, and `finalize`
 control points are declared and state is added to store the
-`flecsolve::vec::mesh` instances.  These provide a vector interface to
+`flecsolve::vec::topo_view` instances.  These provide a vector interface to
 the fields stored on mesh and will be backed by the field definitions
 declared previously.  A helper function is added that will be used to
 intialize these once the mesh has been allocated:

@@ -1,5 +1,7 @@
 set(operators_HEADERS
-  base.hh
+  core.hh
   traits.hh
   shell.hh
+  storage.hh
+  factory.hh
   PARENT_SCOPE)

@@ -5,7 +5,7 @@
 #include "flecsi/util/unit.hh"
 #include "flecsi/util/unit/types.hh"
 
-#include "flecsolve/vectors/mesh.hh"
+#include "flecsolve/vectors/topo_view.hh"
 #include "flecsolve/vectors/multi.hh"
 
 #include "flecsolve/physics/specializations/fvm_narray.hh"
@@ -53,39 +53,29 @@ constexpr auto make_bcs(const Vec &) {
 			{{1.0}}));
 }
 
-static fvm_check chk_constx([](auto...) { return 3.14; },
-                            "face coefficient constant [x]",
-                            fconstant<msh::x_axis>{},
-                            fconstant<msh::faces>{});
-static fvm_check chk_consty([](auto...) { return 3.14; },
-                            "face coefficient constant [y]",
-                            fconstant<msh::y_axis>{},
-                            fconstant<msh::faces>{});
+// test setup for constant coefficient values
+auto chk_constx = std::make_tuple([](auto...) { return 3.14; },
+                                  "face coefficient constant [x]");
+auto chk_consty = std::make_tuple([](auto...) { return 3.14; },
+                                  "face coefficient constant [y]");
+auto chk_constz = std::make_tuple([](auto...) { return 3.14; },
+                                  "face coefficient constant [z]");
 
-static fvm_check chk_constz([](auto...) { return 3.14; },
-                            "face coefficient constant [z]",
-                            fconstant<msh::z_axis>{},
-                            fconstant<msh::faces>{});
-
-static fvm_check chk_avgx([](auto...) { return 1.0; },
-                          "face coefficient as directional avg of cells [x]",
-                          fconstant<msh::x_axis>{},
-                          fconstant<msh::faces>{});
-
-static fvm_check chk_avgy([](auto...) { return 1.0; },
-                          "face coefficient as directional avg of cells [y]",
-                          fconstant<msh::y_axis>{},
-                          fconstant<msh::faces>{});
-
-static fvm_check chk_avgz([](auto...) { return 1.0; },
-                          "face coefficient as directional avg of cells [z]",
-                          fconstant<msh::z_axis>{},
-                          fconstant<msh::faces>{});
+// test setup for average coefficient values through a direction
+auto chk_avgx =
+	std::make_tuple([](auto...) { return 1.0; },
+                    "face coefficient as directional avg of cells [x]");
+auto chk_avgy =
+	std::make_tuple([](auto...) { return 1.0; },
+                    "face coefficient as directional avg of cells [y]");
+auto chk_avgz =
+	std::make_tuple([](auto...) { return 1.0; },
+                    "face coefficient as directional avg of cells [z]");
 
 int fvm_coeff_test() {
 
 	init_mesh({8, 8, 8});
-	vec::mesh x(m, xd(m));
+	auto x = vec::make(m, xd(m));
 
 	UNIT () {
 		x.set_scalar(1.0);
@@ -104,12 +94,20 @@ int fvm_coeff_test() {
 		coef_const.apply(x, x);
 		coef_avg.apply(x, x);
 
-		EXPECT_EQ((test<chk_constx>(m, const_fd[msh::x_axis](m))), 0);
-		EXPECT_EQ((test<chk_consty>(m, const_fd[msh::y_axis](m))), 0);
-		EXPECT_EQ((test<chk_constz>(m, const_fd[msh::z_axis](m))), 0);
-		EXPECT_EQ((test<chk_avgx>(m, avg_fd[msh::x_axis](m))), 0);
-		EXPECT_EQ((test<chk_avgy>(m, avg_fd[msh::y_axis](m))), 0);
-		EXPECT_EQ((test<chk_avgz>(m, avg_fd[msh::z_axis](m))), 0);
+		EXPECT_TRUE(fvm_run<rface<msh::x_axis>>(
+			chk_constx, m, const_fd[msh::x_axis](m)));
+
+		EXPECT_TRUE(fvm_run<rface<msh::y_axis>>(
+			chk_consty, m, const_fd[msh::y_axis](m)));
+		EXPECT_TRUE(fvm_run<rface<msh::z_axis>>(
+			chk_constz, m, const_fd[msh::z_axis](m)));
+
+		EXPECT_TRUE(
+			fvm_run<rface<msh::x_axis>>(chk_avgx, m, avg_fd[msh::x_axis](m)));
+		EXPECT_TRUE(
+			fvm_run<rface<msh::y_axis>>(chk_avgy, m, avg_fd[msh::y_axis](m)));
+		EXPECT_TRUE(
+			fvm_run<rface<msh::z_axis>>(chk_avgz, m, avg_fd[msh::z_axis](m)));
 	};
 }
 
