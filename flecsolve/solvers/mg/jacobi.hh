@@ -1,52 +1,40 @@
 #ifndef FLECSOLVE_SOLVERS_MG_JACOBI_H
 #define FLECSOLVE_SOLVERS_MG_JACOBI_H
 
+#include "flecsolve/util/config.hh"
 #include "flecsolve/matrices/parcsr.hh"
 
 namespace flecsolve::mg {
 
+struct jacobi_settings {
+	float omega;
+	std::size_t nrelax;
+};
+
 template<class Scalar, class Size, template<class> class storage>
-struct jacobi_params {
+struct bound_jacobi : op::base<> {
 	using scalar = Scalar;
 	using size = Size;
 	op::core<mat::parcsr<Scalar, Size>, storage> A;
-	float omega;
-	std::size_t nrelax;
-
-	jacobi_params(op::core<mat::parcsr<scalar, size>, storage> a,
-	              float o,
-	              std::size_t n)
-		: A(a), omega(o), nrelax(n) {}
-
 	using topo_t = typename mat::parcsr<scalar, size>::topo_t;
 	static inline const typename topo_t::template vec_def<topo_t::cols> tmpd;
-};
-template<class scalar, class size, template<class> class storage>
-jacobi_params(op::core<mat::parcsr<scalar, size>, storage>, float, std::size_t)
-	-> jacobi_params<scalar, size, storage>;
+	jacobi_settings settings;
 
-template<class Scalar, class Size, template<class> class storage>
-struct jacobi : op::base<jacobi_params<Scalar, Size, storage>> {
-	using scalar = Scalar;
-	using size = Size;
-	using base = op::base<jacobi_params<Scalar, Size, storage>>;
-	using base::params;
-
-	jacobi(jacobi_params<scalar, size, storage> p) : base(std::move(p)) {}
+	bound_jacobi(op::core<mat::parcsr<Scalar, Size>, storage> A,
+	             jacobi_settings s)
+		: A(std::move(A)), settings(s) {}
 
 	template<class D, class R>
 	void apply(const D & b, R & x) const {
-		auto & p = const_cast<typename base::params_t &>(params);
-		for (std::size_t i = 0; i < params.nrelax; ++i) {
-			flecsi::execute<relax>(params.omega,
-			                       p.A.source().data.topo(),
+		for (std::size_t i = 0; i < settings.nrelax; ++i) {
+			flecsi::execute<relax>(settings.omega,
+			                       A.source().data.topo(),
 			                       x.data.ref(),
 			                       b.data.ref(),
-			                       p.tmpd(x.data.topo()));
+			                       tmpd(x.data.topo()));
 		}
 	}
 
-	using topo_t = topo::csr<scalar, size>;
 	template<flecsi::partition_privilege_t... PP>
 	using vec_acc = typename flecsi::field<scalar>::template accessor<PP...>;
 
@@ -86,6 +74,33 @@ struct jacobi : op::base<jacobi_params<Scalar, Size, storage>> {
 			x[r] = omega * dinv * (b[r] - lpu_x) + (1 - omega) * tmp[r];
 		}
 	}
+};
+
+namespace po = boost::program_options;
+
+struct jacobi {
+	using settings = jacobi_settings;
+	struct options : with_label {
+		using settings_type = settings;
+		explicit options(const char * pre) : with_label(pre) {}
+
+		auto operator()(settings_type & s) {
+			po::options_description desc;
+			// clang-format off
+			desc.add_options()
+				(label("omega").c_str(), po::value<float>(&s.omega)->default_value(2/3.), "Jacobi weight")
+				(label("nrelax").c_str(), po::value<std::size_t>(&s.nrelax)->required(), "Number of relaxation steps");
+			// clang-format on
+			return desc;
+		}
+	};
+
+	template<class A>
+	auto operator()(A && a) {
+		return op::make(bound_jacobi{std::forward<A>(a), settings_});
+	}
+
+	jacobi_settings settings_;
 };
 }
 

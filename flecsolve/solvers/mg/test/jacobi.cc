@@ -28,8 +28,9 @@ int jacobitest() {
 		u.set_random();
 		f.zero();
 
-		auto relax = op::make(mg::jacobi(mg::jacobi_params(A, 2 / 3., 50)));
-		relax.apply(f, u);
+		mg::jacobi smoother{
+			read_config("jacobi.cfg", mg::jacobi::options("smoother"))};
+		smoother(A)(f, u);
 	};
 	return 0;
 }

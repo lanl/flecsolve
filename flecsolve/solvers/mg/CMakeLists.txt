@@ -1,6 +1,8 @@
 flecsi_add_test(jacobi
   SOURCES
   test/jacobi.cc
+  INPUTS
+  test/jacobi.cfg
   LIBRARIES flecsolve
   PROCS 1)
 
