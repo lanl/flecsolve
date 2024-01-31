@@ -32,6 +32,7 @@
     - |
       header "Creating Build Environment"
       variable ENVIRONMENT
+      variable FLECSOLVE_VERSION
       variable FLECSI_VERSION
       variable FLECSI_VARIANTS
       variable TOOLCHAIN
@@ -89,7 +90,7 @@
     - export SPACK_USER_CACHE_PATH=$TMPDIR/spack-local
     - source $TMPDIR/spack/share/spack/setup-env.sh
     - module load gcc/${GCC_VERSION}
-    - module load cuda/${CUDA_VERSION}
+    #  - module load cuda/${CUDA_VERSION}
 
 .darwin_env_spack_environment:
   script: &darwin_env_spack_environment
@@ -112,16 +113,20 @@
     - spack env create ${SPACK_ENVIRONMENT}
     - spack env activate ${SPACK_ENVIRONMENT}
     - spack config add upstreams:default:install_tree:${DARWIN_SPACK_UPSTREAM}/opt/spack/
+    - spack config add concretizer:unify:true
+    - spack config add packages:all:providers:mpi::[${MPI_FLAVOR}]
+    - spack repo add spack-repo
     - section end spack_env_init
 
-.darwin_env_spack_install_flecsi:
-  script: &darwin_env_spack_install_flecsi
-    - section start "spack_env_install_flecsi[collapsed=true]" "Installing FleCSI"
-    - echo "spack add ${FLECSI_VERSION} %${TOOLCHAIN} ${FLECSI_VARIANTS} ${ARCH_DEPS}"
-    - spack add ${FLECSI_VERSION} %${TOOLCHAIN} ${FLECSI_VARIANTS} ${ARCH_DEPS}
+.darwin_env_spack_install_flecsolve:
+  script: &darwin_env_spack_install_flecsolve
+    - section start "spack_env_install_flecsisolve[collapsed=true]" "Installing FleCSolve"
+    - echo "spack add ${FLECSOLVE_VERSION}%${TOOLCHAIN} ^${FLECSI_VERSION} ${FLECSI_VARIANTS} ${ARCH_DEPS}"
+    - spack add ${FLECSI_VERSION}%${TOOLCHAIN} ${FLECSI_VARIANTS} ${ARCH_DEPS}
+    - spack add ${FLECSOLVE_VERSION}%${TOOLCHAIN} ^${FLECSI_VERSION}
     - spack install -j $(nproc)
     - spack find -v
-    - section end spack_env_install_flecsi
+    - section end spack_env_install_flecsolve
 
 #------------------------------------------------------------------------------#
 # darwin_build_template
@@ -163,7 +168,7 @@
 .darwin_build_template:
   script:
     - *darwin_env_init
-    - *darwin_env_spack_install_flecsi
+    - *darwin_env_spack_install_flecsolve
     - if [ -f /usr/bin/nvidia-smi ] ; then nvidia-smi || true; fi
     - spack env activate ${SPACK_ENVIRONMENT}
     - *darwin_setup_clang
@@ -215,7 +220,7 @@
 .darwin_defaults_build_template:
   script:
     - *darwin_env_init
-    - *darwin_env_spack_install_flecsi
+    - *darwin_env_spack_install_flecsolve
     - *darwin_print_defaults_build_info
     - section start build "Build"
     - which gcc
