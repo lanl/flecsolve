@@ -269,7 +269,9 @@ auto create_aux(const mat::csr<scalar, size, data> & diag,
 			std::map<size, scalar> agg_values;
 			for (auto r : agg[rc]) {
 				for (size off = rowptr[r]; off < rowptr[r + 1]; ++off) {
-					agg_values[aggt[colind[off]]] += values[off];
+					if (aggt[colind[off]] !=
+					    std::numeric_limits<flecsi::util::id>::max())
+						agg_values[aggt[colind[off]]] += values[off];
 				}
 			}
 
@@ -390,7 +392,9 @@ void coarsen_with_aggregates(
 			auto collapse = [&](const auto & mat) {
 				auto [rowptr, colind, values] = mat.rep();
 				for (size off = rowptr[r]; off < rowptr[r + 1]; ++off) {
-					agg_values[aggt[colind[off]]] += values[off];
+					if (aggt[colind[off]] !=
+					    std::numeric_limits<flecsi::util::id>::max())
+						agg_values[aggt[colind[off]]] += values[off];
 				}
 			};
 			collapse(A.diag());
