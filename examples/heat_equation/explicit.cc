@@ -16,9 +16,9 @@ void time_integration(control_policy & cp) {
 	using namespace flecsolve::time_integrator;
 
 	rk23::integrator ti(rk23::parameters(
-		                    read_config("explicit.cfg", rk23::options("time-integrator")),
-		                    op::core<heat_op, op::value_storage>(cp.diffusivity),
-		                    rk23::topo_work<>::get(u)));
+		read_config("explicit.cfg", rk23::options("time-integrator")),
+		op::core<heat_op, op::value_storage>(cp.diffusivity),
+		rk23::topo_work<>::get(u)));
 
 	auto output = [&]() {
 		if (output_steps.value()) {

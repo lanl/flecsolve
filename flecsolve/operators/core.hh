@@ -171,6 +171,14 @@ struct core : StoragePolicy<P> {
 		return source().apply(x, y);
 	}
 
+	template<class D,
+	         class R,
+	         std::enable_if_t<is_vector_v<D>, bool> = true,
+	         std::enable_if_t<is_vector_v<R>, bool> = true>
+	decltype(auto) operator()(const D & x, R & y) const {
+		return source().apply(x, y);
+	}
+
 	template<class B,
 	         class X,
 	         class R,

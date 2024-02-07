@@ -1,6 +1,7 @@
 #ifndef FLECSOLVE_MATRICES_CSR_HH
 #define FLECSOLVE_MATRICES_CSR_HH
 
+#include <cstddef>
 #include <limits>
 #include <vector>
 #include <numeric>
@@ -65,33 +66,41 @@ struct compressed_vector_data {
 		offsets_[major_size()] = s;
 	}
 
-	constexpr span<size> offsets_span() {
+	constexpr span<size> offsets() {
 		return {offsets_.data(), offsets_.size()};
 	}
-	constexpr span<const size> offsets_span() const {
+	constexpr span<const size> offsets() const {
 		return {offsets_.data(), offsets_.size()};
 	}
-	constexpr span<size> indices_span() {
+	constexpr span<size> indices() {
 		return {indices_.data(), indices_.size()};
 	}
-	constexpr span<const size> indices_span() const {
+	constexpr span<const size> indices() const {
 		return {indices_.data(), indices_.size()};
 	}
-	constexpr span<scalar> values_span() {
-		return {values_.data(), values_.size()};
-	}
-	constexpr span<const scalar> values_span() const {
+	constexpr span<scalar> values() { return {values_.data(), values_.size()}; }
+	constexpr span<const scalar> values() const {
 		return {values_.data(), values_.size()};
 	}
 
 	constexpr size major_size() const { return offsets_.size() - 1; }
 
-	constexpr auto & offsets() { return offsets_; }
-	constexpr const auto & offsets() const { return offsets_; }
-	constexpr auto & indices() { return indices_; }
-	constexpr const auto & indices() const { return indices_; }
-	constexpr auto & values() { return values_; }
-	constexpr const auto & values() const { return values_; }
+	constexpr auto & offsets_vec() { return offsets_; }
+	constexpr const auto & offsets_vec() const { return offsets_; }
+	constexpr auto & indices_vec() { return indices_; }
+	constexpr const auto & indices_vec() const { return indices_; }
+	constexpr auto & values_vec() { return values_; }
+	constexpr const auto & values_vec() const { return values_; }
+
+	constexpr auto vecs() {
+		return std::forward_as_tuple(
+			offsets_vec(), indices_vec(), values_vec());
+	}
+
+	constexpr auto vecs() const {
+		return std::forward_as_tuple(
+			offsets_vec(), indices_vec(), values_vec());
+	}
 
 protected:
 	std::vector<size> offsets_;
@@ -99,37 +108,47 @@ protected:
 	std::vector<scalar> values_;
 };
 
-template<class Config>
+template<class ScalarElement, class SizeElement>
 struct compressed_view_data {
-	using config = Config;
-	using scalar = typename config::scalar;
-	using size = typename config::size;
-	template<class T>
-	using span = flecsi::util::span<T>;
-	static constexpr bool is_resizable = false;
+	template<class Config>
+	struct type {
+		using scalar_element = ScalarElement;
+		using size_element = SizeElement;
+		using config = Config;
+		using scalar = typename config::scalar;
+		using size = typename config::size;
+		template<class T>
+		using span = flecsi::util::span<T>;
+		static constexpr bool is_resizable = false;
 
-	compressed_view_data(size msize,
-	                     size nnz,
-	                     size * offsets,
-	                     size * indices,
-	                     scalar * values)
-		: major_size_{msize}, nnz_{nnz}, offsets_{offsets}, indices_{indices},
-		  values_{values} {}
+		type(size msize,
+		     size nnz,
+		     size_element * offsets,
+		     size_element * indices,
+		     scalar_element * values)
+			: major_size_{msize}, nnz_{nnz}, offsets_{offsets},
+			  indices_{indices}, values_{values} {}
 
-	constexpr span<size> offsets_span() const {
-		return {offsets_, major_size_ + 1};
-	}
-	constexpr span<size> indices_span() const { return {indices_, nnz_}; }
-	constexpr span<scalar> values_span() const { return {values_, nnz_}; }
+		constexpr span<size_element> offsets() const {
+			return {offsets_, major_size_ + 1};
+		}
+		constexpr span<size_element> indices() const {
+			return {indices_, nnz_};
+		}
+		constexpr span<scalar_element> values() const {
+			return {values_, nnz_};
+		}
 
-	constexpr size major_size() const { return major_size_; }
+		constexpr size major_size() const { return major_size_; }
+		constexpr size nnz() const { return nnz_; }
 
-protected:
-	size major_size_;
-	size nnz_;
-	size * offsets_;
-	size * indices_;
-	scalar * values_;
+	protected:
+		size major_size_;
+		size nnz_;
+		size_element * offsets_;
+		size_element * indices_;
+		scalar_element * values_;
+	};
 };
 
 enum class major { col, row };
@@ -143,9 +162,9 @@ struct compressed_ops {
 	template<class X, class Y>
 	static void spmv(const X & x, const Data & data, Y & y) {
 		if constexpr (config::format == major::row) {
-			const size * rowptr = data.offsets_span().data();
-			const size * colind = data.indices_span().data();
-			const scalar * values = data.values_span().data();
+			const size * rowptr = data.offsets().data();
+			const size * colind = data.indices().data();
+			const scalar * values = data.values().data();
 			for (std::size_t i = 0; i < data.major_size(); ++i) {
 				y[i] = 0.;
 				for (std::size_t off = rowptr[i]; off < rowptr[i + 1]; ++off) {
@@ -184,8 +203,7 @@ struct compressed : sparse<Data, Ops, Config> {
 	compressed() : major_size_{0}, minor_size_{0}, nnz_{0} {}
 	compressed(size rows, size cols, data_t d = data_t())
 		: base{std::move(d)}, major_size_{is_row_major ? rows : cols},
-		  minor_size_{is_row_major ? cols : rows},
-		  nnz_{data.indices_span().size()} {
+		  minor_size_{is_row_major ? cols : rows}, nnz_{data.indices().size()} {
 		if constexpr (data_t::is_resizable)
 			data.resize_major(major_size_);
 	}
@@ -198,12 +216,12 @@ struct compressed : sparse<Data, Ops, Config> {
 	}
 	constexpr size nnz() const { return nnz_; }
 
-	constexpr span<size> offsets() { return data.offsets_span(); }
-	constexpr span<const size> offsets() const { return data.offsets_span(); }
-	constexpr span<size> indices() { return data.indices_span(); }
-	constexpr span<const size> indices() const { return data.indices_span(); }
-	constexpr span<scalar> values() { return data.values_span(); }
-	constexpr span<const scalar> values() const { return data.values_span(); }
+	constexpr auto rep() {
+		return std::make_tuple(data.offsets(), data.indices(), data.values());
+	}
+	constexpr auto rep() const {
+		return std::make_tuple(data.offsets(), data.indices(), data.values());
+	}
 
 	void resize(size nnz) {
 		static_assert(data_t::is_resizable);
@@ -226,16 +244,20 @@ template<class scalar,
 using csr = compressed<compressed_config<scalar, size, major::row>, Data, Ops>;
 
 template<class R, class C, class V>
-struct csr_view : compressed<compressed_config<typename V::element_type,
-                                               typename R::element_type,
-                                               major::row>,
-                             compressed_view_data,
-                             compressed_ops> {
-	using base = compressed<compressed_config<typename V::element_type,
-	                                          typename R::element_type,
-	                                          major::row>,
-	                        compressed_view_data,
-	                        compressed_ops>;
+struct csr_view
+	: compressed<compressed_config<typename V::value_type,
+                                   typename R::value_type,
+                                   major::row>,
+                 compressed_view_data<typename V::element_type,
+                                      typename R::element_type>::template type,
+                 compressed_ops> {
+	using base = compressed<
+		compressed_config<typename V::value_type,
+	                      typename R::value_type,
+	                      major::row>,
+		compressed_view_data<typename V::element_type,
+	                         typename R::element_type>::template type,
+		compressed_ops>;
 	using data_t = typename base::data_t;
 
 	constexpr csr_view(R r, C c, V v)
@@ -297,9 +319,7 @@ struct coo : sparse<coo_data, not_implemented, coo_config<scalar, size>> {
 
 		csr<scalar, size> ret{rows_, cols_};
 		ret.resize(nnz());
-		auto rowptr = ret.offsets();
-		auto colind = ret.indices();
-		auto values = ret.values();
+		auto [rowptr, colind, values] = ret.rep();
 		rowptr[rows_] = 0;
 		for (size i = 0; i < nnz(); ++i) {
 			++rowptr[I[ind[i]] + 1];
@@ -331,15 +351,15 @@ struct traits<flecsolve::mat::compressed_vector_data<Config>> {
 
 	template<class P>
 	static void put(P & p, const type & c) {
-		serial::put(p, c.offsets(), c.indices(), c.values());
+		serial::put(p, c.offsets_vec(), c.indices_vec(), c.values_vec());
 	}
 
 	static type get(const std::byte *& p) {
 		type ret;
 
-		ret.offsets() = serial::get<std::vector<size>>(p);
-		ret.indices() = serial::get<std::vector<size>>(p);
-		ret.values() = serial::get<std::vector<scalar>>(p);
+		ret.offsets_vec() = serial::get<std::vector<size>>(p);
+		ret.indices_vec() = serial::get<std::vector<size>>(p);
+		ret.values_vec() = serial::get<std::vector<scalar>>(p);
 
 		return ret;
 	}

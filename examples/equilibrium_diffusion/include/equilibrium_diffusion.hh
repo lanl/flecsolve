@@ -304,9 +304,10 @@ inline int driver() {
 	// create the solver
 	flecsolve::op::krylov slv(
 		// get the solver parameters and workspace, & bind the operator to the
-		// solver
+	    // solver
 		flecsolve::op::krylov_parameters(
-			flecsolve::read_config("diffusion.cfg", flecsolve::cg::options("solver")),
+			flecsolve::read_config("diffusion.cfg",
+	                               flecsolve::cg::options("solver")),
 			flecsolve::cg::topo_work<>::get(RHS),
 			std::ref(A)));
 
