@@ -28,13 +28,13 @@ struct topo_acc_select {
 	using acc = typename T::template accessor<flecsi::ro>;
 };
 // the case of unstructured, with three permission bits
-template<class t>
-struct topo_acc_select<t,
+template<class T>
+struct topo_acc_select<T,
                        typename std::enable_if_t<std::is_same_v<
-						   typename t::base,
+						   typename T::base,
 						   flecsi::topo::base_t<flecsi::topo::unstructured>>>> {
 	using acc =
-		typename t::template accessor<flecsi::ro, flecsi::ro, flecsi::ro>;
+		typename T::template accessor<flecsi::ro, flecsi::ro, flecsi::ro>;
 };
 
 template<typename T, flecsi::data::layout L = flecsi::data::layout::dense>
