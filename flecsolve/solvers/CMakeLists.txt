@@ -13,6 +13,10 @@ flecsolve_headers(
   mg/coarsen.hh
   mg/intergrid.hh)
 
+set(solvers_SOURCES
+  amp.cc
+  PARENT_SCOPE)
+
 flecsi_add_test(cg
   SOURCES
   test/cg.cc
@@ -60,5 +64,25 @@ flecsi_add_test(nka
   test/nka-factory.cfg
   LIBRARIES flecsolve
   PROCS 1)
+
+flecsi_add_test(amp-amg
+  SOURCES
+  test/amp_boomeramg.cc
+  INPUTS
+  ${nos7_SOURCE_DIR}/nos7.mtx
+  test/amp-amg.cfg
+  test/amp-input
+  LIBRARIES flecsolve
+  PROCS 3)
+
+flecsi_add_test(amp-solver
+  SOURCES
+  test/amp_solver.cc
+  INPUTS
+  ${nos7_SOURCE_DIR}/nos7.mtx
+  test/amp-solver.cfg
+  test/amp-solver-input
+  LIBRARIES flecsolve
+  PROCS 3)
 
 add_subdirectory(mg)

@@ -303,6 +303,8 @@ private:
 
 	using diag = csr_def<index_space::nnz_diag>;
 	using offd = csr_def<index_space::nnz_offd>;
+
+	static inline const field_def<flecsi::util::gid, index_space::nnz_offd> colmap_field;
 };
 
 template<class P>
@@ -314,6 +316,7 @@ struct csr_category<P>::access {
 		send_csr<csr_category::offd>(f, offd_);
 		const auto meta = [](auto & n) -> auto & { return n.meta; };
 		meta_.topology_send(f, meta);
+		f(colmap_, [](auto & t) { return csr_category::colmap_field(t.get()); });
 	}
 
 	template<class FS, class A, class F>
@@ -326,6 +329,8 @@ struct csr_category<P>::access {
 	FLECSI_INLINE_TARGET auto diag() { return diag_; }
 
 	FLECSI_INLINE_TARGET auto offd() { return offd_; }
+
+	FLECSI_INLINE_TARGET auto colmap() { return colmap_; }
 
 	FLECSI_INLINE_TARGET const csr_impl::metadata & meta() { return *meta_; }
 
@@ -345,6 +350,7 @@ private:
 
 	csr_acc<csr_category::diag> diag_;
 	csr_acc<csr_category::offd> offd_;
+	accessor<csr_category::colmap_field> colmap_;
 };
 }
 namespace flecsi::topo {
@@ -392,6 +398,7 @@ struct csr : flecsi::topo::help,
 		}
 
 		FLECSI_INLINE_TARGET const auto & meta() { return B::meta(); }
+		FLECSI_INLINE_TARGET auto colmap() { return B::colmap(); }
 
 		template<index_space S>
 		auto dofs() {
@@ -405,6 +412,12 @@ struct csr : flecsi::topo::help,
 		flecsi::util::gid global_id(flecsi::topo::id<S> lid) {
 			static_assert(S == index_space::rows || S == index_space::cols);
 			auto view = (S == index_space::rows) ? meta().rows : meta().cols;
+			auto lidi = static_cast<flecsi::util::id>(lid);
+			if constexpr (S == index_space::cols) {
+				if (lidi >= view.size()) {
+					return colmap()[lidi - view.size()];
+				}
+			}
 			return view.beg + static_cast<flecsi::util::id>(lid);
 		}
 	};
@@ -500,15 +513,17 @@ struct csr : flecsi::topo::help,
 		for (std::size_t lc = 0; lc < m.depth(); ++lc) {
 			auto col = pm[rank][lc];
 
-			// initialize reverse map for ghosts
-			std::unordered_map<flecsi::util::gid, size> colmap;
-			for (size i = 0; i < c.column_ghosts[lc].size(); ++i) {
-				colmap[c.column_ghosts[lc][i]] = i + cm[col].size();
-			}
-
 			auto & mat = *lmat++;
 			auto diag = ma[lc].diag();
 			auto offd = ma[lc].offd();
+			auto colmap = ma[lc].colmap();
+
+			// initialize reverse map for ghosts
+			std::unordered_map<flecsi::util::gid, size> rcolmap;
+			for (size i = 0; i < c.column_ghosts[lc].size(); ++i) {
+				rcolmap[c.column_ghosts[lc][i]] = i + cm[col].size();
+				colmap[i] = c.column_ghosts[lc][i];
+			}
 
 			diag.data.offsets()[0] = 0;
 			offd.data.offsets()[0] = 0;
@@ -536,7 +551,7 @@ struct csr : flecsi::topo::help,
 						       nnz_row_diag);
 					}
 					else { // insert in offd
-						insert(colmap.at(cid),
+						insert(rcolmap.at(cid),
 						       offd.data.offsets()[row],
 						       offd.data.indices(),
 						       offd.data.values(),

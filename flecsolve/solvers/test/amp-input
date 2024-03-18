@@ -1,0 +1,80 @@
+Mesh{
+    FileName = "cube64.with.boundary.labels.e"
+    MeshName = "bar"
+    MeshType = "libMesh"
+    dim      = 3
+    x_offset = 0
+    y_offset = 0
+    z_offset = 0
+    NumberOfElements = 1088
+}
+
+DiffusionBVPOperator {
+   name="LinearBVPOperator"
+   print_info_level = 1
+   VolumeOperator = "DiffusionLinearFEOperator1"
+   BoundaryOperator = "ColumnBoundaryOperator1"
+}
+
+DiffusionLinearFEOperator1{
+   name="DiffusionLinearFEOperator"
+   FixedTemperature = TRUE
+   FixedConcentration = TRUE
+   FixedBurnup   = TRUE
+   InputVariable = "therm"
+   OutputVariable = "therm"
+ 
+   DiffusionElement {
+     name="DiffusionLinearElement"
+        FE_ORDER = "FIRST"  
+     FE_FAMILY = "LAGRANGE"
+     QRULE_TYPE = "QGAUSS"
+     QRULE_ORDER = "DEFAULT"
+   }
+   LocalModel = "DiffusionTransportModel1"
+}
+
+ColumnBoundaryOperator1 {
+   name="ColumnBoundaryOperator"
+   numberOfBoundaryOperators=2
+   boundaryOperators="RobinBoundaryOperator","DirichletMatrixCorrection"
+
+}
+
+RobinBoundaryOperator {
+   name="RobinMatrixCorrection"
+   skip_params = FALSE
+   FE_ORDER = "FIRST"  
+   FE_FAMILY = "LAGRANGE"
+   QRULE_TYPE = "QGAUSS"
+   QRULE_ORDER = "DEFAULT"
+   alpha          = 1.0
+   beta           = 1.0
+   gamma          = 1.0
+    number_of_ids    = 1
+   id_0             = 2
+   number_of_dofs_0 =   1
+   dof_0_0          =   0
+   value_0_0        = 101.
+}
+
+DirichletMatrixCorrection{
+   name="DirichletMatrixCorrection"
+   skip_params = FALSE
+   skip_rhs_correction = FALSE
+   skip_rhs_add_correction = FALSE
+    number_of_ids = 1
+   id_0             = 1
+   number_of_dofs_0 =   1
+   dof_0_0          =   0
+   value_0_0        = 300.
+}
+
+DiffusionTransportModel1 {
+     name="DiffusionTransportModel"
+     Material = "Independent"
+     Property = "ThermalConductivity"
+        Default_Concentration = .1
+     Default_Temperature   = 300.
+     Default_Burnup   = 0.0
+   }

@@ -18,7 +18,7 @@ struct shared_make {
 	using store = std::shared_ptr<T>;
 	template<class... Args>
 	static store make(Args &&... args) {
-		return std::make_shared<T>(args...);
+		return std::make_shared<T>(std::forward<Args>(args)...);
 	}
 };
 
@@ -27,7 +27,7 @@ struct unique_make {
 	using store = std::unique_ptr<T>;
 	template<class... Args>
 	static store make(Args &&... args) {
-		return std::make_unique<T>(args...);
+		return std::make_unique<T>(std::forward<Args>(args)...);
 	}
 };
 
@@ -119,7 +119,7 @@ struct base {
 	const params_t & get_params() const { return params; }
 
 	template<op::label tag, class T>
-	auto get_parameters(const T & t) const {
+	auto get_parameters(const T &) const {
 		return nullptr;
 	}
 
@@ -205,8 +205,10 @@ struct core : StoragePolicy<P> {
 	}
 
 	auto & get_operator() { return source().get_operator(); }
-
 	const auto & get_operator() const { return source().get_operator(); }
+
+	auto & data() { return source().data; }
+	const auto & data() const { return source().data; }
 };
 
 template<class P>

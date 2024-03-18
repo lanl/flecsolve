@@ -2,6 +2,12 @@ cmake_minimum_required(VERSION 3.23)
 
 project(flecsolve VERSION 0.0.1 LANGUAGES CXX C)
 
+set(PROJ flecsolve)
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE RelWithDebInfo)
+endif()
+set(flecsolve_INSTALL_DIR /tmp)
+
 set(CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -13,6 +19,8 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 endif()
 
 find_package(FleCSI REQUIRED)
+find_package(AMP REQUIRED)
+find_package(TPLs REQUIRED)
 
 option(ENABLE_UNIT_TESTS "Enable the Unit tests" On)
 set(ENABLE_FLOG ${FleCSI_ENABLE_FLOG})
@@ -73,9 +81,12 @@ target_include_directories(flecsolve
   PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
   $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
-  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
+  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+  ${AMP_INCLUDE_DIRS} ${TPL_INCLUDE_DIRS}
+)
 
-target_link_libraries(flecsolve PUBLIC FleCSI::FleCSI)
+target_link_libraries(flecsolve PUBLIC
+  FleCSI::FleCSI MPI::MPI_CXX ${AMP_LIBRARIES} ${TPL_LIBRARIES})
 
 add_subdirectory(flecsolve)
 
