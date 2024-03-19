@@ -63,7 +63,7 @@ struct topo_view {
 
 	// select the topology accessor witt the correct number of
 	// permissions flags
-	using topo_acc = typename topo_acc_select<topo_t>::acc;
+	using topo_acc = flecsi::data::topology_accessor<topo_t, flecsi::privilege_repeat<flecsi::ro, num_priv>>;
 
 	template<flecsi::partition_privilege_t priv>
 	using acc = typename field<scalar>::template accessor1<dofs_priv<priv>>;
