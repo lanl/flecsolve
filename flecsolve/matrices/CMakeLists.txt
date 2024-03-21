@@ -1,8 +1,7 @@
-set(matrices_HEADERS
+flecsolve_headers(
   parcsr.hh
   seq.hh
-  io/matrix_market.hh
-  PARENT_SCOPE)
+  io/matrix_market.hh)
 
 flecsi_add_test(parcsr
   SOURCES

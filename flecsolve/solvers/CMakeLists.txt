@@ -1,4 +1,4 @@
-set(solvers_HEADERS
+flecsolve_headers(
   bicgstab.hh
   cg.hh
   gmres.hh
@@ -11,8 +11,7 @@ set(solvers_HEADERS
   mg/jacobi.hh
   mg/gs.hh
   mg/coarsen.hh
-  mg/intergrid.hh
-  PARENT_SCOPE)
+  mg/intergrid.hh)
 
 flecsi_add_test(cg
   SOURCES

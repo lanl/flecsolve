@@ -1,4 +1,4 @@
-set(physics_HEADERS
+flecsolve_headers(
     boundary/bc_base.hh
     boundary/dirichlet.hh
     boundary/neumann.hh
@@ -12,8 +12,7 @@ set(physics_HEADERS
     reaction/fkn_mechanism.hh
     specializations/fvm_narray.hh
     volume_diffusion/diffusion.hh
-    volume_diffusion/coefficient.hh
-    PARENT_SCOPE)
+    volume_diffusion/coefficient.hh)
 
 flecsi_add_test(
   fvm_mesh_test

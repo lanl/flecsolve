@@ -1,16 +1,14 @@
-set(time-integrators_HEADERS
+flecsolve_headers(
   base.hh
   bdf_parameters.hh
   bdf.hh
   parameters.hh
   rk23.hh
-  rk45.hh
-  PARENT_SCOPE)
+  rk45.hh)
 
-set(time-integrators_SOURCES
+flecsolve_sources(
   bdf.cc
-  bdf_parameters.cc
-  PARENT_SCOPE)
+  bdf_parameters.cc)
 
 flecsi_add_test(explicit
   SOURCES

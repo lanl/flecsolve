@@ -1,6 +1,5 @@
-set(util_HEADERS
+flecsolve_headers(
   config.hh
   future.hh
   traits.hh
-  test/mesh.hh
-  PARENT_SCOPE)
+  test/mesh.hh)

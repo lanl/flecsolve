@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.13...3.20)
+cmake_minimum_required(VERSION 3.23)
 
 project(flecsolve VERSION 0.0.1 LANGUAGES CXX C)
 
@@ -61,13 +61,23 @@ endif()
 # option to build examples
 option(FLECSOLVE_BUILD_EXAMPLES "Build the examples" OFF)
 
-include(FleCSI/library)
+option(BUILD_SHARED_LIBS "Build shared libs" ON)
+mark_as_advanced(BUILD_SHARED_LIBS)
+
+include(GNUInstallDirs)
+
 add_library(flecsolve)
-add_library_target(flecsolve flecsolve
-  VERSION         ${${PROJECT_NAME}_VERSION}
-  EXPORT_TARGET   flecsolveTargets
-  NAMESPACE       flecsolve
-  LINK_PUBLIC     FleCSI::FleCSI MPI::MPI_CXX)
+add_library(fecsolve::flecsolve ALIAS flecsolve)
+
+target_include_directories(flecsolve
+  PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+  $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
+  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
+
+target_link_libraries(flecsolve PUBLIC FleCSI::FleCSI)
+
+add_subdirectory(flecsolve)
 
 if(FLECSOLVE_BUILD_EXAMPLES)
   message(STATUS "Adding examples directory")
@@ -77,9 +87,46 @@ endif()
 configure_file(${PROJECT_SOURCE_DIR}/config/flecsolveConfig.cmake.in
   ${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/flecsolveConfig.cmake @ONLY)
 
+# install
 install(
   FILES ${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/flecsolveConfig.cmake
-  DESTINATION ${CMAKE_INSTALL_PREFIX}/${LIBDIR}/cmake/flecsolve)
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/flecsolve)
+
+install(TARGETS flecsolve
+  EXPORT
+  flecsolveTargets
+  DESTINATION
+  ${CMAKE_INSTALL_LIBDIR}
+  FILE_SET public_headers DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/flecsolve)
+
+install(EXPORT flecsolveTargets
+  FILE
+  flecsolveTargets.cmake
+  NAMESPACE
+  flecsolve::
+  DESTINATION
+  ${CMAKE_INSTALL_LIBDIR}/cmake/flecsolve)
+
+# version
+set_target_properties(flecsolve
+  PROPERTIES
+  VERSION ${flecsolve_VERSION})
+
+include(CMakePackageConfigHelpers)
+write_basic_package_version_file(
+  ${CMAKE_CURRENT_BINARY_DIR}/flecsolveConfigVersion.cmake
+  VERSION ${flecsolve_VERSION}
+  COMPATIBILITY AnyNewerVersion)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/flecsolveConfigVersion.cmake
+  DESTINATION
+  ${CMAKE_INSTALL_LIBDIR}/cmake/${target})
+
+# local export
+export(EXPORT flecsolveTargets
+  FILE ${CMAKE_BINARY_DIR}/flecsolveTargets.cmake
+  NAMESPACE flecsolve::)
+
+export(PACKAGE flecsolve)
 
 flecsi_summary_header()
 flecsi_summary_info("CMAKE_BUILD_TYPE" "${CMAKE_BUILD_TYPE}" TRUE)
