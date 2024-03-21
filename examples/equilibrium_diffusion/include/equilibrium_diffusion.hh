@@ -49,9 +49,6 @@ constexpr scalar_t DEFAULT_VAL = 1.0;
 //===================================================
 using msh = flecsolve::physics::fvm_narray;
 
-msh::slot m;
-msh::cslot coloring;
-
 // field definition, & reference
 template<auto S>
 using fld = const field<scalar_t>::definition<msh, S>;
@@ -67,7 +64,7 @@ template<auto S>
 using vec_fldr = util::key_array<fldr<S>, msh::axes>;
 
 // useful to produce an array of field references from an array of field defs
-inline auto make_faces_ref(const vec_fld<msh::faces> & fs) {
+inline auto make_faces_ref(msh::slot & m, const vec_fld<msh::faces> & fs) {
 	return vec_fldr<msh::faces>{
 		fs[msh::x_axis](m), fs[msh::y_axis](m), fs[msh::z_axis](m)};
 }
@@ -88,7 +85,7 @@ std::array<vec_fld<msh::faces>, NVAR> diff_coeffd{};
 //=============== utility functions==================
 //===================================================
 
-void init_mesh() {
+void init_mesh(msh::slot & m, msh::cslot & coloring) {
 	std::vector<std::size_t> extents{{NX.value(), NY.value(), 1}};
 	coloring.allocate(processes(), extents);
 
@@ -166,8 +163,10 @@ constexpr decltype(auto) make_boundary_operator_pseudo(const Vec &) {
  * used by the diffusion operator
  */
 template<std::size_t N, class Vec>
-decltype(auto)
-make_volume_operator(const Vec &, scalar_t beta, scalar_t alpha) {
+decltype(auto) make_volume_operator(msh::slot & m,
+                                    const Vec &,
+                                    scalar_t beta,
+                                    scalar_t alpha) {
 	using namespace flecsolve::physics;
 
 	auto constant_coeff = coefficient<constant_coefficient<Vec>, Vec>::create(
@@ -183,7 +182,8 @@ make_volume_operator(const Vec &, scalar_t beta, scalar_t alpha) {
  */
 namespace detail {
 template<class FieldDefArr, std::size_t... I>
-decltype(auto) make_multivector(const FieldDefArr & fd,
+decltype(auto) make_multivector(msh::slot & m,
+                                const FieldDefArr & fd,
                                 std::index_sequence<I...>) {
 	using namespace flecsolve;
 	return vec::make(
@@ -211,7 +211,8 @@ void field_out(msh::accessor<ro, ro> vm,
 }
 
 template<class FieldDefArr, std::size_t... I>
-void fields_out(const FieldDefArr & fd,
+void fields_out(msh::slot & m,
+                const FieldDefArr & fd,
                 std::ofstream & of,
                 std::index_sequence<I...>) {
 	using namespace flecsolve;
@@ -220,7 +221,7 @@ void fields_out(const FieldDefArr & fd,
 } // namespace detail
 
 template<class FieldDeffArr>
-void fields_out(FieldDeffArr & fd, std::string filen) {
+void fields_out(msh::slot & m, FieldDeffArr & fd, std::string filen) {
 
 	std::stringstream ss;
 	ss << filen << "_" << process() << ".dat";
@@ -230,8 +231,8 @@ void fields_out(FieldDeffArr & fd, std::string filen) {
 }
 
 template<class FieldDefArr>
-decltype(auto) make_multivector(const FieldDefArr & fd) {
-	return detail::make_multivector(fd, std::make_index_sequence<NVAR>{});
+decltype(auto) make_multivector(msh::slot & m, const FieldDefArr & fd) {
+	return detail::make_multivector(m, fd, std::make_index_sequence<NVAR>{});
 }
 
 inline int driver() {
@@ -241,14 +242,17 @@ inline int driver() {
 
 	flog(info) << "initializing mesh\n";
 	// initialize the mesh
-	init_mesh();
+	msh::slot m;
+	msh::cslot coloring;
+
+	init_mesh(m, coloring);
 
 	//===================================================
 	//=============== multivectors ======================
 	//===================================================
 
-	auto X = make_multivector(xd);
-	auto RHS = make_multivector(rhsd);
+	auto X = make_multivector(m, xd);
+	auto RHS = make_multivector(m, rhsd);
 
 	auto & [vec1, vec2] = X;
 
@@ -291,10 +295,11 @@ inline int driver() {
 	auto A = flecsolve::op::make(flecsolve::physics::op_expr(
 		flecsolve::multivariable<diffusion_var::v1, diffusion_var::v2>,
 		bnd_op_1,
-		make_volume_operator<0>(vec1, diff_param_beta[0], diff_param_alpha[0]),
+		make_volume_operator<0>(
+			m, vec1, diff_param_beta[0], diff_param_alpha[0]),
 		bnd_op_2,
 		make_volume_operator<1>(
-			vec2, diff_param_beta[1], diff_param_alpha[1])));
+			m, vec2, diff_param_beta[1], diff_param_alpha[1])));
 
 	//===================================================
 	//=============== solver ============================
@@ -325,7 +330,7 @@ inline int driver() {
 
 	flog(info) << "writing out solution to " << file_final << "_N.dat\n";
 
-	fields_out(xd, file_final);
+	fields_out(m, xd, file_final);
 
 	return 0;
 }

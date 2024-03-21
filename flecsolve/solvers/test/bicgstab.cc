@@ -14,12 +14,12 @@
 namespace flecsolve {
 
 static constexpr std::size_t ncases = 2;
-std::array<testmesh::slot, ncases> mshs;
-std::array<testmesh::cslot, ncases> colorings;
 
 const realf::definition<testmesh, testmesh::cells> xd, bd;
 
 int driver() {
+	std::array<testmesh::slot, ncases> mshs;
+	std::array<testmesh::cslot, ncases> colorings;
 	std::array cases{std::make_tuple("Chem97ZtZ.mtx", 91, 92),
 	                 std::make_tuple("psmigr_3.mtx", 32, 32)};
 

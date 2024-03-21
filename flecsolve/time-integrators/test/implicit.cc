@@ -13,9 +13,6 @@
 
 namespace flecsolve {
 
-testmesh::slot msh;
-testmesh::cslot coloring;
-
 const flecsi::field<double>::definition<testmesh, testmesh::cells> xd, xnewd;
 
 struct rate : op::base<> {
@@ -75,6 +72,9 @@ int bdftest() {
 	using namespace flecsolve::time_integrator;
 
 	UNIT () {
+		testmesh::slot msh;
+		testmesh::cslot coloring;
+
 		double ic = 3.;
 
 		init_mesh(1, msh, coloring);

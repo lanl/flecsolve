@@ -18,9 +18,6 @@ using scalar_t = double;
 
 using msh = physics::fvm_narray;
 
-msh::slot m;
-msh::cslot coloring;
-
 template<auto S>
 using fld = const field<scalar_t>::definition<msh, S>;
 
@@ -30,12 +27,15 @@ using fldr = flecsi::field<scalar_t>::Reference<msh, S>;
 constexpr scalar_t DEFAULT_TOL = 1.0E-8;
 
 inline auto
-make_faces_ref(const util::key_array<fld<msh::faces>, msh::axes> & fs) {
+make_faces_ref(msh::slot & m,
+               const util::key_array<fld<msh::faces>, msh::axes> & fs) {
 	return util::key_array<fldr<msh::faces>, msh::axes>{
 		{fs[msh::x_axis](m), fs[msh::y_axis](m), fs[msh::z_axis](m)}};
 }
 
-inline void init_mesh(const std::vector<util::gid> & extents) {
+inline void init_mesh(msh::slot & m,
+                      msh::cslot & coloring,
+                      const std::vector<util::gid> & extents) {
 
 	coloring.allocate(flecsi::processes(), extents);
 

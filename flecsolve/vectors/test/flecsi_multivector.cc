@@ -14,9 +14,6 @@ using namespace flecsi;
 
 namespace flecsolve {
 
-testmesh::slot msh;
-testmesh::cslot coloring;
-
 constexpr std::size_t nvars = 4;
 using fd_array =
 	std::array<field<double>::definition<testmesh, testmesh::cells>, nvars>;
@@ -32,7 +29,7 @@ constexpr decltype(auto) defs() {
 
 enum class vars { pressure, temperature, density };
 
-void init_mesh() {
+void init_mesh(testmesh::slot & msh, testmesh::cslot & coloring) {
 	std::vector<flecsi::util::gid> extents{32};
 
 	coloring.allocate(flecsi::processes(), extents);
@@ -49,14 +46,17 @@ void init_field(testmesh::accessor<ro, ro> m,
 }
 
 template<std::size_t... Index>
-void init_fields(const fd_array & arr,
+void init_fields(testmesh::slot & msh,
+                 const fd_array & arr,
                  int offset,
                  std::index_sequence<Index...>) {
 	(execute<init_field>(msh, arr[Index](msh), offset, Index), ...);
 }
 
 template<std::size_t... Index>
-auto create_multivector(const fd_array & arr, std::index_sequence<Index...>) {
+auto create_multivector(testmesh::slot & msh,
+                        const fd_array & arr,
+                        std::index_sequence<Index...>) {
 	static_assert(sizeof...(Index) > 0);
 	return vec::make(vec::make(msh, arr[Index](msh))...);
 }
@@ -138,15 +138,18 @@ auto abs = std::make_pair(
 	"abs");
 
 int vectest() {
-	init_mesh();
-	init_fields(xd, 0, make_is());
-	init_fields(yd, 1, make_is());
-	init_fields(zd, 2, make_is());
+	testmesh::slot msh;
+	testmesh::cslot coloring;
+
+	init_mesh(msh, coloring);
+	init_fields(msh, xd, 0, make_is());
+	init_fields(msh, yd, 1, make_is());
+	init_fields(msh, zd, 2, make_is());
 	UNIT () {
-		auto x = create_multivector(xd, make_is());
-		auto y = create_multivector(yd, make_is());
-		auto z = create_multivector(zd, make_is());
-		auto tmp = create_multivector(tmpd, make_is());
+		auto x = create_multivector(msh, xd, make_is());
+		auto y = create_multivector(msh, yd, make_is());
+		auto z = create_multivector(msh, zd, make_is());
+		auto tmp = create_multivector(msh, tmpd, make_is());
 
 		tmp.add(x, z);
 		EXPECT_TRUE(run(tmp, msh, add));

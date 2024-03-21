@@ -12,9 +12,6 @@ using namespace flecsi;
 
 namespace flecsolve {
 
-testmesh::slot msh;
-testmesh::cslot coloring;
-
 using realf = field<double>;
 using compf = field<std::complex<double>>;
 
@@ -152,6 +149,9 @@ int run(FN && fn, M & m, FRS &&... frs) {
 }
 
 int vectest() {
+	testmesh::slot msh;
+	testmesh::cslot coloring;
+
 	init_mesh(32, msh, coloring);
 	execute<init_fields>(
 		msh, xd(msh), yd(msh), zd(msh), xd_c(msh), yd_c(msh), zd_c(msh));
