@@ -3,6 +3,7 @@
 
 #include <flecsi/data.hh>
 
+
 namespace flecsolve::vec::data {
 
 template<typename T, flecsi::data::layout L = flecsi::data::layout::dense>
@@ -29,7 +30,10 @@ struct topo_view {
 			flecsi::privilege_repeat<priv, num_priv - (num_priv > 1)>,
 			flecsi::privilege_repeat<flecsi::na, (num_priv > 1)>>;
 
-	using topo_acc = typename topo_t::template accessor<flecsi::ro>;
+	using topo_acc = flecsi::data::topology_accessor<
+		topo_t,
+		flecsi::privilege_repeat<flecsi::ro, num_priv>>;
+
 	template<flecsi::partition_privilege_t priv>
 	using acc = typename field<scalar>::template accessor1<dofs_priv<priv>>;
 
