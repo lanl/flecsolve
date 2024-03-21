@@ -1,12 +1,8 @@
 #ifndef FLECSI_LINALG_VEC_DATA_TOPO_VIEW_HH
 #define FLECSI_LINALG_VEC_DATA_TOPO_VIEW_HH
 
-#include "flecsolve/topo/csr.hh"
 #include <flecsi/data.hh>
-#include <flecsi/topo/core.hh>
-#include <flecsi/topo/narray/interface.hh>
-#include <flecsi/topo/unstructured/interface.hh>
-#include <utility>
+
 
 namespace flecsolve::vec::data {
 
