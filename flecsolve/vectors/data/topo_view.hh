@@ -10,33 +10,6 @@
 
 namespace flecsolve::vec::data {
 
-/*
- * select the topology accessor with the correct
- * permissions
- *
- * we use `base` alias type defined in `flecsi::specialization`
- * to check if the mesh shares the same core topo type.
- *
- * NOTE: flecsi itself doesn't have a great way to do this,
- * so this is here until the that lib provides this.
- */
-// the default case; this handles narray, csr.
-// these could be specialized explicitly but this
-// was less verbose
-template<class T, class = void>
-struct topo_acc_select {
-	using acc = typename T::template accessor<flecsi::ro>;
-};
-// the case of unstructured, with three permission bits
-template<class T>
-struct topo_acc_select<T,
-                       typename std::enable_if_t<std::is_same_v<
-						   typename T::base,
-						   flecsi::topo::base_t<flecsi::topo::unstructured>>>> {
-	using acc =
-		typename T::template accessor<flecsi::ro, flecsi::ro, flecsi::ro>;
-};
-
 template<typename T, flecsi::data::layout L = flecsi::data::layout::dense>
 using field = flecsi::field<T, L>;
 
@@ -61,9 +34,9 @@ struct topo_view {
 			flecsi::privilege_repeat<priv, num_priv - (num_priv > 1)>,
 			flecsi::privilege_repeat<flecsi::na, (num_priv > 1)>>;
 
-	// select the topology accessor witt the correct number of
-	// permissions flags
-	using topo_acc = flecsi::data::topology_accessor<topo_t, flecsi::privilege_repeat<flecsi::ro, num_priv>>;
+	using topo_acc = flecsi::data::topology_accessor<
+		topo_t,
+		flecsi::privilege_repeat<flecsi::ro, num_priv>>;
 
 	template<flecsi::partition_privilege_t priv>
 	using acc = typename field<scalar>::template accessor1<dofs_priv<priv>>;
