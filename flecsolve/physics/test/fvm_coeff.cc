@@ -22,14 +22,14 @@ fld<msh::cells> xd;
 util::key_array<fld<msh::faces>, msh::axes> const_fd{}, avg_fd{};
 
 template<class Vec>
-constexpr auto make_coeff_setters(const Vec &) {
+constexpr auto make_coeff_setters(msh::slot & m, const Vec &) {
 	using namespace flecsolve::physics;
 
 	auto constant_coeff = coefficient<constant_coefficient<Vec>, Vec>::create(
-		{{3.14}, make_faces_ref(const_fd)});
+		{{3.14}, make_faces_ref(m, const_fd)});
 
 	auto avg_coeff = coefficient<average_coefficient<Vec>, Vec>::create(
-		{{1.0}, make_faces_ref(avg_fd)});
+		{{1.0}, make_faces_ref(m, avg_fd)});
 
 	return std::make_tuple(constant_coeff, avg_coeff);
 }
@@ -73,8 +73,10 @@ auto chk_avgz =
                     "face coefficient as directional avg of cells [z]");
 
 int fvm_coeff_test() {
+	msh::slot m;
+	msh::cslot coloring;
 
-	init_mesh({8, 8, 8});
+	init_mesh(m, coloring, {8, 8, 8});
 	auto x = vec::make(m, xd(m));
 
 	UNIT () {
@@ -89,7 +91,7 @@ int fvm_coeff_test() {
 		bzl.apply(x, x);
 		bzh.apply(x, x);
 
-		auto [coef_const, coef_avg] = make_coeff_setters(x);
+		auto [coef_const, coef_avg] = make_coeff_setters(m, x);
 
 		coef_const.apply(x, x);
 		coef_avg.apply(x, x);

@@ -1,4 +1,4 @@
-set(solvers_HEADERS
+flecsolve_headers(
   bicgstab.hh
   cg.hh
   gmres.hh
@@ -11,8 +11,7 @@ set(solvers_HEADERS
   mg/jacobi.hh
   mg/gs.hh
   mg/coarsen.hh
-  mg/intergrid.hh
-  PARENT_SCOPE)
+  mg/intergrid.hh)
 
 flecsi_add_test(cg
   SOURCES
@@ -31,6 +30,7 @@ flecsi_add_test(cgmulti
   ${chem97ztz_SOURCE_DIR}/Chem97ZtZ.mtx
   test/cgmulti.cfg
   LIBRARIES flecsolve
+  ARGUMENTS "--backend-args=-lg:no_tracing"
   PROCS 1)
 
 flecsi_add_test(gmres

@@ -15,9 +15,6 @@
 
 namespace flecsolve {
 
-testmesh::slot msh;
-testmesh::cslot coloring;
-
 const realf::definition<testmesh, testmesh::cells> xd, bd;
 
 enum class simple_target { identity, Dinv };
@@ -61,6 +58,9 @@ using simple_factory = op::factory<simple_policy>;
 
 int nkatest() {
 	UNIT () {
+		testmesh::slot msh;
+		testmesh::cslot coloring;
+
 		auto mtx = mat::io::matrix_market<>::read("Chem97ZtZ.mtx").tocsr();
 		init_mesh(mtx.rows(), msh, coloring);
 

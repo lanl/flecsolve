@@ -13,8 +13,6 @@
 namespace flecsolve {
 
 static constexpr std::size_t ncases = 2;
-std::array<testmesh::slot, ncases> mshs;
-std::array<testmesh::cslot, ncases> colorings;
 
 const realf::definition<testmesh, testmesh::cells> xd, bd;
 
@@ -54,6 +52,9 @@ struct diagnostic {
 
 int gmres_test() {
 	UNIT () {
+		std::array<testmesh::slot, ncases> mshs;
+		std::array<testmesh::cslot, ncases> colorings;
+
 		auto matrix = mat::io::matrix_market<>::read("Chem97ZtZ.mtx").tocsr();
 
 		double cond = 2.472189e+02;

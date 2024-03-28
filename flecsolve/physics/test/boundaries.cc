@@ -53,8 +53,10 @@ constexpr auto make_bcs(const Vec &) {
 }
 
 int boundary_test() {
+	msh::slot m;
+	msh::cslot coloring;
 
-	init_mesh({NX, NY, 1});
+	init_mesh(m, coloring, {NX, NY, 1});
 	execute<fill_field<msh::faces>>(m, bd[msh::x_axis](m), 1.0);
 	execute<fill_field<msh::faces>>(m, bd[msh::y_axis](m), 1.0);
 	execute<fill_field<msh::faces>>(m, bd[msh::z_axis](m), 1.0);

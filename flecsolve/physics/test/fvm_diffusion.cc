@@ -84,17 +84,19 @@ constexpr decltype(auto) make_boundary_operator_dirichlet(const Vec &) {
 }
 
 template<class Vec>
-decltype(auto)
-make_volume_operator(const Vec &, scalar_t beta, scalar_t alpha) {
+decltype(auto) make_volume_operator(msh::slot & m,
+                                    const Vec &,
+                                    scalar_t beta,
+                                    scalar_t alpha) {
 	using namespace flecsolve::physics;
 
 	// auto vd = operator_creator<diffusion<Vec>,
 	// constant_coefficent>::create(bref, diffa[N](m), 1.0, 0.0, m);
 	auto constant_coeff = coefficient<constant_coefficient<Vec>, Vec>::create(
-		{{1.0}, make_faces_ref(bd)});
+		{{1.0}, make_faces_ref(m, bd)});
 
 	auto voldiff =
-		diffusion<Vec>::create({ad(m), make_faces_ref(bd), beta, alpha}, m);
+		diffusion<Vec>::create({ad(m), make_faces_ref(m, bd), beta, alpha}, m);
 	return op_expr(
 		flecsolve::multivariable<Vec::var.value>, constant_coeff, voldiff);
 }
@@ -166,7 +168,10 @@ static inline int boundary_sink(msh::accessor<ro, ro> m,
 
 int fvm_diffusion_test() {
 	UNIT () {
-		init_mesh({8, 8, 8});
+		msh::slot m;
+		msh::cslot coloring;
+
+		init_mesh(m, coloring, {8, 8, 8});
 		auto [x, y, a] = vec::make(m)(xd, yd, ad);
 
 		a.set_scalar(1.0);
@@ -175,7 +180,7 @@ int fvm_diffusion_test() {
 		auto bc_neu = make_boundary_operator_neumann(x);
 		{
 			auto beta = 1.0;
-			auto vol_op = make_volume_operator(x, beta, 0.0);
+			auto vol_op = make_volume_operator(m, x, beta, 0.0);
 			auto diff_op = flecsolve::physics::op_expr(
 				flecsolve::multivariable<decltype(x)::var.value>,
 				bc_neu,
@@ -187,7 +192,7 @@ int fvm_diffusion_test() {
 		}
 		{
 			auto alpha = 1.0;
-			auto vol_op = make_volume_operator(x, 0.0, alpha);
+			auto vol_op = make_volume_operator(m, x, 0.0, alpha);
 			auto diff_op = flecsolve::physics::op_expr(
 				flecsolve::multivariable<decltype(x)::var.value>,
 				bc_neu,
@@ -197,7 +202,7 @@ int fvm_diffusion_test() {
 		}
 		{
 			auto fc = 1.0;
-			auto vol_op = make_volume_operator(x, 1.0, 0.0);
+			auto vol_op = make_volume_operator(m, x, 1.0, 0.0);
 			auto diff_op = flecsolve::physics::op_expr(
 				flecsolve::multivariable<decltype(x)::var.value>,
 				bc_dir,

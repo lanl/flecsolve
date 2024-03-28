@@ -48,7 +48,7 @@ auto fvm_apply_xargs =
 	std::make_tuple([](std::size_t, std::size_t, std::size_t i) { return i; },
                     "fvm_apply_extra_args");
 
-inline int check_apply_to() {
+inline int check_apply_to(msh::slot & m, msh::cslot & coloring) {
 	UNIT ("fvm_apply") {
 		// check the apply routine
 		execute<fill_box_increment<msh::cells, msh::x_axis>>(m, xd(m), val_in);
@@ -56,13 +56,16 @@ inline int check_apply_to() {
 
 		//		execute<fill_box_slopex<msh::cells, msh::x_axis>>(m, xd(m));
 		//		EXPECT_EQ((test<fvm_check_f<fvm_apply_xargs, fvm_range_XCL>>(m,
-		//xd(m))), 0);
+		// xd(m))), 0);
 	};
 }
 
 int fvm_mesh_test() {
-	init_mesh({16, 16, 8});
-	UNIT () { check_apply_to(); };
+	msh::slot m;
+	msh::cslot coloring;
+
+	init_mesh(m, coloring, {16, 16, 8});
+	UNIT () { check_apply_to(m, coloring); };
 }
 
 util::unit::driver<fvm_mesh_test> driver;
