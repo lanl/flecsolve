@@ -150,6 +150,26 @@ struct csr_task
 	using topo_t = typename mat::parcsr<scalar, size>::topo_t;
 	using topo_acc = typename topo_t::template accessor<flecsi::ro>;
 
+	template<class T,
+		std::enable_if_t<std::is_same_v<std::remove_cv_t<T>, scalar>, bool> = true>
+	static auto adapt(flecsi::util::span<T> s, MPI_Comm comm) {
+		auto var = std::make_shared<AMP::LinearAlgebra::Variable>("");
+		auto data = [&]() {
+			using vdt = span_vector_data<scalar>;
+			if constexpr (std::is_const_v<T>)
+				return std::make_shared<vdt>(
+					flecsi::util::span<scalar>(const_cast<scalar*>(s.data()), s.size()), comm);
+			else
+				return std::make_shared<vdt>(s, comm);
+		}();
+		auto ops = std::make_shared<AMP::LinearAlgebra::VectorOperationsDefault<scalar>>();
+		auto dofs = std::make_shared<AMP::Discretization::DOFManager>(s.size(), AMP::AMP_MPI(comm));
+		auto vec = std::make_shared<AMP::LinearAlgebra::Vector>(data, ops, var, dofs);
+
+		return vec;
+	}
+
+
 	static void convert(topo_acc A,
 	                    amp_storage & store,
 	                    csr_op_wrap & wrap) {
@@ -192,6 +212,29 @@ struct csr_task
 		auto var = std::make_shared<AMP::LinearAlgebra::Variable>("");
 		wrap.setVariables(var, var);
 	}
+
+
+	static void apply(AMP::Solver::SolverStrategy & slv,
+	                  topo_acc A,
+	                  vec_acc<flecsi::rw, flecsi::ro> xa,
+	                  vec_acc<flecsi::ro, flecsi::na> ba) {
+		auto lsize = A.meta().rows.size();
+		auto comm = A.meta().comm;
+		auto x = adapt(xa.span().first(lsize), comm);
+		auto b = adapt(ba.span().first(lsize), comm);
+		slv.apply(b, x);
+	}
+
+
+	static void get_solve_info(AMP::Solver::SolverStrategy & slv,
+	                           solve_info & info) {
+		info.iters = slv.getIterations();
+		info.res_norm_final = slv.getTotalNumberOfIterations();
+		if (slv.getConvergenceStatus())
+			info.status = solve_info::stop_reason::converged_user;
+		else
+			info.status = solve_info::stop_reason::diverged_breakdown;
+	}
 };
 
 template<class scalar, class size>
@@ -207,49 +250,47 @@ std::shared_ptr<csr_op_wrap> make_op(mat::parcsr<scalar, size> & A)
 	return csr_op;
 }
 
-template<class V>
-auto make_vec(V & v) {
-	if constexpr (std::is_const_v<V>) {
-		std::shared_ptr<const AMP::LinearAlgebra::Vector> ret;
-		// flecsi::execute<
-		return ret;
-	} else {
-	}
-}
-
 
 namespace po = boost::program_options;
 
-template<class P, template<class> class storage>
+template<class Scalar, class Size, template<class> class storage>
 struct bound_solver : op::base<>
 {
-	bound_solver(op::core<P, storage> A,
+	using scalar = Scalar;
+	using size = Size;
+	using parcsr = mat::parcsr<scalar, size>;
+	using topo_t = typename parcsr::topo_t;
+	using mat_ptr = std::shared_ptr<amp_mat>;
+	using tasks = csr_task<scalar, size>;
+	using op_t = op::core<parcsr, storage>;
+
+	bound_solver(op_t A,
 	             std::shared_ptr<AMP::Solver::SolverStrategy> slv) :
 		A_(A), slv_(slv) {
-		slv_->registerOperator(make_op(A.source()));
+		register_operator(*slv_, make_op(A_.source()));
 	}
 
 	template<class D, class R>
 	solve_info apply(const D & b, R & x) const {
 		solve_info info;
-#if 0
-		auto amp_b = make_vec(b);
-		auto amp_x = make_vec(x);
-		slv_->apply(b, x);
 
-		info.iters = slv_->getIterations();
-		info.res_norm_final = slv_->getResidualNorm().get<float>();
+		flecsi::execute<tasks::apply, flecsi::mpi>(*slv_,
+		                                           A_.data().topo(),
+		                                           x.data.ref(),
+		                                           b.data.ref());
+		flecsi::execute<tasks::get_solve_info, flecsi::mpi>(*slv_, info);
 
-		if (slv_->getConvergenceStatus())
-			info.status = solve_info::stop_reason::converged_user;
-		else
-			info.status = solve_info::stop_reason::diverged_breakdown;
-
-#endif
 		return info;
 	}
 private:
-	op::core<P, storage> A_;
+	void register_operator(AMP::Solver::SolverStrategy & slv,
+	                       std::shared_ptr<csr_op_wrap> op) {
+		slv.registerOperator(op);
+		auto nest = slv.getNestedSolver();
+		if (nest) register_operator(*nest, op);
+	}
+
+	op_t A_;
 	std::shared_ptr<AMP::Solver::SolverStrategy> slv_;
 };
 
@@ -267,9 +308,10 @@ struct solver {
 
 	solver(const settings &, AMP::Database &);
 
-	// template<class P, template<class> class storage>
-	// auto operator()(op::core<P, storage> op) {
-	// }
+	template<class A>
+	auto operator()(A && a) {
+		return op::make(bound_solver{std::forward<A>(a), slv_});
+	}
 
 protected:
 	std::shared_ptr<AMP::Solver::SolverStrategy> slv_;
@@ -305,106 +347,16 @@ struct options : with_label {
 	po::options_description operator()(settings_type & s);
 };
 
-template<class scalar, class size>
-struct task : csr_task<scalar, size> {
-	using base = csr_task<scalar, size>;
-	using topo_acc = typename base::topo_acc;
-	template<flecsi::partition_privilege_t ... P>
-	using vec_acc = typename base::template vec_acc<P...>;
-	using topo_t = typename base::topo_t;
-
-
-	template<class T,
-		std::enable_if_t<std::is_same_v<std::remove_cv_t<T>, scalar>, bool> = true>
-	static auto adapt(flecsi::util::span<T> s, MPI_Comm comm) {
-		auto var = std::make_shared<AMP::LinearAlgebra::Variable>("");
-		auto data = [&]() {
-			using vdt = span_vector_data<scalar>;
-			if constexpr (std::is_const_v<T>)
-				return std::make_shared<vdt>(
-					flecsi::util::span<scalar>(const_cast<scalar*>(s.data()), s.size()), comm);
-			else
-				return std::make_shared<vdt>(s, comm);
-		}();
-		auto ops = std::make_shared<AMP::LinearAlgebra::VectorOperationsDefault<scalar>>();
-		auto dofs = std::make_shared<AMP::Discretization::DOFManager>(s.size(), AMP::AMP_MPI(comm));
-		auto vec = std::make_shared<AMP::LinearAlgebra::Vector>(data, ops, var, dofs);
-
-		return vec;
-	}
-
-
-	static void apply(AMP::Solver::BoomerAMGSolver & slv,
-	                  topo_acc A,
-	                  vec_acc<flecsi::rw, flecsi::ro> xa,
-	                  vec_acc<flecsi::ro, flecsi::na> ba) {
-		auto lsize = A.meta().rows.size();
-		auto comm = A.meta().comm;
-		auto x = adapt(xa.span().first(lsize), comm);
-		auto b = adapt(ba.span().first(lsize), comm);
-		slv.apply(b, x);
-	}
-
-
-	static void get_solve_info(AMP::Solver::BoomerAMGSolver & slv,
-	                           solve_info & info) {
-		info.iters = slv.getIterations();
-		info.res_norm_final = slv.getTotalNumberOfIterations();
-		if (slv.getConvergenceStatus())
-			info.status = solve_info::stop_reason::converged_user;
-		else
-			info.status = solve_info::stop_reason::diverged_breakdown;
-	}
-};
-
-
-template<class Scalar, class Size, template<class> class storage>
-struct bound_op : op::base<> {
-	using scalar = Scalar;
-	using size = Size;
-	using topo_t = typename mat::parcsr<scalar, size>::topo_t;
-	using slv_ptr = std::shared_ptr<AMP::Solver::BoomerAMGSolver>;
-	using mat_ptr = std::shared_ptr<amp_mat>;
-	using tasks = task<scalar, size>;
-
-	bound_op(op::core<mat::parcsr<scalar, size>, storage> A,
-	         const settings & s,
-	         slv_ptr & slv) : A_(std::move(A)),
-	                          settings_(s),
-	                          slv_(slv) {
-		slv_->registerOperator(make_op(A_.source()));
-	}
-
-
-	template<class D, class R>
-	solve_info apply(const D & b, R & x) const {
-		solve_info info;
-		flecsi::execute<tasks::apply, flecsi::mpi>(*slv_,
-		                                           A_.data().topo(),
-		                                           x.data.ref(),
-		                                           b.data.ref());
-		flecsi::execute<tasks::get_solve_info, flecsi::mpi>(*slv_, info);
-		return info;
-	}
-
-protected:
-	op::core<mat::parcsr<scalar, size>, storage> A_;
- 	settings settings_;
-	slv_ptr slv_;
-};
-
 
 struct solver {
 	solver(const settings &);
 
 	template<class A>
 	auto operator()(A && a) {
-		return op::make(bound_op{std::forward<A>(a),
-		                         settings_, slv_});
+		return op::make(bound_solver{std::forward<A>(a), slv_});
 	}
 
 private:
-	settings settings_;
 	amp_slv slv_;
 };
 }

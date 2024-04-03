@@ -41,10 +41,7 @@ using csr = mat::csr<matpol::scalar_t>;
 
 csr_topo::vec_def<csr_topo::cols> ud, fd;
 
-auto create_amp_mat(csr_topo::init & init) {
-	std::string input_file{"amp-input"};
-	auto input_db = AMP::Database::parseInputFile(input_file);
-
+auto create_amp_mat(csr_topo::init & init, std::shared_ptr<AMP::Database> input_db) {
 	AMP_INSIST( input_db->keyExists( "Mesh" ), "Key ''Mesh'' is missing!" );
     auto mesh_db   = input_db->getDatabase( "Mesh" );
     auto mgrParams = std::make_shared<AMP::Mesh::MeshParameters>( mesh_db );
@@ -119,34 +116,58 @@ void start_amp() {
 	props.stack_trace_type = 2;
 	props.COMM_WORLD = MPI_COMM_WORLD;
 	AMP::AMPManager::startup(argc, argv, props);
+
+    AMP::Solver::registerSolverFactories();
 }
 
 
-void stop_amp() {
-    AMP::AMPManager::shutdown();
+void stop_amp() { AMP::AMPManager::shutdown(); }
+
+
+int finalize_amp() {
+	flecsi::execute<stop_amp, flecsi::mpi>();
+
+	return 0;
 }
 
 int amptest() {
+	flecsi::execute<start_amp, flecsi::mpi>();
+
+	std::string input_file{"amp-solver-input"};
+	auto input_db = AMP::Database::parseInputFile(input_file);
+	csr_topo::init init;
+	flecsi::execute<create_amp_mat,flecsi::mpi>(init, input_db);
+	op::core<parcsr, op::shared_storage> A(std::move(init));
+	auto & topo = A.data().topo();
+
 	UNIT(){
-		flecsi::execute<start_amp, flecsi::mpi>();
-		csr_topo::init init;
-		flecsi::execute<create_amp_mat,flecsi::mpi>(init);
-		op::core<parcsr, op::shared_storage> A(std::move(init));
-		auto & topo = A.data().topo();
 		auto [u, f] = vec::make(topo)(ud, fd);
 
-		u.set_scalar(1.);
-		A(u, f);
-		u.zero();
-		// namespace boomeramg = amp::boomeramg;
-		// boomeramg::solver slv{
-		// 	read_config("amp-amg.cfg",
-		// 	            boomeramg::options("solver"))};
-		// auto info = slv(A)(f, u);
-		// ASSERT_EQ(info.iters, 14);
-		// ASSERT_TRUE(info.success());
-		flecsi::execute<stop_amp, flecsi::mpi>();
+		{
+#if 0
+			u.set_scalar(1.);
+			A(u, f);
+			u.zero();
+			amp::solver slv{read_config("amp-solver.cfg", amp::solver::options("solver")),
+			                *input_db};
+			auto info = slv(A)(f, u);
+			ASSERT_EQ(info.iters, 14);
+			ASSERT_TRUE(info.success());
+#endif
+		}
+		// with pcg
+		{
+			u.set_scalar(1.);
+			A(u, f);
+			u.zero();
+			amp::solver slv{read_config("amp-solver-pcg.cfg", amp::solver::options("solver")),
+			                *input_db};
+			auto info = slv(A)(f, u);
+			ASSERT_EQ(info.iters, 7);
+			ASSERT_TRUE(info.success());
+		}
 	};
 }
 
 flecsi::util::unit::driver<amptest> driver;
+flecsi::util::unit::finalization<finalize_amp> finalize;

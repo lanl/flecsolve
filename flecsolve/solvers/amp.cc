@@ -17,11 +17,34 @@ po::options_description solver::options::operator()(settings_type & s) {
 	return desc;
 }
 
+namespace {
+
+std::shared_ptr<AMP::Solver::SolverStrategy>
+build_solver(AMP::Database & input_db,
+             const std::string & solver_name) {
+	auto db = input_db.getDatabase(solver_name);
+	auto uses_precond = db->getWithDefault<bool>("uses_preconditioner", false);
+	std::shared_ptr<AMP::Solver::SolverStrategy> pc_solver;
+	if (uses_precond) {
+		auto pc_name = db->getWithDefault<std::string>("pc_name", "Preconditioner");
+		pc_solver = build_solver(input_db, pc_name);
+	}
+	auto params = std::make_shared<AMP::Solver::SolverStrategyParameters>(db);
+	params->d_comm = MPI_COMM_WORLD;
+	params->d_pNestedSolver = pc_solver;
+	return AMP::Solver::SolverFactory::create(params);
+}
+
+void init_solver(AMP::Database & input_db,
+                 const std::string & solver_name,
+                 std::shared_ptr<AMP::Solver::SolverStrategy> & slv) {
+	slv = build_solver(input_db, solver_name);
+}
+}
+
 solver::solver(const settings & s, AMP::Database & input_db)
 {
-	auto db = input_db.getDatabase(s.solver_name);
-	auto params = std::make_shared<AMP::Solver::SolverStrategyParameters>(db);
-	slv_ = AMP::Solver::SolverFactory::create(params);
+	flecsi::execute<init_solver, flecsi::mpi>(input_db, s.solver_name, slv_);
 }
 
 namespace boomeramg {
@@ -85,9 +108,8 @@ void init(amp_slv & p,
 }
 }
 
-solver::solver(const settings & s) :
-	settings_(s) {
-	flecsi::execute<init, flecsi::mpi>(slv_, settings_);
+solver::solver(const settings & s) {
+	flecsi::execute<init, flecsi::mpi>(slv_, s);
 }
 }
 }

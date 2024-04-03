@@ -13,9 +13,8 @@ flecsolve_headers(
   mg/coarsen.hh
   mg/intergrid.hh)
 
-set(solvers_SOURCES
-  amp.cc
-  PARENT_SCOPE)
+flecsolve_sources(
+  amp.cc)
 
 flecsi_add_test(cg
   SOURCES
@@ -81,6 +80,7 @@ flecsi_add_test(amp-solver
   INPUTS
   ${nos7_SOURCE_DIR}/nos7.mtx
   test/amp-solver.cfg
+  test/amp-solver-pcg.cfg
   test/amp-solver-input
   LIBRARIES flecsolve
   PROCS 3)
