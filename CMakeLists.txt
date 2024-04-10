@@ -22,6 +22,38 @@ find_package(FleCSI REQUIRED)
 find_package(AMP REQUIRED)
 find_package(TPLs REQUIRED)
 
+# amp data
+if( AMP_DATA OR AMP_DATA_URL )
+  if( AMP_DATA_URL )
+    message( STATUS "Downloading AMP Data - ${AMP_DATA_URL}" )
+    get_filename_component( AMP_DATA "${AMP_DATA_URL}" NAME)
+    setT( AMP_DATA "${CMAKE_CURRENT_BINARY_DIR}/${AMP_DATA}" )
+    file( DOWNLOAD "${AMP_DATA_URL}" "${AMP_DATA}" )
+  endif()
+  if( "${AMP_DATA}" STREQUAL "" )
+    unset( AMP_DATA )
+  endif()
+  if ( IS_DIRECTORY "${AMP_DATA}" )
+    # AMP_DATA is a directory
+  elseif( EXISTS "${AMP_DATA}" )
+    # AMP_DATA is a file, try to unpack it
+    execute_process(
+      COMMAND ${CMAKE_COMMAND} -E tar xzf "${AMP_DATA}"
+      WORKING_DIRECTORY "${AMP_INSTALL_DIR}"
+    )
+    if( EXISTS "${AMP_INSTALL_DIR}/AMP-Data" )
+      set( AMP_DATA "${AMP_INSTALL_DIR}/AMP-Data" )
+    else()
+      message(FATAL_ERROR "Error unpacking tar file ${AMP_DATA}")
+    endif()
+  endif()
+endif()
+if( AMP_DATA )
+  add_definitions( -DUSE_AMP_DATA )
+elseif( NOT ONLY_BUILD_DOCS AND NOT AMP_DATA )
+  message(WARNING "AMP_DATA is not set, some tests will be disabled" )
+endif()
+
 option(ENABLE_UNIT_TESTS "Enable the Unit tests" On)
 set(ENABLE_FLOG ${FleCSI_ENABLE_FLOG})
 set(FLECSI_RUNTIME_MODEL ${FleCSI_RUNTIME_MODEL})

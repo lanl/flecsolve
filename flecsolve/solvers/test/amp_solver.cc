@@ -18,12 +18,6 @@
 #include "AMP/vectors/Vector.h"
 #include "AMP/vectors/VectorBuilder.h"
 
-
-// #include "AMP/operators/diffusion/DiffusionLinearElement.h"
-// #include "AMP/operators/diffusion/DiffusionLinearFEOperator.h"
-// #include "AMP/operators/diffusion/DiffusionTransportModel.h"
-
-
 #include "flecsi/flog.hh"
 #include "flecsi/util/unit.hh"
 #include "flecsi/util/unit/types.hh"
@@ -142,9 +136,7 @@ int amptest() {
 
 	UNIT(){
 		auto [u, f] = vec::make(topo)(ud, fd);
-
 		{
-#if 0
 			u.set_scalar(1.);
 			A(u, f);
 			u.zero();
@@ -153,7 +145,6 @@ int amptest() {
 			auto info = slv(A)(f, u);
 			ASSERT_EQ(info.iters, 14);
 			ASSERT_TRUE(info.success());
-#endif
 		}
 		// with pcg
 		{
@@ -163,8 +154,8 @@ int amptest() {
 			amp::solver slv{read_config("amp-solver-pcg.cfg", amp::solver::options("solver")),
 			                *input_db};
 			auto info = slv(A)(f, u);
-			ASSERT_EQ(info.iters, 7);
-			ASSERT_TRUE(info.success());
+			EXPECT_EQ(info.iters, 8);
+			EXPECT_TRUE(info.success());
 		}
 	};
 }

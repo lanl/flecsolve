@@ -229,7 +229,7 @@ struct csr_task
 	static void get_solve_info(AMP::Solver::SolverStrategy & slv,
 	                           solve_info & info) {
 		info.iters = slv.getIterations();
-		info.res_norm_final = slv.getTotalNumberOfIterations();
+		info.res_norm_final = slv.getResidualNorm().get<float>();
 		if (slv.getConvergenceStatus())
 			info.status = solve_info::stop_reason::converged_user;
 		else
