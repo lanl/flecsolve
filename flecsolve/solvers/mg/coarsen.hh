@@ -431,11 +431,11 @@ void coarsen_with_aggregates(
 }
 
 template<class scalar, class size, class Ref>
-auto coarsen(const mat::parcsr<scalar, size> & Af, Ref aggt) {
+auto coarsen(const mat::parcsr<scalar, size> & Af, Ref aggt, float beta = 0.25) {
 	typename topo::csr<scalar, size>::init topo_init;
 	task::aggregate_t agg;
 	flecsi::execute<task::aggregate_and_partition<scalar, size>, flecsi::mpi>(
-		0.25, Af.data.topo(), agg, aggt, topo_init);
+		beta, Af.data.topo(), agg, aggt, topo_init);
 	flecsi::execute<task::coarsen_with_aggregates<scalar, size>, flecsi::mpi>(
 		Af.data.topo(), agg, aggt, topo_init);
 
