@@ -103,6 +103,15 @@ LinearSolverPre{
   max_iterations = 25
 }
 
+LinearSolverGMRES{
+  name = "GMRESSolver"
+  uses_preconditioner = TRUE
+  absolute_tolerance = 1.0e-12
+  relative_tolerance = 1.0e-12
+  print_info_level = 2
+  max_iterations = 25
+}
+
 Preconditioner{
   name = "BoomerAMGSolver"
   max_iterations = 1

@@ -21,108 +21,13 @@
 #include "AMP/vectors/CommunicationList.h"
 #include "AMP/vectors/Variable.h"
 
+#include "AMP/vectors/VectorBuilder.h"
+
 #include "flecsolve/matrices/parcsr.hh"
 #include "flecsolve/util/config.hh"
 #include "flecsolve/solvers/solver_settings.hh"
 
 namespace flecsolve::amp {
-
-template<class T>
-struct span_vector_data : AMP::LinearAlgebra::VectorData {
-	span_vector_data(flecsi::util::span<T> s, MPI_Comm comm) : vals{s} {
-		setCommunicationList(std::make_shared<AMP::LinearAlgebra::CommunicationList>(s.size(), AMP::AMP_MPI(comm)));
-		d_localStart = d_CommList->getStartGID();
-		d_globalSize = d_CommList->getTotalSize();
-		d_localSize = s.size();
-	}
-
-	std::string VectorDataName() const override { return "span_vector_data"; }
-
-	std::size_t numberOfDataBlocks() const override { return 1; }
-
-	std::size_t sizeOfDataBlock(std::size_t) const override { return vals.size(); }
-
-	void addValuesByLocalID(size_t N, const size_t *, const void *, const AMP::typeID & ) override
-    {
-        AMP_INSIST( N == 0, "Not yet implemented" );
-    }
-
-	void getValuesByLocalID(size_t num, const size_t * indices, void * v, const AMP::typeID & id) const override
-    {
-	    auto get = [=](auto data) {
-		    for (size_t i = 0; i != num; ++i) {
-			    data[i] = vals[indices[i]];
-		    }
-	    };
-	    if (id == AMP::getTypeID<T>()) {
-		    auto data = reinterpret_cast<T*>(v);
-		    get(data);
-	    } else if (id == AMP::getTypeID<double>()) {
-		    auto data = reinterpret_cast<double *>(v);
-		    get(data);
-	    } else {
-		    AMP_ERROR("Conversion not supported");
-	    }
-    }
-
-	void setValuesByLocalID( size_t num, const size_t * indices, const void * v, const AMP::typeID & id) override
-    {
-	    auto set = [=](auto data) {
-		    for (size_t i = 0; i != num; ++i) {
-			    vals[indices[i]] = data[i];
-		    }
-	    };
-	    if (id == AMP::getTypeID<T>()) {
-		    auto data = reinterpret_cast<const T *>(v);
-		    set(data);
-	    } else if (id == AMP::getTypeID<double>()) {
-		    auto data = reinterpret_cast<const double *>(v);
-		    set(data);
-	    } else {
-		    AMP_ERROR("Conversion not supported");
-	    }
-	    if (*d_UpdateState == AMP::LinearAlgebra::UpdateState::UNCHANGED)
-		    *d_UpdateState = AMP::LinearAlgebra::UpdateState::LOCAL_CHANGED;
-    }
-
-    template<class TYPE>
-    void setLocalValuesByGlobalID( size_t num, const size_t *indices, const TYPE *vals );
-
-	inline void putRawData( const void *, const AMP::typeID & ) override {}
-	inline void getRawData( void *, const AMP::typeID & ) const override {}
-
-    inline uint64_t getDataID() const override { return 0; }
-
-    /** \brief Return a pointer to a particular block of memory in the vector
-     */
-    inline void *getRawDataBlockAsVoid( size_t ) override {
-	    return vals.data();
-    }
-
-    /** \brief Return a pointer to a particular block of memory in the
-     * vector
-     */
-	inline const void *getRawDataBlockAsVoid( size_t ) const override { return vals.data(); }
-
-    /** \brief Return the result of sizeof(TYPE) for the given data block
-     */
-    inline size_t sizeofDataBlockType( size_t ) const override { return sizeof(T); }
-
-	AMP::typeID getType( size_t ) const override
-    {
-	    constexpr auto type = AMP::getTypeID<T>();
-        return type;
-    }
-
-    inline void swapData( VectorData & ) override { AMP_ERROR( "Not finished" ); }
-
-    inline std::shared_ptr<VectorData> cloneData() const override
-    {
-	    return AMP::LinearAlgebra::ArrayVectorData<T>::create(vals.size());
-    }
-protected:
-	flecsi::util::span<T> vals;
-};
 
 using amp_mat =
 	AMP::LinearAlgebra::CSRMatrix<AMP::LinearAlgebra::HypreCSRPolicy>;
@@ -152,21 +57,10 @@ struct csr_task
 
 	template<class T,
 		std::enable_if_t<std::is_same_v<std::remove_cv_t<T>, scalar>, bool> = true>
-	static auto adapt(flecsi::util::span<T> s, MPI_Comm comm) {
-		auto var = std::make_shared<AMP::LinearAlgebra::Variable>("");
-		auto data = [&]() {
-			using vdt = span_vector_data<scalar>;
-			if constexpr (std::is_const_v<T>)
-				return std::make_shared<vdt>(
-					flecsi::util::span<scalar>(const_cast<scalar*>(s.data()), s.size()), comm);
-			else
-				return std::make_shared<vdt>(s, comm);
-		}();
-		auto ops = std::make_shared<AMP::LinearAlgebra::VectorOperationsDefault<scalar>>();
-		auto dofs = std::make_shared<AMP::Discretization::DOFManager>(s.size(), AMP::AMP_MPI(comm));
-		auto vec = std::make_shared<AMP::LinearAlgebra::Vector>(data, ops, var, dofs);
-
-		return vec;
+	static auto adapt(flecsi::util::span<T> s,
+	                  std::shared_ptr<AMP::Discretization::DOFManager> dofs) {
+		auto base = const_cast<std::remove_const_t<T>*>(s.data());
+		return AMP::LinearAlgebra::createVectorAdaptor("", dofs, base);
 	}
 
 
@@ -214,14 +108,27 @@ struct csr_task
 	}
 
 
+	static AMP::LinearAlgebra::Matrix & get_matrix(AMP::Solver::SolverStrategy & slv) {
+		auto op = slv.getOperator();
+		flog_assert(op, "operator cannot be null");
+
+		auto linop = std::dynamic_pointer_cast<AMP::Operator::LinearOperator>(op);
+		flog_assert(linop, "operator must be linear");
+
+		auto matrix = linop->getMatrix();
+		flog_assert(matrix, "matrix cannot be null");
+
+		return *matrix;
+	}
+
 	static void apply(AMP::Solver::SolverStrategy & slv,
 	                  topo_acc A,
 	                  vec_acc<flecsi::rw, flecsi::ro> xa,
 	                  vec_acc<flecsi::ro, flecsi::na> ba) {
 		auto lsize = A.meta().rows.size();
-		auto comm = A.meta().comm;
-		auto x = adapt(xa.span().first(lsize), comm);
-		auto b = adapt(ba.span().first(lsize), comm);
+		auto & matrix = get_matrix(slv);
+		auto x = adapt(xa.span().first(lsize), matrix.getRightDOFManager());
+		auto b = adapt(ba.span().first(lsize), matrix.getRightDOFManager());
 		slv.apply(b, x);
 	}
 

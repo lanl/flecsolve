@@ -82,6 +82,7 @@ if(TPL_FOUND_LIBMESH AND AMP_DATA)
 	${AMP_DATA}/meshes/CubeMeshes/cube64.with.boundary.labels.e
 	test/amp-solver.cfg
 	test/amp-solver-pcg.cfg
+	test/amp-solver-gmres.cfg
 	test/amp-solver-input
 	LIBRARIES flecsolve
 	PROCS 3)

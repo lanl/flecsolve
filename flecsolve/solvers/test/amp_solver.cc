@@ -157,6 +157,16 @@ int amptest() {
 			EXPECT_EQ(info.iters, 8);
 			EXPECT_TRUE(info.success());
 		}
+		// with gmres
+		{
+			u.set_scalar(1.);
+			A(u, f);
+			u.zero();
+			amp::solver slv{read_config("amp-solver-gmres.cfg", amp::solver::options("solver")),
+			                *input_db};
+			auto info = slv(A)(f, u);
+			EXPECT_EQ(info.iters, 8);
+		}
 	};
 }
 
