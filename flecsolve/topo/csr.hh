@@ -250,7 +250,6 @@ private:
 		};
 
 		return {*this,
-		        p,
 		        num_intervals,
 		        dest_task,
 		        ptrs_task,

@@ -11,6 +11,8 @@
 .darwin_archive_spack_env:
   script: &darwin_archive_spack_env
     - if [ -n "$ARCHIVE_SPACK_ENV" ]; then header "Archiving Spack Environment" && cd $TMPDIR && mksquashfs spack ${CI_PROJECT_DIR}/state/spack.sqfs; fi
+    # store architecture information for dependent jobs as variable in build.env
+    - echo "JOB_ARCH_CONSTRAINT=cpu_family:$(spack arch -t)" > ${CI_PROJECT_DIR}/state/build.env
 
 #------------------------------------------------------------------------------#
 # darwin_restore_spack_env
@@ -44,7 +46,7 @@
     - spack config add concretizer:unify:when_possible
     - spack config add concretizer:reuse:false
     - spack config add packages:all:compiler:["gcc@${GCC_VERSION}"]
-    - spack add cmake py-sphinx py-sphinx-rtd-theme py-recommonmark graphviz +poppler doxygen
+    - spack add cmake py-sphinx py-sphinx-rtd-theme graphviz +poppler doxygen
     - spack install -j $(nproc)
     - section end python_env_init
 
@@ -88,9 +90,9 @@
   script: &darwin_env_shell
     - export SPACK_DISABLE_LOCAL_CONFIG=true
     - export SPACK_USER_CACHE_PATH=$TMPDIR/spack-local
+    - export SPACK_SKIP_MODULES=true
     - source $TMPDIR/spack/share/spack/setup-env.sh
     - module load gcc/${GCC_VERSION}
-    #  - module load cuda/${CUDA_VERSION}
 
 .darwin_env_spack_environment:
   script: &darwin_env_spack_environment
@@ -120,8 +122,9 @@
 
 .darwin_env_spack_install_flecsolve:
   script: &darwin_env_spack_install_flecsolve
-    - section start "spack_env_install_flecsisolve[collapsed=true]" "Installing FleCSolve"
+    - section start "spack_env_install_flecsolve[collapsed=true]" "Installing FleCSolve"
     - echo "spack add ${FLECSOLVE_VERSION}%${TOOLCHAIN} ^${FLECSI_VERSION} ${FLECSI_VARIANTS} ${ARCH_DEPS}"
+    - spack develop -p ${CI_PROJECT_DIR} --no-clone ${FLECSOLVE_VERSION}
     - spack add ${FLECSI_VERSION}%${TOOLCHAIN} ${FLECSI_VARIANTS} ${ARCH_DEPS}
     - spack add ${FLECSOLVE_VERSION}%${TOOLCHAIN} ^${FLECSI_VERSION}
     - spack install -j $(nproc)
@@ -137,7 +140,6 @@
 #   ENVIRONMENT:  The target environment from the flecsi gitlab-ci project,
 #                 e.g., one of the primary branches, such as 'devel', or '1.4'.
 #   PARTITIONS:    Darwin cluster partitions
-#   VERSION:  The version of FleCSI to use for spack build.
 #   VARIANTS: Spack variants
 #------------------------------------------------------------------------------#
 
@@ -154,14 +156,9 @@
   script: &darwin_setup_hip
     - |
       if [[ "${CI_JOB_NAME}" =~ "rocm" ]]; then
-        export ROCMINFO_PATH=/opt/rocm-${ROCM_VERSION}/bin
-        export ROCM_PATH=/opt/rocm-${ROCM_VERSION}
-        export HSA_PATH=/opt/rocm-${ROCM_VERSION}/hsa
-        export DEVICE_LIB_PATH=/opt/rocm-${ROCM_VERSION}/amdgcn/bitcode/
-        export HIP_PLATFORM=amd
-        export HIP_CLANG_PATH=/opt/rocm-${ROCM_VERSION}/llvm/bin
-        export HIP_COMPILER=clang
-        export PATH=/opt/rocm-${ROCM_VERSION}/bin:$PATH
+        module load rocm/${ROCM_VERSION}
+        export HIPCC_COMPILE_FLAGS_APPEND="--gcc-install-dir=/projects/opt/rhel8/x86_64/gcc/${GCC_VERSION}/lib/gcc/x86_64-pc-linux-gnu/${GCC_VERSION}"
+        export HIPCC_LINK_FLAGS_APPEND="${HIPCC_COMPILE_FLAGS_APPEND}"
         header "Using Darwin HIP installation at: ${ROCM_PATH}"
       fi
 
@@ -177,7 +174,7 @@
     - section start build "Build"
     - mkdir -p ${CI_PROJECT_DIR}/state/build
     - cd ${CI_PROJECT_DIR}/state/build
-    - cmake -DENABLE_UNIT_TESTS=ON ../.. ${CMAKE_OPTIONS}
+    - cmake -DENABLE_UNIT_TESTS=ON -DCMAKE_INSTALL_PREFIX=${CI_PROJECT_DIR}/state/install ${CMAKE_OPTIONS} ../..
     - cmake --build . -j $(nproc)
     - section end build
     - section start test "Test"
@@ -185,6 +182,9 @@
     - export CTEST_OUTPUT_ON_FAILURE=1
     - ctest --timeout ${DEFAULT_TEST_TIMEOUT} --output-junit tests.xml
     - section end test
+    - section start install "Install"
+    - cmake --build . --target install
+    - section end install
     - *darwin_archive_spack_env
   artifacts:
     expire_in: 2 weeks
@@ -192,6 +192,7 @@
       - ${CI_PROJECT_DIR}/state
     reports:
       junit: ${CI_PROJECT_DIR}/state/build/tests.xml
+      dotenv: ${CI_PROJECT_DIR}/state/build.env
 
 #------------------------------------------------------------------------------#
 # darwin_defaults_build_template
@@ -203,7 +204,6 @@
 #   ENVIRONMENT:  The target environment from the flecsi gitlab-ci project,
 #                 e.g., one of the primary branches, such as 'devel', or '1.4'.
 #   PARTITION:    Darwin cluster partition
-#   VERSION:  The version of FleCSI to use for spack build.
 #   VARIANTS: Spack variants
 #------------------------------------------------------------------------------#
 
