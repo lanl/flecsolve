@@ -80,8 +80,6 @@ void vcycle(const D & b, R & x,
 	}
 }
 
-
-
 template<class D, class R, class Hier, class CoarseSolver>
 void relaxed_wcycle(std::size_t lvl, const D & b, R & x,
                     Hier & hier, const CoarseSolver & coarse_solver,

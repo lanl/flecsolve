@@ -12,6 +12,7 @@
 #include "flecsolve/solvers/mg/cycle.hh"
 #include "flecsolve/solvers/mg/cg_solve.hh"
 #include "flecsolve/solvers/amp.hh"
+#include "flecsolve/solvers/mg/cg_solve.hh"
 
 
 namespace flecsolve::mg::ua {
@@ -60,10 +61,9 @@ struct hierarchy_config
 	static inline const flecsi::field<flecsi::util::id>::definition<
 		csr_topo, csr_topo::cols> aggt_def;
 
-	// using smoother = op::core<mg::bound_jacobi<scalar_type, size_type>>;
 	using smoother = op::core<op::hybrid_gs<scalar_type, size_type>>;
 	using coarse_op = op::core<mat::parcsr<scalar, size>>;
-	using coarse_smoother = smoother;
+	using coarse_smoother = op::core<mg::bound_jacobi<scalar_type, size_type>>;
 	template<class ... Ops>
 	using level_gen = level<tuple_opstore, topovec_store, Ops...>;
 	using level_type = level_gen<op::core<mg::ua::prolong<scalar_type, size_type>>,

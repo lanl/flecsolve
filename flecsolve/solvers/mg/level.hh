@@ -55,7 +55,6 @@ struct tuple_opstore {
 	std::tuple<op::handle<Ops>...,
 	           std::optional<op::handle<P>>,
 	           std::optional<op::handle<R>>> ops;
-
 };
 
 template<template<class ...> class OpStorage,
