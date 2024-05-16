@@ -10,13 +10,16 @@ flecsolve_headers(
   factory.hh
   mg/jacobi.hh
   mg/gs.hh
+  mg/level.hh
   mg/coarsen.hh
+  mg/ua.hh
   mg/intergrid.hh)
 
+set(solvers_src mg/ua.cc)
 if(FLECSOLVE_ENABLE_AMP)
-  flecsolve_sources(
-	amp.cc)
+  list(APPEND solvers_src amp.cc)
 endif()
+flecsolve_sources(${solvers_src})
 
 flecsi_add_test(cg
   SOURCES

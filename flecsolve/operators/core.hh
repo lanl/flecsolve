@@ -82,6 +82,7 @@ struct core : P {
 	static constexpr auto input_var = P::input_var;
 	static constexpr auto output_var = P::output_var;
 	using params_t = typename P::params_t;
+	using policy_type = P;
 
 	template<class Head,
 	         class... Tail,
