@@ -61,6 +61,7 @@ int gmres_test() {
 
 		auto & msh = mshs[0];
 		init_mesh(matrix.rows(), msh);
+
 		op::core<csr_op> A(std::move(matrix));
 		op::core<csr_op> Dinv(A.Dinv());
 
