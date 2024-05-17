@@ -229,7 +229,7 @@ private:
 	}
 
 	flecsi::data::copy_plan make_copy_plan(const csr_base::coloring & c,
-	                                       flecsi::topo::repartitioned & p) {
+	                                       flecsi::topo::repartitioned &) {
 		std::vector<std::size_t> num_intervals(c.colors, 1);
 		destination_intervals intervals;
 		source_pointers pointers;

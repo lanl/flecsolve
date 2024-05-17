@@ -38,12 +38,12 @@ struct simple_registry {
 	using settings = null_settings<V>;
 	using options = null_options<V>;
 	template<class Op>
-	static auto make(const settings & s, Op & A) {
+	static auto make(const settings &, Op & A) {
 		if constexpr (V == simple_target::identity) {
 			return op::I;
 		}
 		else if constexpr (V == simple_target::Dinv) {
-			return A.source().Dinv();
+			return A.Dinv();
 		}
 	}
 };
@@ -63,7 +63,7 @@ int nkatest() {
 		auto mtx = mat::io::matrix_market<>::read("Chem97ZtZ.mtx").tocsr();
 		init_mesh(mtx.rows(), msh);
 
-		op::core<csr_op, op::shared_storage> A(std::move(mtx));
+		auto A = op::make_shared<csr_op>(std::move(mtx));
 		auto [x, b] = vec::make(msh)(xd, bd);
 		{
 			b.set_scalar(1.);
@@ -92,7 +92,6 @@ int nkatest() {
 			                krylov_factory::options("linear-solver"),
 			                simple_factory::options("inner"));
 
-			std::size_t iter{0}, inner{0};
 			op::krylov_parameters params(
 				nnl_settings,
 				nka::topo_work<5>::get(b),
@@ -101,7 +100,7 @@ int nkatest() {
 					lin_settings,
 					b,
 					A,
-					simple_factory::make(precond_settings, A)));
+					simple_factory::make(precond_settings, *A)));
 
 			op::krylov slv(std::move(params));
 

@@ -92,6 +92,8 @@ struct parcsr : flecsolve::mat::sparse<parcsr_data,
 	using data_t = typename base::data_t;
 	using topo_t = typename data_t::topo_t;
 	using base::data;
+	using scalar_type = scalar;
+	using size_type = size;
 
 	parcsr(MPI_Comm comm,
 	       const char * fname,

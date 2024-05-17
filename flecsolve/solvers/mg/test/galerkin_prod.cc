@@ -91,27 +91,27 @@ void explicit_restrict(csr_topo::accessor<ro> mf,
 
 int coarsentest() {
 	UNIT () {
-		op::core<parcsr, op::shared_storage> A(MPI_COMM_WORLD, "nos7.mtx");
+		op::core<parcsr> A(MPI_COMM_WORLD, "nos7.mtx");
 
-		auto & topof = A.source().data.topo();
+		auto & topof = A.data.topo();
 		auto aggt_ref = aggt_def(topof);
-		auto Ac = op::make(mg::ua::coarsen(A.source(), aggt_ref));
-		auto & topoc = Ac.source().data.topo();
+		auto Ac = op::make(mg::ua::coarsen(A, aggt_ref));
+		auto & topoc = Ac.data.topo();
 
-		auto x = Ac.source().vec(xd);
-		auto y = Ac.source().vec(yd);
+		auto x = Ac.vec(xd);
+		auto y = Ac.vec(yd);
 
 		execute<init>(x.data.topo(), x.data.ref());
 		Ac.apply(x, y);
 
-		auto z = A.source().vec(zd);
+		auto z = A.vec(zd);
 		execute<explicit_interp>(
 			topof, topoc, aggt_ref, x.data.ref(), z.data.ref());
 
-		auto w = A.source().vec(wd);
+		auto w = A.vec(wd);
 		A.apply(z, w);
 
-		auto y1 = Ac.source().vec(y1d);
+		auto y1 = Ac.vec(y1d);
 		execute<explicit_restrict>(
 			topof, topoc, aggt_ref, w.data.ref(), y1.data.ref());
 

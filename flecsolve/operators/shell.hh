@@ -23,9 +23,9 @@ protected:
 template<class F>
 shell(F) -> shell<F>;
 
-template<class F, template<class> class StoragePolicy = value_storage>
+template<class F>
 auto make_shell(F && f) {
-	return core<shell<F>, StoragePolicy>(std::forward<F>(f));
+	return core<shell<F>>(std::forward<F>(f));
 }
 
 static inline const auto I =

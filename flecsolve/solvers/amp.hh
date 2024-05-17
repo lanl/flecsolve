@@ -17,8 +17,6 @@
 #include "AMP/discretization/DOF_Manager.h"
 
 #include "AMP/solvers/SolverStrategy.h"
-#include "AMP/utils/typeid.h"
-#include "AMP/vectors/CommunicationList.h"
 #include "AMP/vectors/Variable.h"
 
 #include "AMP/vectors/VectorBuilder.h"
@@ -26,6 +24,7 @@
 #include "flecsolve/matrices/parcsr.hh"
 #include "flecsolve/util/config.hh"
 #include "flecsolve/solvers/solver_settings.hh"
+#include "flecsolve/operators/storage.hh"
 
 namespace flecsolve::amp {
 
@@ -160,21 +159,23 @@ std::shared_ptr<csr_op_wrap> make_op(mat::parcsr<scalar, size> & A)
 
 namespace po = boost::program_options;
 
-template<class Scalar, class Size, template<class> class storage>
+template<class Op>
 struct bound_solver : op::base<>
 {
-	using scalar = Scalar;
-	using size = Size;
+	using store = op::storage<Op>;
+	using op_t = typename store::op_type;
+	using scalar = typename op_t::scalar_type;
+	using size = typename op_t::size_type;
 	using parcsr = mat::parcsr<scalar, size>;
 	using topo_t = typename parcsr::topo_t;
 	using mat_ptr = std::shared_ptr<amp_mat>;
 	using tasks = csr_task<scalar, size>;
-	using op_t = op::core<parcsr, storage>;
 
-	bound_solver(op_t A,
+	template<class O>
+	bound_solver(O &&  A,
 	             std::shared_ptr<AMP::Solver::SolverStrategy> slv) :
-		A_(A), slv_(slv) {
-		register_operator(*slv_, make_op(A_.source()));
+		A_(std::forward<O>(A)), slv_(slv) {
+		register_operator(*slv_, make_op(A_.get()));
 	}
 
 	template<class D, class R>
@@ -182,7 +183,7 @@ struct bound_solver : op::base<>
 		solve_info info;
 
 		flecsi::execute<tasks::apply, flecsi::mpi>(*slv_,
-		                                           A_.data().topo(),
+		                                           A_.get().data.topo(),
 		                                           x.data.ref(),
 		                                           b.data.ref());
 		flecsi::execute<tasks::get_solve_info, flecsi::mpi>(*slv_, info);
@@ -197,9 +198,11 @@ private:
 		if (nest) register_operator(*nest, op);
 	}
 
-	op_t A_;
+	store A_;
 	std::shared_ptr<AMP::Solver::SolverStrategy> slv_;
 };
+template<class O>
+bound_solver(O&&, std::shared_ptr<AMP::Solver::SolverStrategy>)->bound_solver<O>;
 
 struct solver {
 	struct settings {
@@ -217,7 +220,7 @@ struct solver {
 
 	template<class A>
 	auto operator()(A && a) {
-		return op::make(bound_solver{std::forward<A>(a), slv_});
+		return op::core<bound_solver<std::decay_t<A>>>(std::forward<A>(a), slv_);
 	}
 
 protected:
@@ -260,7 +263,9 @@ struct solver {
 
 	template<class A>
 	auto operator()(A && a) {
-		return op::make(bound_solver{std::forward<A>(a), slv_});
+		return [](auto && o) {
+			return op::core<std::decay_t<decltype(o)>>(std::move(o));
+		}(bound_solver{std::forward<A>(a), slv_});
 	}
 
 private:

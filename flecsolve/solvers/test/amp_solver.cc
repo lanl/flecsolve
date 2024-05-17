@@ -131,8 +131,8 @@ int amptest() {
 	auto input_db = AMP::Database::parseInputFile(input_file);
 	csr_topo::init init;
 	flecsi::execute<create_amp_mat,flecsi::mpi>(init, input_db);
-	op::core<parcsr, op::shared_storage> A(std::move(init));
-	auto & topo = A.data().topo();
+	op::core<parcsr> A(std::move(init));
+	auto & topo = A.data.topo();
 
 	UNIT(){
 		auto [u, f] = vec::make(topo)(ud, fd);
@@ -142,7 +142,7 @@ int amptest() {
 			u.zero();
 			amp::solver slv{read_config("amp-solver.cfg", amp::solver::options("solver")),
 			                *input_db};
-			auto info = slv(A)(f, u);
+			auto info = slv(std::ref(A))(f, u);
 			ASSERT_EQ(info.iters, 14);
 			ASSERT_TRUE(info.success());
 		}
@@ -153,7 +153,7 @@ int amptest() {
 			u.zero();
 			amp::solver slv{read_config("amp-solver-pcg.cfg", amp::solver::options("solver")),
 			                *input_db};
-			auto info = slv(A)(f, u);
+			auto info = slv(std::ref(A))(f, u);
 			EXPECT_EQ(info.iters, 8);
 			EXPECT_TRUE(info.success());
 		}
@@ -164,7 +164,7 @@ int amptest() {
 			u.zero();
 			amp::solver slv{read_config("amp-solver-gmres.cfg", amp::solver::options("solver")),
 			                *input_db};
-			auto info = slv(A)(f, u);
+			auto info = slv(std::ref(A))(f, u);
 			EXPECT_EQ(info.iters, 8);
 		}
 	};

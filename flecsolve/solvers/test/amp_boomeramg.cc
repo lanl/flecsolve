@@ -123,8 +123,8 @@ int amptest() {
 		flecsi::execute<start_amp, flecsi::mpi>();
 		csr_topo::init init;
 		flecsi::execute<create_amp_mat,flecsi::mpi>(init);
-		op::core<parcsr, op::shared_storage> A(std::move(init));
-		auto & topo = A.data().topo();
+		op::core<parcsr> A(std::move(init));
+		auto & topo = A.data.topo();
 		auto [u, f] = vec::make(topo)(ud, fd);
 
 		u.set_scalar(1.);
@@ -134,7 +134,7 @@ int amptest() {
 		boomeramg::solver slv{
 			read_config("amp-amg.cfg",
 			            boomeramg::options("solver"))};
-		auto info = slv(A)(f, u);
+		auto info = slv(std::ref(A))(f, u);
 		EXPECT_EQ(info.iters, 14);
 		EXPECT_TRUE(info.success());
 	};

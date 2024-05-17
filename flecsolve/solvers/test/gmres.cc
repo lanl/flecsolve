@@ -61,8 +61,8 @@ int gmres_test() {
 
 		auto & msh = mshs[0];
 		init_mesh(matrix.rows(), msh);
-		op::core<csr_op, op::shared_storage> A(std::move(matrix));
-		op::core<csr_op, op::shared_storage> Dinv(A.source().Dinv());
+		op::core<csr_op> A(std::move(matrix));
+		op::core<csr_op> Dinv(A.Dinv());
 
 		auto [x, b] = vec::make(msh)(xd, bd);
 		b.set_random(0);
@@ -76,7 +76,7 @@ int gmres_test() {
 		{
 			op::krylov slv(op::krylov_parameters(settings_norestart,
 			                                     gmres::topo_work<>::get(b),
-			                                     A,
+			                                     std::ref(A),
 			                                     op::I,
 			                                     std::ref(diag)));
 			auto info = slv.apply(b, x);
@@ -85,14 +85,14 @@ int gmres_test() {
 			EXPECT_FALSE(diag.fail_monotonic);
 			EXPECT_FALSE(diag.fail_convergence);
 
-			auto slv_pre = op::rebind(slv, A, Dinv);
+			auto slv_pre = op::rebind(slv, std::ref(A), std::ref(Dinv));
 			x.set_random(1);
 			auto info_pre = slv_pre.apply(b, x);
 			EXPECT_EQ(info_pre.iters, 18);
 		}
 		{ // test restart
 			op::krylov_parameters params_restart(
-				settings_restart, gmres::topo_work<>::get(b), A);
+				settings_restart, gmres::topo_work<>::get(b), std::ref(A));
 			b.set_random(0);
 			x.set_random(1);
 
