@@ -141,7 +141,7 @@ auto make(P && p) {
 	return core<std::decay_t<P>>(std::forward<P>(p));
 }
 template<class P, class ... Args>
-auto make_shared(Args && ... args) {
+auto make_shared1(Args && ... args) {
 	return std::make_shared<core<P>>(std::forward<Args>(args)...);
 }
 

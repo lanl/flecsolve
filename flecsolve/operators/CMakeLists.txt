@@ -3,5 +3,6 @@ flecsolve_headers(
   traits.hh
   shell.hh
   storage.hh
+  handle.hh
   factory.hh)
 

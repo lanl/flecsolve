@@ -63,7 +63,7 @@ int nkatest() {
 		auto mtx = mat::io::matrix_market<>::read("Chem97ZtZ.mtx").tocsr();
 		init_mesh(mtx.rows(), msh);
 
-		auto A = op::make_shared<csr_op>(std::move(mtx));
+		auto A = op::make_shared1<csr_op>(std::move(mtx));
 		auto [x, b] = vec::make(msh)(xd, bd);
 		{
 			b.set_scalar(1.);

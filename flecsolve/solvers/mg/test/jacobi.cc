@@ -22,6 +22,7 @@ int jacobitest() {
 
 	UNIT () {
 		op::core<parcsr> A(MPI_COMM_WORLD, "nos7.mtx");
+		auto Ah = op::ref(A);
 		auto & topo = A.data.topo();
 		auto [u, f] = vec::make(topo)(ud, fd);
 
@@ -30,7 +31,7 @@ int jacobitest() {
 
 		mg::jacobi smoother{
 			read_config("jacobi.cfg", mg::jacobi::options("smoother"))};
-		smoother(std::ref(A))(f, u);
+		smoother(Ah)(f, u);
 	};
 	return 0;
 }
