@@ -69,6 +69,10 @@ struct partition {
 
 	void set_offsets(const flecsi::util::offsets & off) { storage = off; }
 
+	constexpr flecsi::Color size() const {
+		return std::visit([=](auto & part) { return part.size(); }, storage);
+	}
+
 protected:
 	std::variant<flecsi::util::equal_map, flecsi::util::offsets> storage;
 };
@@ -448,7 +452,7 @@ struct csr : flecsi::topo::help,
 		coloring c;
 
 		c.comm = ci.comm;
-		c.colors = flecsi::processes();
+		c.colors = ci.row_part.size();
 		c.nrows = ci.nrows;
 		c.ncols = ci.ncols;
 		c.row_part = ci.row_part;
