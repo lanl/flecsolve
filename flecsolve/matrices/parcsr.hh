@@ -169,6 +169,7 @@ protected:
 		ci.ncols = shape[1];
 		ci.row_part.set_block_map(ci.nrows, colors);
 		ci.col_part.set_block_map(ci.ncols, colors);
+		ci.proc_part.set_block_map(colors, comm_size);
 	}
 
 	MPI_Comm comm_;

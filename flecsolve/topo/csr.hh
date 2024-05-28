@@ -106,6 +106,7 @@ struct csr_base {
 			column_ghosts;
 		partition row_part;
 		partition col_part;
+		partition proc_part;
 	};
 
 	static std::size_t idx_size(std::vector<std::size_t> vs, std::size_t c) {
@@ -113,14 +114,13 @@ struct csr_base {
 	}
 
 	static void
-	idx_itvls(flecsi::Color colors,
-	          const csr_impl::partition & cm,
+	idx_itvls(const csr_impl::partition & cm,
+	          const csr_impl::partition & pm,
 	          const std::vector<std::vector<flecsi::util::gid>> ghosts,
 	          destination_intervals & intervals,
 	          source_pointers & pointers,
 	          MPI_Comm comm) {
 		auto [rank, comm_size] = flecsi::util::mpi::info(comm);
-		const flecsi::util::equal_map pm(colors, comm_size);
 		pointers.resize(ghosts.size());
 		intervals.resize(ghosts.size());
 		{
@@ -255,7 +255,7 @@ private:
 		source_pointers pointers;
 
 		flecsi::execute<idx_itvls, flecsi::mpi>(
-			c.colors, c.col_part, c.column_ghosts, intervals, pointers, c.comm);
+			c.col_part, c.proc_part, c.column_ghosts, intervals, pointers, c.comm);
 
 		auto dest_task = [&](auto f) {
 			auto lm = flecsi::data::launch::make(f.topology());
@@ -286,7 +286,7 @@ private:
 
 		const auto & cm = c.col_part;
 		const auto & rm = c.row_part;
-		const flecsi::util::equal_map pm(c.colors, comm_size);
+		const auto & pm = c.proc_part;
 		assert(static_cast<std::size_t>(ma.size()) == pm[rank].size());
 		std::size_t i{0};
 		for (flecsi::Color col : pm[rank]) {
@@ -460,11 +460,12 @@ struct csr : flecsi::topo::help,
 		c.ncols = ci.ncols;
 		c.row_part = ci.row_part;
 		c.col_part = ci.col_part;
+		c.proc_part = ci.proc_part;
 
 		auto [rank, comm_size] = flecsi::util::mpi::info(ci.comm);
 		const auto & cm = ci.col_part;
 		const auto & rm = ci.row_part;
-		const flecsi::util::equal_map pm(c.colors, comm_size);
+		const auto & pm = ci.proc_part;
 
 		std::vector<std::array<flecsi::util::id, index_spaces::size>> isizes;
 		isizes.resize(pm[rank].size());
@@ -528,7 +529,7 @@ struct csr : flecsi::topo::help,
 	          const init & ci) {
 		auto [rank, comm_size] = flecsi::util::mpi::info(c.comm);
 		const auto & cm = ci.col_part;
-		const flecsi::util::equal_map pm(c.colors, comm_size);
+		const auto & pm = ci.proc_part;
 
 		auto ma = m.accessors();
 		auto lmat = ci.proc_mats.begin();
