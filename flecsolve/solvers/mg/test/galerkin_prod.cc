@@ -95,7 +95,8 @@ int coarsentest() {
 
 		auto & topof = A.data.topo();
 		auto aggt_ref = aggt_def(topof);
-		auto Ac = op::make(mg::ua::coarsen(A, aggt_ref));
+		auto lm = flecsi::data::launch::make(topof);
+		auto Ac = op::make(mg::ua::coarsen(A, aggt_def(lm)));
 		auto & topoc = Ac.data.topo();
 
 		auto x = Ac.vec(xd);

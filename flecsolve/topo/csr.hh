@@ -38,6 +38,7 @@ struct process_coloring {
 };
 
 struct metadata {
+	flecsi::Color colors;
 	MPI_Comm comm;
 	flecsi::util::gid nrows, ncols;
 	struct rng {
@@ -291,6 +292,7 @@ private:
 		for (flecsi::Color col : pm[rank]) {
 			auto & e = ma[i++].get();
 			e.comm = c.comm;
+			e.colors = c.colors;
 			e.nrows = c.nrows;
 			e.ncols = c.ncols;
 			e.cols.beg = cm[col].front();
@@ -351,7 +353,7 @@ struct csr_category<P>::access {
 
 	FLECSI_INLINE_TARGET auto colmap() { return colmap_; }
 
-	FLECSI_INLINE_TARGET const csr_impl::metadata & meta() { return *meta_; }
+	FLECSI_INLINE_TARGET const csr_impl::metadata & meta() const { return *meta_; }
 
 private:
 	flecsi::data::scalar_access<csr_category<P>::metadata_field, Priv> meta_;
@@ -416,7 +418,7 @@ struct csr : flecsi::topo::help,
 			                     offda.values.span());
 		}
 
-		FLECSI_INLINE_TARGET const auto & meta() { return B::meta(); }
+		FLECSI_INLINE_TARGET const auto & meta() const { return B::meta(); }
 		FLECSI_INLINE_TARGET auto colmap() { return B::colmap(); }
 
 		template<index_space S>
@@ -445,6 +447,7 @@ struct csr : flecsi::topo::help,
 		MPI_Comm comm;
 		std::size_t nrows, ncols;
 		csr_impl::partition row_part, col_part;
+		csr_impl::partition proc_part;
 		std::vector<csr_t> proc_mats;
 	};
 

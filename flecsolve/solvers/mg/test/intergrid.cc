@@ -64,8 +64,9 @@ int intergridtest() {
 
 		auto & topof = A.data.topo();
 		auto aggt_ref = aggt_def(topof);
+		auto lm = flecsi::data::launch::make(topof);
 		auto Ac = op::make(
-			mg::ua::coarsen<scalar, std::size_t>(A, aggt_ref));
+			mg::ua::coarsen<scalar, std::size_t>(A, aggt_def(lm)));
 		execute<init>(topof, xd(topof));
 
 		mg::ua::intergrid_params<scalar, std::size_t> params{aggt_ref};

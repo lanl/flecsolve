@@ -28,6 +28,15 @@ namespace task {
 
 using aggregate_t = std::vector<std::vector<std::size_t>>;
 using soc_t = std::vector<std::set<std::size_t>>;
+using flecsi::data::multi;
+
+template<class scalar, class size>
+using csr_acc = multi<typename topo::csr<scalar, size>::template accessor<flecsi::ro>>;
+template<flecsi::partition_privilege_t... privs>
+using aggt_acc = multi<
+	typename flecsi::field<flecsi::util::id>::template accessor<privs...>>;
+template<class scalar, class size>
+using csr_init = typename topo::csr<scalar, size>::init;
 
 class prospect
 {
@@ -251,11 +260,11 @@ aggregate_t pairwise_agg(float beta,
 	return aggregates;
 }
 
-template<class T, class P>
-void transpose_aggregates(const aggregate_t & agg, T & aggt, P && part) {
+template<class T>
+void transpose_aggregates(const aggregate_t & agg, T & aggt, std::size_t offset) {
 	for (std::size_t i = 0; i < agg.size(); ++i) {
 		for (auto fi : agg[i]) {
-			aggt[fi] = std::forward<P>(part)(flecsi::process()) + i;
+			aggt[fi] = offset + i;
 		}
 	}
 }
@@ -263,7 +272,7 @@ void transpose_aggregates(const aggregate_t & agg, T & aggt, P && part) {
 inline auto local_aggregate_transpose(const aggregate_t & agg) {
 	std::map<std::size_t, std::size_t> aggt;
 
-	transpose_aggregates(agg, aggt, [](std::size_t) { return 0; });
+	transpose_aggregates(agg, aggt, 0);
 
 	return aggt;
 }
@@ -351,93 +360,117 @@ auto double_pairwise_agg(float beta,
 	return agg_union(agg1, agg2);
 }
 
-inline auto create_partition(MPI_Comm comm, const aggregate_t & agg) {
-	auto aggsize = flecsi::util::mpi::all_gatherv(agg.size(), comm);
-	flecsi::util::offsets part;
-	part.reserve(aggsize.size());
-	for (auto sz : aggsize)
-		part.push_back(sz);
+inline auto create_partition(MPI_Comm comm, const std::vector<aggregate_t> & agg) {
+	std::vector<std::size_t> local_agg_sizes;
+	for (const auto & a : agg) {
+		local_agg_sizes.push_back(a.size());
+	}
 
-	return part;
+	auto aggsizes = flecsi::util::mpi::all_gatherv(local_agg_sizes, comm);
+
+	flecsi::util::offsets row_part, proc_part;
+	for (const auto & proc_sizes : aggsizes) {
+		for (const auto & color_size : proc_sizes) {
+			row_part.push_back(color_size);
+		}
+		proc_part.push_back(proc_sizes.size());
+	}
+
+	return std::make_tuple(proc_part, row_part);
 }
 
 template<class scalar, class size>
 void aggregate_and_partition(
 	float beta,
-	typename topo::csr<scalar, size>::template accessor<flecsi::ro> A,
-	aggregate_t & agg_out,
-	typename flecsi::field<
-		flecsi::util::id>::template accessor<flecsi::wo, flecsi::na> aggt,
-	typename topo::csr<scalar, size>::init & topo_init) {
-	// TODO: implement with multiaccessors
-	auto agg = double_pairwise_agg(beta, A.diag(), A.offd(), true);
-	MPI_Comm comm = A.meta().comm;
-	auto part = create_partition(comm, agg);
+	csr_acc<scalar, size> AA,
+	std::vector<aggregate_t> & agg_out,
+	aggt_acc<flecsi::wo, flecsi::na> aggt,
+	csr_init<scalar, size> & topo_init) {
+	std::vector<aggregate_t> aggs;
+	for (auto A : AA.accessors()) {
+		aggs.emplace_back(double_pairwise_agg(beta, A.diag(), A.offd(), true));
+	}
+
+	auto comm = MPI_COMM_WORLD;
+	auto [proc_part, row_part] = create_partition(comm, aggs);
+
+	{ // fill field with transpose of aggregates
+		auto agg = aggs.begin();
+		for (auto at : aggt.accessors()) {
+			std::fill(at.span().begin(),
+			          at.span().end(),
+			          std::numeric_limits<flecsi::util::id>::max());
+			auto offset = row_part(proc_part(flecsi::process()));
+			transpose_aggregates(*agg, at, offset);
+			++agg;
+		}
+	}
 
 	topo_init.comm = comm;
-	topo_init.row_part.set_offsets(part);
-	topo_init.col_part.set_offsets(part);
-	topo_init.nrows = part.total();
-	topo_init.ncols = part.total();
+	topo_init.row_part.set_offsets(row_part);
+	topo_init.col_part.set_offsets(row_part);
+	topo_init.proc_part.set_offsets(proc_part);
+	topo_init.nrows = row_part.total();
+	topo_init.ncols = row_part.total();
 
-	std::fill(aggt.span().begin(),
-	          aggt.span().end(),
-	          std::numeric_limits<flecsi::util::id>::max());
-	transpose_aggregates(agg, aggt, part);
-
-	agg_out = std::move(agg);
+	agg_out = std::move(aggs);
 }
 
 template<class scalar, class size>
 void coarsen_with_aggregates(
-	typename topo::csr<scalar, size>::template accessor<flecsi::ro> A,
-	const aggregate_t & agg,
-	typename flecsi::field<
-		flecsi::util::id>::template accessor<flecsi::ro, flecsi::ro> aggt,
-	typename topo::csr<scalar, size>::init & topo_init) {
-	// TODO: implement with multiaccessors
+	csr_acc<scalar, size> AA,
+	const std::vector<aggregate_t> & aggs,
+	aggt_acc<flecsi::ro, flecsi::ro> aggts,
+	csr_init<scalar, size> & topo_init) {
 
-	mat::csr<scalar, size> loc{agg.size(), agg.size()};
+	auto agg_it = aggs.begin();
+	auto aggt_it = aggts.accessors().begin();
+	for (auto A : AA.accessors()) {
+		const auto & agg = *agg_it++;
+		auto aggt = *aggt_it++;
+		mat::csr<scalar, size> loc{agg.size(), agg.size()};
 
-	auto [rowptr_coarse, colind_coarse, values_coarse] = loc.data.vecs();
-	for (size rc = 0; rc < agg.size(); ++rc) {
-		// coarse column index -> aggregated value
-		std::map<size, scalar> agg_values;
-		for (auto r : agg[rc]) {
-			auto collapse = [&](const auto & mat) {
-				auto [rowptr, colind, values] = mat.rep();
-				for (size off = rowptr[r]; off < rowptr[r + 1]; ++off) {
-					if (aggt[colind[off]] !=
-					    std::numeric_limits<flecsi::util::id>::max())
-						agg_values[aggt[colind[off]]] += values[off];
-				}
-			};
-			collapse(A.diag());
-			collapse(A.offd());
+		auto [rowptr_coarse, colind_coarse, values_coarse] = loc.data.vecs();
+		for (size rc = 0; rc < agg.size(); ++rc) {
+			// coarse column index -> aggregated value
+			std::map<size, scalar> agg_values;
+			for (auto r : agg[rc]) {
+				auto collapse = [&](const auto & mat) {
+					auto [rowptr, colind, values] = mat.rep();
+					for (size off = rowptr[r]; off < rowptr[r + 1]; ++off) {
+						if (aggt[colind[off]] !=
+						    std::numeric_limits<flecsi::util::id>::max())
+							agg_values[aggt[colind[off]]] += values[off];
+					}
+				};
+				collapse(A.diag());
+				collapse(A.offd());
+			}
+
+			size off{0};
+			for (const auto & ce : agg_values) {
+				colind_coarse.push_back(ce.first);
+				values_coarse.push_back(ce.second);
+				++off;
+			}
+			rowptr_coarse[rc + 1] = rowptr_coarse[rc] + off;
 		}
 
-		size off{0};
-		for (const auto & ce : agg_values) {
-			colind_coarse.push_back(ce.first);
-			values_coarse.push_back(ce.second);
-			++off;
-		}
-		rowptr_coarse[rc + 1] = rowptr_coarse[rc] + off;
+		topo_init.proc_mats.push_back(std::move(loc));
 	}
-
-	topo_init.proc_mats.push_back(std::move(loc));
 }
 
-}
+} // namespace task
 
 template<class scalar, class size, class Ref>
 auto coarsen(const mat::parcsr<scalar, size> & Af, Ref aggt, float beta = 0.25) {
 	typename topo::csr<scalar, size>::init topo_init;
-	task::aggregate_t agg;
+	std::vector<task::aggregate_t> agg;
+	auto lm = flecsi::data::launch::make(Af.data.topo());
 	flecsi::execute<task::aggregate_and_partition<scalar, size>, flecsi::mpi>(
-		beta, Af.data.topo(), agg, aggt, topo_init);
+		beta, lm, agg, aggt, topo_init);
 	flecsi::execute<task::coarsen_with_aggregates<scalar, size>, flecsi::mpi>(
-		Af.data.topo(), agg, aggt, topo_init);
+		lm, agg, aggt, topo_init);
 
 	return mat::parcsr<scalar, size>(std::move(topo_init));
 }
