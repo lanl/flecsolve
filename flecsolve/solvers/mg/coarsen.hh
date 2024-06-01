@@ -447,17 +447,128 @@ void coarsen_with_aggregates(
 				collapse(A.offd());
 			}
 
-			size off{0};
 			for (const auto & ce : agg_values) {
 				colind_coarse.push_back(ce.first);
 				values_coarse.push_back(ce.second);
-				++off;
 			}
-			rowptr_coarse[rc + 1] = rowptr_coarse[rc] + off;
+			rowptr_coarse[rc + 1] = colind_coarse.size();
 		}
 
 		topo_init.proc_mats.push_back(std::move(loc));
 	}
+}
+
+template<class scalar, class size>
+void redistribute(csr_acc<scalar, size>,
+                  csr_init<scalar, size> & topo_init) {
+	auto colors = topo_init.row_part.size();
+	constexpr std::size_t coarsen_factor = 2;
+	auto rcolors = colors / coarsen_factor;
+	using namespace flecsi::util;
+
+	equal_map rmap(topo_init.row_part.size(), rcolors);
+
+	auto pm = topo_init.proc_part;
+	auto comm = topo_init.comm;
+	auto rank = mpi::rank(comm);
+
+	std::vector<mat::csr<scalar, size>> mats;
+	std::swap(topo_init.proc_mats, mats);
+
+	auto get_owner = [&](flecsi::Color col) {
+		// rank who owns first color in group is owner
+		return pm.bin(rmap(rmap.bin(col)));
+	};
+	// send local colors to their group owner (lowest rank that owned a color in the group)
+	mpi::auto_requests areq;
+	auto & req = areq.v;
+	auto lmats = mats.begin();
+	std::map<flecsi::Color, std::vector<mat::csr<scalar, size>>> groups;
+	for (auto col : pm[rank]) {
+		int group_owner = get_owner(col);
+		if (group_owner != rank) {
+			auto mess = serial::put_tuple(*lmats++);
+			req.emplace_back();
+			MPI_Issend(mess.data(), mess.size(), MPI_BYTE, group_owner, col, comm, &req.back());
+		} else {
+			groups[rmap.bin(col)].emplace_back(std::move(*lmats++));
+		}
+	}
+
+	// receive missing colors from groups we own
+	for (auto & [gid, gmats] : groups) {
+		auto grp = rmap[gid];
+		auto rlist = grp.begin() + gmats.size();
+		for (auto rcolor = rlist; rcolor != grp.end(); ++rcolor) {
+			int source = pm.bin(*rcolor);
+			std::vector<std::byte> mess([&] {
+				MPI_Status st;
+				mpi::test(MPI_Probe(source, *rcolor, comm, &st));
+				int ret;
+				mpi::test(MPI_Get_count(&st, MPI_BYTE, &ret));
+				return ret;
+			}());
+			MPI_Recv(mess.data(), mess.size(), MPI_BYTE, source, *rcolor,
+			         comm, MPI_STATUS_IGNORE);
+			gmats.emplace_back(serial::get1<mat::csr<scalar, size>>(mess.data()));
+		}
+	}
+
+	// merge groups and add to topo_init
+	auto append = [](mat::csr<scalar, size> & dst,
+	                 const mat::csr<scalar, size> & src) {
+		auto [drowptr, dcolind, dvalues] = dst.data.vecs();
+		auto [srowptr, scolind, svalues] = src.rep();
+
+		drowptr.reserve(drowptr.size() + srowptr.size() - 1);
+		[&](auto & ... v) {
+			(v.reserve(v.size() + svalues.size()),...);
+		}(dcolind, dvalues);
+
+		for (size row = 0; row < srowptr.size() - 1; ++row) {
+			for (size off = srowptr[row]; off < srowptr[row+1]; ++off) {
+				auto push = [=](auto & dst, const auto & src) {
+					dst.push_back(src[off]);
+				};
+				push(dcolind, scolind);
+				push(dvalues, svalues);
+			}
+			drowptr.push_back(dcolind.size());
+		}
+
+		dst.set_nnz(dcolind.size());
+		dst.major_size() = drowptr.size() - 1;
+		dst.minor_size() = drowptr.size() - 1;
+	};
+	for (auto & [gid, gmats] : groups) {
+		auto & base = gmats[0];
+		for (auto curr = gmats.begin() + 1; curr < gmats.end(); ++curr) {
+			append(base, *curr);
+		}
+		topo_init.proc_mats.emplace_back(std::move(base));
+	}
+
+	// compute new partitions
+	std::vector<std::size_t> proc_sizes(mpi::size(comm));
+	flecsi::util::offsets row_part;
+	for (flecsi::Color gid = 0; gid < rmap.size(); ++gid) {
+		++proc_sizes[pm.bin(rmap(gid))];
+
+		std::size_t sz = 0;
+		for (auto col : rmap[gid]) {
+			sz += topo_init.row_part[col].size();
+		}
+		row_part.push_back(sz);
+	}
+
+	flecsi::util::offsets proc_part;
+	for (auto sz : proc_sizes) {
+		proc_part.push_back(sz);
+	}
+
+	topo_init.proc_part.set_offsets(proc_part);
+	topo_init.row_part.set_offsets(row_part);
+	topo_init.col_part.set_offsets(row_part);
 }
 
 } // namespace task
@@ -471,6 +582,7 @@ auto coarsen(const mat::parcsr<scalar, size> & Af, Ref aggt, float beta = 0.25) 
 		beta, lm, agg, aggt, topo_init);
 	flecsi::execute<task::coarsen_with_aggregates<scalar, size>, flecsi::mpi>(
 		lm, agg, aggt, topo_init);
+	// flecsi::execute<task::redistribute<scalar, size>, flecsi::mpi>(lm, topo_init);
 
 	return mat::parcsr<scalar, size>(std::move(topo_init));
 }

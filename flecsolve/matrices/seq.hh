@@ -245,6 +245,8 @@ struct compressed : sparse<Data, Ops, Config> {
 	}
 
 	constexpr void set_nnz(size nnz) { nnz_ = nnz; }
+	constexpr size & major_size() { return major_size_; }
+	constexpr size & minor_size() { return minor_size_; }
 
 protected:
 	size major_size_;

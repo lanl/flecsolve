@@ -49,7 +49,7 @@ struct metadata {
 	rng cols;
 };
 
-struct partition {
+struct partition : flecsi::util::with_index_iterator<const partition> {
 	partition() : storage{flecsi::util::equal_map(1, 1)} {}
 
 	constexpr auto operator[](flecsi::Color c) const {
@@ -187,6 +187,26 @@ struct csr_base {
 	}
 };
 
+inline auto proc_claim(const csr_impl::partition & proc_part) {
+	flecsi::data::launch::Claims ret;
+
+	for (auto b : proc_part)
+		ret.emplace_back(b.begin(), b.end());
+
+	return ret;
+}
+
+template<class T>
+flecsi::data::launch::mapping<flecsi::topo::policy_t<T>>
+launch(T & t, const csr_base::coloring & c) {
+	return {t, proc_claim(c.proc_part)};
+}
+template<class P>
+flecsi::data::launch::mapping<P>
+launch(flecsi::data::topology_slot<P> & t, const csr_base::coloring & c) {
+	return launch(t.get(), c);
+}
+
 template<class P>
 struct csr_category : csr_base, flecsi::topo::with_meta<P> {
 	using index_space = typename P::index_space;
@@ -244,7 +264,7 @@ private:
 				  return partitions;
 			  }()))...}},
 		  column_plan_{make_copy_plan(c, part_[index<P::column_space>])} {
-		auto lm = flecsi::data::launch::make(this->meta);
+		auto lm = launch(this->meta, c);
 		flecsi::execute<set_meta, flecsi::mpi>(metadata_field(lm), c);
 	}
 
@@ -258,12 +278,12 @@ private:
 			c.col_part, c.proc_part, c.column_ghosts, intervals, pointers, c.comm);
 
 		auto dest_task = [&](auto f) {
-			auto lm = flecsi::data::launch::make(f.topology());
+			auto lm = launch(f.topology(), c);
 			flecsi::execute<set_dests, flecsi::mpi>(lm(f), intervals, c.comm);
 		};
 
 		auto ptrs_task = [&](auto f) {
-			auto lm = flecsi::data::launch::make(f.topology());
+			auto lm = launch(f.topology(), c);
 			flecsi::execute<
 				set_ptrs<P::template privilege_count<P::column_space>>,
 				flecsi::mpi>(lm(f), pointers, c.comm);
@@ -597,7 +617,7 @@ struct csr : flecsi::topo::help,
 	static void initialize(flecsi::data::topology_slot<csr> & s,
 	                       const coloring & c,
 	                       const init & ci) {
-		auto lm = flecsi::data::launch::make(s);
+		auto lm = launch(s, c);
 		flecsi::execute<init_mats, flecsi::mpi>(lm, c, ci);
 	}
 };
