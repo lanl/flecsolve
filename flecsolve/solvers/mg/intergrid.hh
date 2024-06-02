@@ -41,11 +41,24 @@ struct prolong : op::base<intergrid_params<scalar, size>> {
 
 	template<class D, class R>
 	void apply(const D & x, R & y) const {
-		flecsi::execute<inject>(y.data.topo(),
-		                        x.data.topo(),
-		                        params.aggregates,
-		                        x.data.ref(),
-		                        y.data.ref());
+		auto & topof = y.data.topo();
+		auto & topoc = x.data.topo();
+		if (topof.colors() != topoc.colors()) {
+			auto lm = flecsi::data::launch::make(topof,
+			                                     flecsi::data::launch::block(
+				                                     topof.colors(), topoc.colors()));
+			using namespace flecsi::data;
+			flecsi::execute<injectm>(lm, topoc,
+			                         multi_reference(params.aggregates, lm),
+			                         x.data.ref(),
+			                         multi_reference(y.data.ref(), lm));
+		} else {
+			flecsi::execute<inject>(y.data.topo(),
+			                        x.data.topo(),
+			                        params.aggregates,
+			                        x.data.ref(),
+			                        y.data.ref());
+		}
 	}
 
 protected:
@@ -54,10 +67,11 @@ protected:
 	template<flecsi::partition_privilege_t priv>
 	using vec_acc =
 		typename flecsi::field<scalar>::template accessor<priv, flecsi::na>;
+	using aggt_acc = flecsi::field<flecsi::util::id>::accessor<flecsi::ro, flecsi::na>;
 	static void inject(
 		topo_acc Af,
 		topo_acc Ac,
-		flecsi::field<flecsi::util::id>::accessor<flecsi::ro, flecsi::na> agg,
+		aggt_acc agg,
 		vec_acc<flecsi::ro> x,
 		vec_acc<flecsi::wo> y) {
 		std::size_t off = Ac.meta().rows.beg;
@@ -65,6 +79,26 @@ protected:
 		for (std::size_t i{0}; i < ncol; ++i) {
 			if (agg[i] != std::numeric_limits<flecsi::util::id>::max())
 				y[i] = x[agg[i] - off];
+		}
+	}
+
+	static void injectm(
+		flecsi::data::multi<topo_acc> Af,
+		topo_acc Ac,
+		flecsi::data::multi<aggt_acc> aggta,
+		vec_acc<flecsi::ro> x,
+		flecsi::data::multi<vec_acc<flecsi::wo>> ya) {
+		std::size_t off = Ac.meta().rows.beg;
+		auto aggts = aggta.accessors().begin();
+		auto yas = ya.accessors().begin();
+
+		for (auto fine : Af.accessors()) {
+			auto aggt = *aggts++;
+			auto y = *yas++;
+			for (std::size_t i{0}; i < fine.meta().cols.size(); ++i) {
+				if (aggt[i] != std::numeric_limits<flecsi::util::id>::max())
+					y[i] = x[aggt[i] - off];
+			}
 		}
 	}
 };
@@ -78,11 +112,24 @@ struct restrict : op::base<intergrid_params<scalar, size>> {
 
 	template<class D, class R>
 	void apply(const D & x, R & y) const {
-		flecsi::execute<ave>(x.data.topo(),
-		                     y.data.topo(),
-		                     params.aggregates,
-		                     x.data.ref(),
-		                     y.data.ref());
+		auto & topof = x.data.topo();
+		auto & topoc = y.data.topo();
+		if (topof.colors() != topoc.colors()) {
+				auto lm = flecsi::data::launch::make(topof,
+				                                     flecsi::data::launch::block(
+					                                     topof.colors(), topoc.colors()));
+				using namespace flecsi::data;
+				flecsi::execute<avem>(lm, topoc,
+				                      multi_reference(params.aggregates, lm),
+				                      multi_reference(x.data.ref(), lm),
+				                      y.data.ref());
+		} else {
+			flecsi::execute<ave>(x.data.topo(),
+			                     y.data.topo(),
+			                     params.aggregates,
+			                     x.data.ref(),
+			                     y.data.ref());
+		}
 	}
 
 protected:
@@ -91,10 +138,11 @@ protected:
 	template<flecsi::partition_privilege_t priv>
 	using vec_acc =
 		typename flecsi::field<scalar>::template accessor<priv, flecsi::na>;
+	using aggt_acc = flecsi::field<flecsi::util::id>::accessor<flecsi::ro, flecsi::na>;
 	static void ave(
 		topo_acc Af,
 		topo_acc Ac,
-		flecsi::field<flecsi::util::id>::accessor<flecsi::ro, flecsi::na> agg,
+		aggt_acc agg,
 		vec_acc<flecsi::ro> x,
 		vec_acc<flecsi::wo> y) {
 		std::fill(y.span().begin(), y.span().end(), 0);
@@ -104,6 +152,26 @@ protected:
 		for (std::size_t i{0}; i < ncol; ++i) {
 			if (agg[i] != std::numeric_limits<flecsi::util::id>::max())
 				y[agg[i] - off] += x[i];
+		}
+	}
+
+	static void avem(flecsi::data::multi<topo_acc> Af,
+	                 topo_acc Ac,
+	                 flecsi::data::multi<aggt_acc> aggta,
+	                 flecsi::data::multi<vec_acc<flecsi::ro>> xa,
+	                 vec_acc<flecsi::wo> y) {
+		std::fill(y.span().begin(), y.span().end(), 0);
+		std::size_t off = Ac.meta().rows.beg;
+		auto aggts = aggta.accessors().begin();
+		auto xas = xa.accessors().begin();
+		for (auto fine : Af.accessors()) {
+			auto aggt = *aggts++;
+			auto x = *xas++;
+			for (std::size_t i{0}; i < fine.meta().cols.size(); ++i) {
+				if (aggt[i] != std::numeric_limits<flecsi::util::id>::max()) {
+					y[aggt[i] - off] += x[i];
+				}
+			}
 		}
 	}
 };
