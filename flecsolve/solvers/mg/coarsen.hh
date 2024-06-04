@@ -460,9 +460,9 @@ void coarsen_with_aggregates(
 
 template<class scalar, class size>
 void redistribute(csr_acc<scalar, size>,
-                  csr_init<scalar, size> & topo_init) {
+                  csr_init<scalar, size> & topo_init,
+                  std::size_t coarsen_factor) {
 	auto colors = topo_init.row_part.size();
-	constexpr std::size_t coarsen_factor = 2;
 	auto rcolors = colors / coarsen_factor;
 	using namespace flecsi::util;
 
@@ -573,16 +573,37 @@ void redistribute(csr_acc<scalar, size>,
 
 } // namespace task
 
+struct coarsen_settings {
+	float beta = 0.25;
+	std::size_t redist_coarsen_factor = 2;
+	std::size_t min_local_coarse = 5;
+};
+
 template<class scalar, class size, class Ref>
-auto coarsen(const mat::parcsr<scalar, size> & Af, Ref aggt, float beta = 0.25) {
+auto coarsen(const mat::parcsr<scalar, size> & Af, Ref aggt_ref,
+             const coarsen_settings & settings = {}) {
 	typename topo::csr<scalar, size>::init topo_init;
 	std::vector<task::aggregate_t> agg;
 	auto lm = flecsi::data::launch::make(Af.data.topo());
+	auto aggt = flecsi::data::multi_reference(aggt_ref, lm);
 	flecsi::execute<task::aggregate_and_partition<scalar, size>, flecsi::mpi>(
-		beta, lm, agg, aggt, topo_init);
+		settings.beta, lm, agg, aggt, topo_init);
 	flecsi::execute<task::coarsen_with_aggregates<scalar, size>, flecsi::mpi>(
 		lm, agg, aggt, topo_init);
-	// flecsi::execute<task::redistribute<scalar, size>, flecsi::mpi>(lm, topo_init);
+
+	auto nrow_min = (*std::min_element(topo_init.row_part.begin(), topo_init.row_part.end(),
+	                                  [](const auto & a, const auto & b) {
+		                                  return a.size() < b.size();
+	                                  })).size();
+	if (nrow_min <= settings.min_local_coarse
+	    && topo_init.row_part.size() > 1) {
+		auto prev_colors = topo_init.row_part.size();
+		flecsi::execute<task::redistribute<scalar, size>, flecsi::mpi>(lm, topo_init,
+		                                                               settings.redist_coarsen_factor);
+		if (flecsi::process() == 0) {
+			std::cout << "redistributed from " << prev_colors << " to " << topo_init.row_part.size() << std::endl;
+		}
+	}
 
 	return mat::parcsr<scalar, size>(std::move(topo_init));
 }

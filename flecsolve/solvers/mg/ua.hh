@@ -10,6 +10,7 @@
 #include "flecsolve/solvers/mg/coarsen.hh"
 #include "flecsolve/solvers/mg/cycle.hh"
 #include "flecsolve/solvers/amp.hh"
+#include "flecsolve/solvers/mg/cg_solve.hh"
 
 
 namespace flecsolve::mg::ua {
@@ -39,33 +40,33 @@ struct topovec_store {
 private:
 	template<std::size_t ... I>
 	topovec_store(A & a, std::index_sequence<I...>) :
-		vecs{vec::make(a.data().topo())(
+		vecs{vec::make(a.data.topo())(
 			vecdefs[I])...}
 	{
 	}
 
-	std::array<decltype(vec::make(std::declval<A>().data().topo())(vecdefs[0])),
+	std::array<decltype(vec::make(std::declval<A>().data.topo())(vecdefs[0])),
 	           static_cast<std::size_t>(veclabel::size)> vecs;
 };
 
-template<class OpType>
+template<class scalar, class size>
 struct hierarchy_config
 {
-	using scalar_type = typename OpType::policy_type::scalar;
-	using size_type = typename OpType::policy_type::size;
+	using scalar_type = scalar;
+	using size_type = size;
 
-	using csr_topo = typename OpType::policy_type::topo_t;
+	using csr_topo = topo::csr<scalar, size>;
 	static inline const flecsi::field<flecsi::util::id>::definition<
 		csr_topo, csr_topo::cols> aggt_def;
 
-	using smoother = decltype(std::declval<mg::jacobi>()(std::declval<OpType>()));
-	using coarse_op = op::core<typename OpType::policy_type>;
-	using coarse_smoother = decltype(std::declval<mg::jacobi>()(std::declval<coarse_op>()));
+	using smoother = op::core<mg::bound_jacobi<scalar_type, size_type>>;
+	using coarse_op = op::core<mat::parcsr<scalar, size>>;
+	using coarse_smoother = op::core<mg::bound_jacobi<scalar_type, size_type>>;
 	template<class ... Ops>
 	using level_gen = level<tuple_opstore, topovec_store, Ops...>;
 	using level_type = level_gen<op::core<mg::ua::prolong<scalar_type, size_type>>,
 	                             op::core<mg::ua::restrict<scalar_type, size_type>>,
-	                             OpType, smoother, smoother>;
+	                             coarse_op, smoother, smoother>;
 };
 
 
@@ -74,11 +75,11 @@ struct solver_settings {
 };
 
 
-template<class FineOp>
-struct bound_solver {
-	using hier_type = hierarchy<hierarchy_config<FineOp>>;
+template<class scalar, class size>
+struct bound_solver : op::base<> {
+	using hier_type = hierarchy<hierarchy_config<scalar, size>>;
 
-	bound_solver(FineOp op, const solver_settings & s) :
+	bound_solver(op::handle<op::core<mat::parcsr<scalar, size>>> op, const solver_settings & s) :
 		settings{s},
 		hier{op, create_smoother(0, op), create_smoother(0, op)}
 	{
@@ -90,37 +91,21 @@ struct bound_solver {
 			auto & fine_mat = hier.get_mat(i);
 			auto & fine_topo = fine_mat.data.topo();
 			auto aggt_ref = hier_type::aggt_def(fine_topo);
-			auto coarse_op = op::make_shared(
-				mg::ua::coarsen(fine_mat, aggt_ref, 0.25));
-			using scalar = typename std::remove_reference_t<decltype(fine_mat)>::scalar_t;
-			using size = typename std::remove_reference_t<decltype(fine_mat)>::size_t;
+			auto coarse_op = op::make_shared<mat::parcsr<scalar, size>>(
+				mg::ua::coarsen(fine_mat, aggt_ref));
 			mg::ua::intergrid_params<scalar, size> iparams{aggt_ref};
 			hier.extend(
 				coarse_op,
 				create_smoother(i, coarse_op),
 				create_smoother(i, coarse_op),
-				op::make(mg::ua::prolong<scalar, size>{iparams}),
-				op::make(mg::ua::restrict<scalar, size>{iparams}));
+				op::make_shared<mg::ua::prolong<scalar, size>>(iparams),
+				op::make_shared<mg::ua::restrict<scalar, size>>(iparams));
 		}
+		cg_solver.emplace(op::ref(hier.get(-1).A()));
 	}
 
 	template<class D, class R>
 	void apply(const D & b, R & x) const {
-		amp::boomeramg::settings cg_settings;
-		cg_settings.maxiter = 25;
-		cg_settings.print_info_level = 0;
-		cg_settings.compute_residual = false;
-		cg_settings.rtol = 1e-12;
-		cg_settings.min_coarse_size = 10;
-		cg_settings.strong_threshold = 0.5;
-		cg_settings.relax_type = 16;
-		cg_settings.coarsen_type = 10;
-		cg_settings.interp_type = 17;
-		cg_settings.relax_order = 0;
-
-		auto & Ac = hier.get(-1).A();
-		amp::boomeramg::solver cg_solver{cg_settings};
-
 		auto & ml = const_cast<hier_type&>(hier);
 
 		float prev;
@@ -130,7 +115,7 @@ struct bound_solver {
 		prev = r.l2norm().get();
 		for (int i = 0; i <= 10; ++i) {
 			vcycle(b, x,
-			       ml, cg_solver(Ac));
+			       ml, *cg_solver);
 
 			A.residual(b, x, r);
 			auto rnorm = r.l2norm().get();
@@ -142,12 +127,13 @@ struct bound_solver {
 
 protected:
 	template<class Op>
-	auto create_smoother(int, Op & op) {
+	auto create_smoother(int, op::handle<Op> op) {
 		mg::jacobi_settings s{0.6666666666, 4};
-		return mg::jacobi{s}(op);
+		return op::make_shared<mg::bound_jacobi<scalar, size>>(op, s);
 	}
 	solver_settings settings;
 	hier_type hier;
+	std::optional<op::core<lapack_solver<scalar, size>>> cg_solver;
 };
 
 namespace po = boost::program_options;
@@ -164,9 +150,9 @@ struct solver
 
 	solver(const settings & s);
 
-	template<class A>
-	auto operator()(A && a) {
-		return bound_solver{std::forward<A>(a), settings_};
+	template<class scalar, class size>
+	auto operator()(op::handle<op::core<mat::parcsr<scalar, size>>> A) {
+		return op::core<bound_solver<scalar, size>>{A, settings_};
 	}
 
 private:

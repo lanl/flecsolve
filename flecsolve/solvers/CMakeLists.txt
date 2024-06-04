@@ -13,6 +13,7 @@ flecsolve_headers(
   mg/level.hh
   mg/coarsen.hh
   mg/ua.hh
+  mg/cg_solve.hh
   mg/intergrid.hh)
 
 set(solvers_src mg/ua.cc)

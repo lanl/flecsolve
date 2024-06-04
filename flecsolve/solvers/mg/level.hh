@@ -5,6 +5,7 @@
 #include <optional>
 
 #include "flecsolve/operators/core.hh"
+#include "flecsolve/operators/handle.hh"
 
 namespace flecsolve::mg {
 
@@ -19,7 +20,7 @@ struct tuple_opstore {
 	         std::enable_if_t<sizeof...(Args) == static_cast<std::size_t>(oplabel::size), bool> = true>
 	tuple_opstore(Args && ... args) :
 		ops{std::forward<Args>(args)...} {
-		static_assert((... && op::is_operator_v<std::decay_t<Args>>));
+		// static_assert((... && op::is_operator_v<std::decay_t<Args>>));
 	}
 
 	template<class ... Args,
@@ -27,7 +28,7 @@ struct tuple_opstore {
 	tuple_opstore(Args && ... args) :
 		ops{std::forward<Args>(args)..., {}, {}} {
 		static_assert(sizeof...(Args) == static_cast<std::size_t>(oplabel::size) - 2);
-		static_assert((... && op::is_operator_v<std::decay_t<Args>>));
+		// static_assert((... && op::is_operator_v<std::decay_t<Args>>));
 	}
 
 	constexpr std::size_t size() const {
@@ -38,22 +39,22 @@ struct tuple_opstore {
 	auto & get () {
 		if constexpr (static_cast<std::size_t>(L) >=
 		              static_cast<std::size_t>(oplabel::size) - 2)
-			return std::get<static_cast<std::size_t>(L)>(ops).value();
+			return std::get<static_cast<std::size_t>(L)>(ops).value().get();
 		else
-			return std::get<static_cast<std::size_t>(L)>(ops);
+			return std::get<static_cast<std::size_t>(L)>(ops).get();
 	}
 	template<oplabel L>
 	const auto & get () const {
 		if constexpr (static_cast<std::size_t>(L) >=
 		              static_cast<std::size_t>(oplabel::size) - 2)
-			return std::get<static_cast<std::size_t>(L)>(ops).value();
+			return std::get<static_cast<std::size_t>(L)>(ops).value().get();
 		else
-			return std::get<static_cast<std::size_t>(L)>(ops);
+			return std::get<static_cast<std::size_t>(L)>(ops).get();
 	}
 
-	std::tuple<std::decay_t<Ops>...,
-	           std::optional<std::decay_t<P>>,
-	           std::optional<std::decay_t<R>>> ops;
+	std::tuple<op::handle<Ops>...,
+	           std::optional<op::handle<P>>,
+	           std::optional<op::handle<R>>> ops;
 
 };
 
@@ -116,7 +117,7 @@ struct hierarchy : LevelPolicy
 	}
 
 	decltype(auto) get_mat(int level) {
-		return levels[level].A().source();
+		return levels[level].A();
 	}
 
 	template<class ... O>
