@@ -5,11 +5,11 @@
 
 #include "flecsolve/util/config.hh"
 #include "flecsolve/solvers/mg/jacobi.hh"
+#include "flecsolve/solvers/mg/gs.hh"
 #include "flecsolve/solvers/mg/level.hh"
 #include "flecsolve/solvers/mg/intergrid.hh"
 #include "flecsolve/solvers/mg/coarsen.hh"
 #include "flecsolve/solvers/mg/cycle.hh"
-#include "flecsolve/solvers/amp.hh"
 #include "flecsolve/solvers/mg/cg_solve.hh"
 
 
@@ -60,8 +60,10 @@ struct hierarchy_config
 		csr_topo, csr_topo::cols> aggt_def;
 
 	using smoother = op::core<mg::bound_jacobi<scalar_type, size_type>>;
+	// using smoother = op::core<mg::bound_hybrid_gs<scalar_type, size_type>>;
 	using coarse_op = op::core<mat::parcsr<scalar, size>>;
-	using coarse_smoother = op::core<mg::bound_jacobi<scalar_type, size_type>>;
+	// using coarse_smoother = op::core<mg::bound_jacobi<scalar_type, size_type>>;
+	using coarse_smoother = smoother;
 	template<class ... Ops>
 	using level_gen = level<tuple_opstore, topovec_store, Ops...>;
 	using level_type = level_gen<op::core<mg::ua::prolong<scalar_type, size_type>>,
@@ -71,7 +73,12 @@ struct hierarchy_config
 
 
 struct solver_settings {
-	int max_levels;
+	std::size_t max_levels;
+	std::size_t min_coarse;
+	std::size_t maxiter;
+	coarsen_settings coarsening_settings;
+	float jacobi_weight;
+	std::size_t nrelax;
 };
 
 
@@ -81,31 +88,42 @@ struct bound_solver : op::base<> {
 
 	bound_solver(op::handle<op::core<mat::parcsr<scalar, size>>> op, const solver_settings & s) :
 		settings{s},
-		hier{op, create_smoother(0, op), create_smoother(0, op)}
+		hier{op, create_smoother(0, op, relax_dir::down), create_smoother(0, op, relax_dir::up)}
 	{
 		setup();
 	}
 
 	void setup() {
-		for (int i = 0; i < settings.max_levels - 1; ++i) {
+		constexpr std::size_t cfactor_est = 5;
+		for (std::size_t i = 0; i < settings.max_levels - 1; ++i) {
 			auto & fine_mat = hier.get_mat(i);
 			auto & fine_topo = fine_mat.data.topo();
+			auto fine_size = fine_mat.data.nrows();
+			if ((fine_size / cfactor_est) < settings.min_coarse ||
+			    i == settings.max_levels - 2) { // make sure we get to 1 rank for serial cg solve
+				if (fine_topo.colors() != 1) {
+					settings.coarsening_settings.coarsen_to_serial = true;
+				}
+			}
 			auto aggt_ref = hier_type::aggt_def(fine_topo);
 			auto coarse_op = op::make_shared<mat::parcsr<scalar, size>>(
-				mg::ua::coarsen(fine_mat, aggt_ref));
+				mg::ua::coarsen(fine_mat, aggt_ref, settings.coarsening_settings));
+			auto coarse_size = coarse_op.get().data.nrows();
 			mg::ua::intergrid_params<scalar, size> iparams{aggt_ref};
 			hier.extend(
 				coarse_op,
-				create_smoother(i, coarse_op),
-				create_smoother(i, coarse_op),
+				create_smoother(i+1, coarse_op, relax_dir::down),
+				create_smoother(i+1, coarse_op, relax_dir::up),
 				op::make_shared<mg::ua::prolong<scalar, size>>(iparams),
 				op::make_shared<mg::ua::restrict<scalar, size>>(iparams));
+			if (coarse_size < settings.min_coarse) break;
 		}
 		cg_solver.emplace(op::ref(hier.get(-1).A()));
 	}
 
 	template<class D, class R>
 	void apply(const D & b, R & x) const {
+		x.set_scalar(0.); // TODO: only for iterative mode
 		auto & ml = const_cast<hier_type&>(hier);
 
 		float prev;
@@ -113,23 +131,50 @@ struct bound_solver : op::base<> {
 		auto & r = ml.get(0).res();
 		A.residual(b, x, r);
 		prev = r.l2norm().get();
-		for (int i = 0; i <= 10; ++i) {
+		for (std::size_t i = 0; i < settings.maxiter; ++i) {
 			vcycle(b, x,
 			       ml, *cg_solver);
 
 			A.residual(b, x, r);
 			auto rnorm = r.l2norm().get();
-			flog(info) << "[" << i << "] " << rnorm << " "
-			           << rnorm / prev << std::endl;
+			// flog(info) << "[" << i << "] " << rnorm << " "
+			//            << rnorm / prev << std::endl;
 			prev = rnorm;
 		}
 	}
 
+	// begin debug
+	using csr_acc = typename topo::csr<scalar, size>::template accessor<flecsi::ro>;
+	void print() {
+		for (std::size_t i = 0; i < hier.depth(); ++i) {
+			auto & mat = hier.get(i).A();
+			auto min_local = flecsi::reduce<get_local, flecsi::exec::fold::min>(mat.data.topo()).get();
+			auto max_local = flecsi::reduce<get_local, flecsi::exec::fold::max>(mat.data.topo()).get();
+			flecsi::execute<print_task>(i, mat.data.topo(), min_local, max_local);
+		}
+	}
+
+	static void print_task(std::size_t lvl, csr_acc m, int min_local, int max_local) {
+		if (flecsi::color() == 0) {
+			std::cout << "Level " << lvl << ": " << m.meta().colors << " " << m.meta().nrows << " ("
+			          << min_local << ", " << max_local << ")\n";
+		}
+	}
+
+	static int get_local(csr_acc m) {
+		return m.meta().rows.size();
+	}
+
+	// end debug
+
 protected:
 	template<class Op>
-	auto create_smoother(int, op::handle<Op> op) {
-		mg::jacobi_settings s{0.6666666666, 4};
+	auto create_smoother(int lvl, op::handle<Op> op, relax_dir rdir) {
+		std::size_t nr = std::pow(2, lvl)*settings.nrelax;
+		mg::jacobi_settings s{settings.jacobi_weight, nr};
 		return op::make_shared<mg::bound_jacobi<scalar, size>>(op, s);
+		// mg::hybrid_gs::settings s{4, rdir};
+		// return op::make_shared<mg::bound_hybrid_gs<scalar, size>>(op, s);
 	}
 	solver_settings settings;
 	hier_type hier;

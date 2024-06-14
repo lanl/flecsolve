@@ -461,9 +461,10 @@ void coarsen_with_aggregates(
 template<class scalar, class size>
 void redistribute(csr_acc<scalar, size>,
                   csr_init<scalar, size> & topo_init,
-                  std::size_t coarsen_factor) {
+                  std::size_t coarsen_factor,
+                  bool coarsen_to_serial) {
 	auto colors = topo_init.row_part.size();
-	auto rcolors = colors / coarsen_factor;
+	auto rcolors = coarsen_to_serial ? 1 : colors / coarsen_factor;
 	using namespace flecsi::util;
 
 	equal_map rmap(topo_init.row_part.size(), rcolors);
@@ -577,6 +578,7 @@ struct coarsen_settings {
 	float beta = 0.25;
 	std::size_t redist_coarsen_factor = 2;
 	std::size_t min_local_coarse = 5;
+	bool coarsen_to_serial = false;
 };
 
 template<class scalar, class size, class Ref>
@@ -595,11 +597,13 @@ auto coarsen(const mat::parcsr<scalar, size> & Af, Ref aggt_ref,
 	                                  [](const auto & a, const auto & b) {
 		                                  return a.size() < b.size();
 	                                  })).size();
-	if (nrow_min <= settings.min_local_coarse
-	    && topo_init.row_part.size() > 1) {
+	if (settings.coarsen_to_serial ||
+	    (nrow_min <= settings.min_local_coarse
+	     && topo_init.row_part.size() > 1)) {
 		auto prev_colors = topo_init.row_part.size();
 		flecsi::execute<task::redistribute<scalar, size>, flecsi::mpi>(lm, topo_init,
-		                                                               settings.redist_coarsen_factor);
+		                                                               settings.redist_coarsen_factor,
+		                                                               settings.coarsen_to_serial);
 		if (flecsi::process() == 0) {
 			std::cout << "redistributed from " << prev_colors << " to " << topo_init.row_part.size() << std::endl;
 		}
