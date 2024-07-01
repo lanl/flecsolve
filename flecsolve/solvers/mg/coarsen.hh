@@ -311,7 +311,7 @@ auto create_aux(const mat::csr<scalar, size, data> & diag,
 
 	{ // collapse offd
 		auto [rowptr_coarse, colind_coarse, values_coarse] = offdc.data.vecs();
-		auto [rowptr, colind, values] = diag.rep();
+		auto [rowptr, colind, values] = offd.rep();
 		for (size rc = 0; rc < agg.size(); ++rc) {
 			// column index -> aggregated value
 			std::map<size, scalar> agg_values;
