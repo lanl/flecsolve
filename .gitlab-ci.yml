@@ -56,7 +56,7 @@ variables:
   KOKKOS_SERIAL: kokkos ~cuda ~rocm
   KOKKOS_CUDA: kokkos%clang@${CLANG_VERSION} +cuda +hwloc ~wrapper
   # project version 
-  FLECSI_VERSION: "flecsi@git.2.2=2.2.develop"
+  FLECSI_VERSION: "flecsi@git.2.3=2.3.develop"
   FLECSOLVE_VERSION: "flecsolve@develop"
   ENVIRONMENT: "${CI_MERGE_REQUEST_TARGET_BRANCH_NAME}"
   DEFAULT_TEST_TIMEOUT: 600
