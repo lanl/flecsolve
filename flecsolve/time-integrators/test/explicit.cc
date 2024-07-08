@@ -27,11 +27,10 @@ int extest() {
 
 	UNIT () {
 		testmesh::slot msh;
-		testmesh::cslot coloring;
 
 		double ic = 3.;
 
-		init_mesh(1, msh, coloring);
+		init_mesh(1, msh);
 
 		rate F{-1};
 

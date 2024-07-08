@@ -53,7 +53,6 @@ struct diagnostic {
 int gmres_test() {
 	UNIT () {
 		std::array<testmesh::slot, ncases> mshs;
-		std::array<testmesh::cslot, ncases> colorings;
 
 		auto matrix = mat::io::matrix_market<>::read("Chem97ZtZ.mtx").tocsr();
 
@@ -61,7 +60,7 @@ int gmres_test() {
 		double cfact = (cond * cond - 1) / (cond * cond);
 
 		auto & msh = mshs[0];
-		init_mesh(matrix.rows(), msh, colorings[0]);
+		init_mesh(matrix.rows(), msh);
 		op::core<csr_op, op::shared_storage> A(std::move(matrix));
 		op::core<csr_op, op::shared_storage> Dinv(A.source().Dinv());
 

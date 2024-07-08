@@ -63,19 +63,7 @@ struct testmesh : flecsi::topo::specialization<flecsi::topo::narray, testmesh> {
 		}
 	};
 
-	static coloring color(std::size_t num_colors, gcoord axis_extents) {
-		index_definition idef;
-		idef.axes =
-			flecsi::topo::narray_utils::make_axes(num_colors, axis_extents);
-		for (auto & a : idef.axes) {
-			a.hdepth = 1;
-		}
-
-		flog_assert(idef.colors() == flecsi::processes(),
-		            "current implementation is restricted to 1-to-1 mapping");
-
-		return {{idef}};
-	}
+	static coloring color(const index_definition & idef) { return {{idef}}; }
 
 	static void initialize(flecsi::data::topology_slot<testmesh> &,
 	                       coloring const &) {}
@@ -87,11 +75,16 @@ using flecsi::na;
 using flecsi::ro;
 using flecsi::wo;
 
-inline void
-init_mesh(std::size_t nrows, testmesh::slot & msh, testmesh::cslot & coloring) {
-	std::vector<flecsi::util::gid> extents{nrows};
-	coloring.allocate(flecsi::processes(), extents);
-	msh.allocate(coloring.get());
+inline void init_mesh(std::size_t nrows, testmesh::slot & msh) {
+	testmesh::index_definition idef;
+	testmesh::gcoord extents{nrows};
+	idef.axes = testmesh::base::make_axes(
+		testmesh::base::distribute(flecsi::processes(), extents), extents);
+
+	for (auto & a : idef.axes)
+		a.hdepth = 1;
+
+	msh.allocate(testmesh::mpi_coloring(idef));
 }
 
 inline void spmv(const mat::csr<double> & A,

@@ -10,5 +10,4 @@ flecsi_add_test(parcsr
   INPUTS
   test/parcsr.cfg
   ${chem97ztz_SOURCE_DIR}/Chem97ZtZ.mtx
-  ARGUMENTS "--backend-args=-lg:no_tracing"
   PROCS 3)

@@ -3,7 +3,6 @@
 
 #include <flecsi/data.hh>
 
-
 namespace flecsolve::vec::data {
 
 template<typename T, flecsi::data::layout L = flecsi::data::layout::dense>

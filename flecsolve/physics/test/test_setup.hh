@@ -33,11 +33,25 @@ make_faces_ref(msh::slot & m,
 		{fs[msh::x_axis](m), fs[msh::y_axis](m), fs[msh::z_axis](m)}};
 }
 
-inline void init_mesh(msh::slot & m,
-                      msh::cslot & coloring,
-                      const std::vector<util::gid> & extents) {
+inline void init_mesh(msh::slot & m, const std::vector<util::gid> & extents) {
+	using mesh = physics::fvm_narray;
+	using mbase = mesh::base;
+	mesh::index_definition idef, idef_faces;
+	idef.axes = mbase::make_axes(
+		mbase::distribute(flecsi::processes(), extents), extents);
+	for (auto & a : idef.axes) {
+		a.hdepth = 1;
+		a.bdepth = 1;
+	}
 
-	coloring.allocate(flecsi::processes(), extents);
+	idef_faces.axes = mbase::make_axes(
+		mbase::distribute(flecsi::processes(), extents), extents);
+
+	for (auto & a : idef_faces.axes) {
+		a.hdepth = 0;
+		a.bdepth = 0;
+		a.auxiliary = true;
+	}
 
 	msh::gbox geometry;
 	geometry[msh::x_axis][0] = 0.0;
@@ -45,7 +59,7 @@ inline void init_mesh(msh::slot & m,
 	geometry[msh::y_axis] = geometry[msh::x_axis];
 	geometry[msh::z_axis] = geometry[msh::x_axis];
 
-	m.allocate(coloring.get(), geometry);
+	m.allocate(mesh::mpi_coloring(idef, idef_faces), geometry);
 }
 
 inline void check_vals(msh::accessor<ro, ro> vm,

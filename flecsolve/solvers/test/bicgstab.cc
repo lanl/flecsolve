@@ -19,7 +19,6 @@ const realf::definition<testmesh, testmesh::cells> xd, bd;
 
 int driver() {
 	std::array<testmesh::slot, ncases> mshs;
-	std::array<testmesh::cslot, ncases> colorings;
 	std::array cases{std::make_tuple("Chem97ZtZ.mtx", 91, 92),
 	                 std::make_tuple("psmigr_3.mtx", 32, 32)};
 
@@ -34,7 +33,7 @@ int driver() {
 
 			auto & msh = mshs[i];
 
-			init_mesh(mtx.rows(), msh, colorings[i]);
+			init_mesh(mtx.rows(), msh);
 
 			auto [x, b] = vec::make(msh)(xd, bd);
 			b.set_random(0);

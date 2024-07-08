@@ -169,9 +169,8 @@ static inline int boundary_sink(msh::accessor<ro, ro> m,
 int fvm_diffusion_test() {
 	UNIT () {
 		msh::slot m;
-		msh::cslot coloring;
 
-		init_mesh(m, coloring, {8, 8, 8});
+		init_mesh(m, {8, 8, 8});
 		auto [x, y, a] = vec::make(m)(xd, yd, ad);
 
 		a.set_scalar(1.0);
