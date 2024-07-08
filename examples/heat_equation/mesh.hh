@@ -196,19 +196,7 @@ struct mesh : flecsi::topo::specialization<flecsi::topo::narray, mesh> {
 		}
 	};
 
-	static coloring color(std::size_t num_colors, gcoord axis_extents) {
-		index_definition idef;
-		idef.axes =
-			flecsi::topo::narray_utils::make_axes(num_colors, axis_extents);
-		for (auto & a : idef.axes) {
-			a.hdepth = 1;
-		}
-
-		flog_assert(idef.colors() == flecsi::processes(),
-		            "current implementation is restricted to 1-to-1 mapping");
-
-		return {{idef}};
-	}
+	static coloring color(const index_definition & idef) { return {{idef}}; }
 
 	using grect = std::array<std::array<double, 2>, 2>;
 
@@ -224,9 +212,6 @@ struct mesh : flecsi::topo::specialization<flecsi::topo::narray, mesh> {
 		flecsi::execute<set_geometry, flecsi::mpi>(s, geometry);
 	}
 };
-
-inline mesh::slot m;
-inline mesh::cslot coloring;
 
 inline std::array<field<double>::definition<mesh, mesh::vertices>, 2> ud;
 
