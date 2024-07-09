@@ -85,9 +85,26 @@ std::array<vec_fld<msh::faces>, NVAR> diff_coeffd{};
 //=============== utility functions==================
 //===================================================
 
-void init_mesh(msh::slot & m, msh::cslot & coloring) {
-	std::vector<std::size_t> extents{{NX.value(), NY.value(), 1}};
-	coloring.allocate(processes(), extents);
+void init_mesh(msh::slot & m) {
+	using mbase = msh::base;
+
+	std::vector<flecsi::util::gid> extents{{NX.value(), NY.value(), 1}};
+	msh::index_definition idef, idef_faces;
+	idef.axes = mbase::make_axes(
+		mbase::distribute(flecsi::processes(), extents), extents);
+	for (auto & a : idef.axes) {
+		a.hdepth = 1;
+		a.bdepth = 1;
+	}
+
+	idef_faces.axes = mbase::make_axes(
+		mbase::distribute(flecsi::processes(), extents), extents);
+
+	for (auto & a : idef_faces.axes) {
+		a.hdepth = 0;
+		a.bdepth = 0;
+		a.auxiliary = true;
+	}
 
 	msh::gbox geometry;
 	geometry[msh::x_axis][0] = 0.0;
@@ -95,7 +112,8 @@ void init_mesh(msh::slot & m, msh::cslot & coloring) {
 	geometry[msh::y_axis] = geometry[msh::x_axis];
 	geometry[msh::z_axis] = geometry[msh::x_axis];
 
-	m.allocate(coloring.get(), geometry);
+	m.allocate(msh::mpi_coloring(idef, idef_faces), geometry);
+
 	run::context::instance().add_topology(m);
 }
 
@@ -170,9 +188,9 @@ decltype(auto) make_volume_operator(msh::slot & m,
 	using namespace flecsolve::physics;
 
 	auto constant_coeff = coefficient<constant_coefficient<Vec>, Vec>::create(
-		{{1.0}, make_faces_ref(diff_coeffd[N])});
+		{{1.0}, make_faces_ref(m, diff_coeffd[N])});
 	auto voldiff = diffusion<Vec>::create(
-		{diff_srcd[N](m), make_faces_ref(diff_coeffd[N]), beta, alpha}, m);
+		{diff_srcd[N](m), make_faces_ref(m, diff_coeffd[N]), beta, alpha}, m);
 	return op_expr(
 		flecsolve::multivariable<Vec::var.value>, constant_coeff, voldiff);
 }
@@ -227,7 +245,7 @@ void fields_out(msh::slot & m, FieldDeffArr & fd, std::string filen) {
 	ss << filen << "_" << process() << ".dat";
 	std::ofstream of(ss.str(), std::ofstream::out);
 
-	detail::fields_out(fd, of, std::make_index_sequence<NVAR>{});
+	detail::fields_out(m, fd, of, std::make_index_sequence<NVAR>{});
 }
 
 template<class FieldDefArr>
@@ -243,9 +261,8 @@ inline int driver() {
 	flog(info) << "initializing mesh\n";
 	// initialize the mesh
 	msh::slot m;
-	msh::cslot coloring;
 
-	init_mesh(m, coloring);
+	init_mesh(m);
 
 	//===================================================
 	//=============== multivectors ======================

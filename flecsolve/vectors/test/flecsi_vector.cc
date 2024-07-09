@@ -150,9 +150,8 @@ int run(FN && fn, M & m, FRS &&... frs) {
 
 int vectest() {
 	testmesh::slot msh;
-	testmesh::cslot coloring;
 
-	init_mesh(32, msh, coloring);
+	init_mesh(32, msh);
 	execute<init_fields>(
 		msh, xd(msh), yd(msh), zd(msh), xd_c(msh), yd_c(msh), zd_c(msh));
 

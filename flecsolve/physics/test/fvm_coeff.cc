@@ -74,9 +74,8 @@ auto chk_avgz =
 
 int fvm_coeff_test() {
 	msh::slot m;
-	msh::cslot coloring;
 
-	init_mesh(m, coloring, {8, 8, 8});
+	init_mesh(m, {8, 8, 8});
 	auto x = vec::make(m, xd(m));
 
 	UNIT () {

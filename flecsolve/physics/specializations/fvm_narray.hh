@@ -1,7 +1,6 @@
 #pragma once
 
 #include <flecsi/data.hh>
-#include <flecsi/topo/narray/coloring_utils.hh>
 #include <flecsi/topo/narray/interface.hh>
 #include <flecsi/topo/narray/types.hh>
 #include <flecsi/util/constant.hh>
@@ -264,34 +263,11 @@ struct fvm_narray
 
 	static auto distribute(std::size_t np,
 	                       std::vector<flecsi::util::gid> indices) {
-		return flecsi::topo::narray_utils::distribute(np, indices);
+		return base::distribute(np, indices);
 	}
 
-	static coloring color(std::size_t num_colors, gcoord axis_extents) {
-		index_definition idef;
-		idef.axes =
-			flecsi::topo::narray_utils::make_axes(num_colors, axis_extents);
-		for (auto & a : idef.axes) {
-			a.hdepth = 1;
-			a.bdepth = 1;
-		}
-
-		flog_assert(idef.colors() == flecsi::processes(),
-		            "current implementation is restricted to 1-to-1 mapping");
-
-		index_definition idef_faces;
-		idef_faces.axes =
-			flecsi::topo::narray_utils::make_axes(num_colors, axis_extents);
-
-		for (auto & a : idef_faces.axes) {
-			a.hdepth = 0;
-			a.bdepth = 0;
-			a.auxiliary = true;
-		}
-
-		flog_assert(idef_faces.colors() == flecsi::processes(),
-		            "current implementation is restricted to 1-to-1 mapping");
-
+	static coloring color(const index_definition & idef,
+	                      const index_definition & idef_faces) {
 		return {{idef, idef_faces}};
 	}
 

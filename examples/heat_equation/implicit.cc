@@ -32,7 +32,7 @@ void time_integration(control_policy & cp) {
 			std::string fname{"timestep" +
 			                  std::to_string(ti.get_current_step())};
 			flecsi::execute<task::output, flecsi::mpi>(
-				m, u.data.ref(), fname.c_str());
+				cp.m, u.data.ref(), fname.c_str());
 		}
 	};
 	output();

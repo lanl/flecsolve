@@ -73,11 +73,10 @@ int bdftest() {
 
 	UNIT () {
 		testmesh::slot msh;
-		testmesh::cslot coloring;
 
 		double ic = 3.;
 
-		init_mesh(1, msh, coloring);
+		init_mesh(1, msh);
 
 		op::core<rate, op::shared_storage> F(-1.);
 		auto x = vec::make(msh)(xd);

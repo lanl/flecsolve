@@ -3,6 +3,7 @@
 
 #include <cmath>
 #include <random>
+#include <fstream>
 
 #include <flecsi/execution.hh>
 #include <flecsi/data.hh>

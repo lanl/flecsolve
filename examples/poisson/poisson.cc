@@ -112,16 +112,22 @@ void init_mesh(control_policy & cp) {
 			   << y_extents.value() << " mesh" << std::endl;
 	flecsi::flog::flush();
 
-	std::vector<std::size_t> axis_extents{x_extents.value(), y_extents.value()};
-
-	coloring.allocate(flecsi::processes(), axis_extents);
+	mesh::base::gcoord axis_extents{x_extents.value(), y_extents.value()};
+	mesh::index_definition idef;
+	idef.axes = mesh::base::make_axes(
+		mesh::base::distribute(flecsi::processes(), axis_extents),
+		axis_extents);
+	for (auto & a : idef.axes) {
+		a.hdepth = 2;
+		a.bdepth = 1;
+	}
 
 	mesh::grect geometry;
 	geometry[0][0] = 0.0;
 	geometry[0][1] = 1.0;
 	geometry[1] = geometry[0];
 
-	m.allocate(coloring.get(), geometry);
+	cp.m.allocate(mesh::mpi_coloring(idef), geometry);
 
 	cp.initialize_vectors();
 }
@@ -129,7 +135,7 @@ inline control::action<init_mesh, cp::initialize> init_mesh_action;
 
 void init_problem(control_policy & cp) {
 	flecsi::execute<task::set_problem>(
-		m, sod(m), cp.f().data.ref(), cp.sol().data.ref());
+		cp.m, sod(cp.m), cp.f().data.ref(), cp.sol().data.ref());
 }
 inline control::action<init_problem, cp::initialize> init_problem_action;
 
@@ -143,7 +149,7 @@ void solve(control_policy & cp) {
 	op::krylov slv(op::krylov_parameters(
 		read_config("poisson.cfg", cg::options("solver")),
 		cg::topo_work<>::get(f),
-		op::make(poisson_op{sod(m)}),
+		op::make(poisson_op{sod(cp.m)}),
 		op::I,
 		[&](const auto &, double rnorm) {
 			std::cout << ++iter << " " << rnorm << std::endl;
@@ -157,7 +163,7 @@ inline control::action<solve, cp::solve> solve_action;
 void output(control_policy & cp) {
 	if (output_solution.value()) {
 		flecsi::execute<task::output, flecsi::mpi>(
-			m, cp.u().data.ref(), "solution");
+			cp.m, cp.u().data.ref(), "solution");
 	}
 }
 inline control::action<output, cp::finalize> output_action;
@@ -167,7 +173,7 @@ void check_error(control_policy & cp) {
 	auto & sol = cp.sol();
 	u.subtract(u, sol);
 	auto nrm = u.l2norm().get();
-	auto err = flecsi::execute<task::scale>(m, nrm * nrm).get();
+	auto err = flecsi::execute<task::scale>(cp.m, nrm * nrm).get();
 	flog(info) << "Error: " << err << std::endl;
 }
 inline control::action<check_error, cp::finalize> err_action;

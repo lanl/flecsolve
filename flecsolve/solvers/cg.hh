@@ -79,9 +79,7 @@ struct solver : krylov_interface<Workspace> {
 		rho[0] = rho[1];
 
 		p.copy(z);
-		trace.skip();
 		for (auto iter = 0; iter < params.maxiter; iter++) {
-			auto g = trace.make_guard();
 			scalar beta = 1.0;
 
 			// w = Ap
@@ -133,7 +131,6 @@ struct solver : krylov_interface<Workspace> {
 
 protected:
 	settings params;
-	flecsi::exec::trace trace;
 };
 
 template<class V>

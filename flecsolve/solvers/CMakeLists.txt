@@ -30,7 +30,6 @@ flecsi_add_test(cgmulti
   ${chem97ztz_SOURCE_DIR}/Chem97ZtZ.mtx
   test/cgmulti.cfg
   LIBRARIES flecsolve
-  ARGUMENTS "--backend-args=-lg:no_tracing"
   PROCS 1)
 
 flecsi_add_test(gmres

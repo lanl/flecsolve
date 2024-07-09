@@ -33,16 +33,22 @@ void init_mesh(control_policy & cp) {
 			   << y_extents.value() << " mesh" << std::endl;
 	flecsi::flog::flush();
 
-	std::vector<std::size_t> axis_extents{x_extents.value(), y_extents.value()};
+	mesh::base::gcoord axis_extents{x_extents.value(), y_extents.value()};
+	mesh::index_definition idef;
+	idef.axes = mesh::base::make_axes(
+		mesh::base::distribute(flecsi::processes(), axis_extents),
+		axis_extents);
 
-	coloring.allocate(flecsi::processes(), axis_extents);
+	for (auto & a : idef.axes) {
+		a.hdepth = 1;
+	}
 
 	mesh::grect geometry;
 	geometry[0][0] = 0.0;
 	geometry[0][1] = 10.0;
 	geometry[1] = geometry[0];
 
-	m.allocate(coloring.get(), geometry);
+	cp.m.allocate(mesh::mpi_coloring(idef), geometry);
 
 	cp.diffusivity = diffusivity.value();
 	cp.initialize_vectors();
@@ -56,7 +62,7 @@ void initial_conditions(control_policy & cp) {
 
 	auto & u = cp.u();
 
-	flecsi::execute<task::ics>(m, u.data.ref());
+	flecsi::execute<task::ics>(cp.m, u.data.ref());
 }
 inline control::action<initial_conditions, cp::initialize> ic_action;
 inline auto const dep = ic_action.add(init_mesh_action);
@@ -65,7 +71,7 @@ inline control::action<time_integration, cp::advance> ti_action;
 
 void output_solution(control_policy & cp) {
 	flecsi::execute<task::output, flecsi::mpi>(
-		m, cp.u().data.ref(), "solution");
+		cp.m, cp.u().data.ref(), "solution");
 }
 inline control::action<output_solution, cp::finalize> output_action;
 

@@ -29,13 +29,6 @@ constexpr decltype(auto) defs() {
 
 enum class vars { pressure, temperature, density };
 
-void init_mesh(testmesh::slot & msh, testmesh::cslot & coloring) {
-	std::vector<flecsi::util::gid> extents{32};
-
-	coloring.allocate(flecsi::processes(), extents);
-	msh.allocate(coloring.get());
-}
-
 void init_field(testmesh::accessor<ro, ro> m,
                 field<double>::accessor<wo, na> xa,
                 int offset,
@@ -141,7 +134,7 @@ int vectest() {
 	testmesh::slot msh;
 	testmesh::cslot coloring;
 
-	init_mesh(msh, coloring);
+	init_mesh(32, msh);
 	init_fields(msh, xd, 0, make_is());
 	init_fields(msh, yd, 1, make_is());
 	init_fields(msh, zd, 2, make_is());

@@ -39,11 +39,10 @@ protected:
 int multicg() {
 	UNIT () {
 		testmesh::slot msh;
-		testmesh::cslot coloring;
 
 		auto mtx = mat::io::matrix_market<>::read("Chem97ZtZ.mtx").tocsr();
 
-		init_mesh(mtx.rows(), msh, coloring);
+		init_mesh(mtx.rows(), msh);
 		full_op A(std::move(mtx));
 
 		auto xm = vec::make(vec::make(variable<vars::var1>, msh, xmd[0](msh)),

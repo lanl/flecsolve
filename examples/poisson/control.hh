@@ -32,6 +32,7 @@ struct control_policy : flecsi::run::control_base {
 		list<point<cp::initialize>, point<cp::solve>, point<cp::finalize>>;
 
 	double diffusivity;
+	mesh::slot m;
 
 	using vec = decltype(flecsolve::vec::make(m, ud[0](m)));
 	vec & u() { return u_.value(); }

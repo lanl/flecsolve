@@ -59,10 +59,9 @@ using simple_factory = op::factory<simple_policy>;
 int nkatest() {
 	UNIT () {
 		testmesh::slot msh;
-		testmesh::cslot coloring;
 
 		auto mtx = mat::io::matrix_market<>::read("Chem97ZtZ.mtx").tocsr();
-		init_mesh(mtx.rows(), msh, coloring);
+		init_mesh(mtx.rows(), msh);
 
 		op::core<csr_op, op::shared_storage> A(std::move(mtx));
 		auto [x, b] = vec::make(msh)(xd, bd);
