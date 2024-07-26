@@ -78,6 +78,7 @@ struct solver_settings {
 	coarsen_settings coarsening_settings;
 	float jacobi_weight;
 	std::size_t nrelax;
+	cycle_type cycle;
 };
 
 
@@ -131,9 +132,15 @@ struct bound_solver : op::base<> {
 		A.residual(b, x, r);
 		prev = r.l2norm().get();
 		for (std::size_t i = 0; i < settings.maxiter; ++i) {
-			vcycle(b, x,
-			       ml, *cg_solver);
-
+			switch (settings.cycle) {
+			case cycle_type::v:
+				vcycle(b, x,
+				       ml, *cg_solver);
+				break;
+			case cycle_type::relaxed_w:
+				relaxed_wcycle(b, x, ml, *cg_solver);
+				break;
+			}
 			A.residual(b, x, r);
 			auto rnorm = r.l2norm().get();
 			// flog(info) << "[" << i << "] " << rnorm << " "
