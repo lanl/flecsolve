@@ -107,9 +107,10 @@ inline void spmv(const mat::csr<double> & A,
 	}
 }
 
-struct csr_op : op::base<> {
+template<class input_var, class output_var>
+struct csr_op_gen : op::base<std::nullptr_t, input_var, output_var> {
 
-	explicit csr_op(mat::csr<double> m) : A(std::move(m)) {}
+	explicit csr_op_gen(mat::csr<double> m) : A(std::move(m)) {}
 
 	template<class D, class R>
 	void apply(const D & x, R & y) const {
@@ -133,11 +134,18 @@ struct csr_op : op::base<> {
 			out.data.offsets()[i + 1] = i + 1;
 		}
 
-		return csr_op{std::move(out)};
+		return csr_op_gen{std::move(out)};
+	}
+
+	decltype(auto) rows() const {
+		return A.rows();
 	}
 
 	mat::csr<double> A;
 };
+
+using csr_op = csr_op_gen<variable_t<anon_var::anonymous>,
+	variable_t<anon_var::anonymous>>;
 
 }
 #endif

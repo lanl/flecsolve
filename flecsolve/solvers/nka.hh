@@ -19,105 +19,66 @@ to do so.
 #include <flecsi/flog.hh>
 #include <flecsi/util/array_ref.hh>
 
-#include "krylov_operator.hh"
+#include "krylov_parameters.hh"
 #include "solver_settings.hh"
 
 namespace flecsolve::nka {
 
 enum workvecs : std::size_t { sol, res, correction, nwork };
 
-struct settings : solver_settings {
+}
 
-	void validate() {
-		if (adaptive_damping) {
-			flog_assert(use_damping,
-			            "NKA: damping must be enabled for adaptive_damping");
-		}
-		flog_assert(max_dim > 0, "NKA: maximum dimension must be > 0.");
-		flog_assert(angle_tol > 0., "NKA: angle tolerance must be > 0.0.");
-	}
+namespace flecsolve::op {
 
-	int max_dim;
-	double angle_tol;
-	int max_fun_evals;
-	bool freeze_pc;
-	bool use_qr;
-	bool use_damping;
-	bool adaptive_damping;
-	double damping_factor;
-};
+template<class Params>
+struct nka : base<Params,
+                  typename Params::input_var_t,
+                  typename Params::output_var_t> {
+	using base_t = base<Params,
+	                    typename Params::input_var_t,
+	                    typename Params::output_var_t>;
+	using real = typename Params::real;
+	using base_t::params;
 
-struct options : solver_options {
-	using settings_type = settings;
-	using base_t = solver_options;
-
-	options(const char * pre) : base_t(pre) {}
-
-	auto operator()(settings_type & s) {
-		auto desc = base_t::operator()(s);
-		// clang-format off
-		desc.add_options()
-			(label("max-dim").c_str(), po::value<int>(&s.max_dim)->required(), "maximum dimension")
-			(label("angle-tol").c_str(), po::value<double>(&s.angle_tol)->default_value(0.9), "angle tolerance")
-			(label("freeze-pc").c_str(), po::value<bool>(&s.freeze_pc)->default_value(true), "freeze preconditioner")
-			(label("use-qr").c_str(), po::value<bool>(&s.use_qr)->default_value(false), "use QR for factorization")
-			(label("use-damping").c_str(), po::value<bool>(&s.use_damping)->default_value(false), "use damping")
-			(label("adaptive-damping").c_str(), po::value<bool>(&s.adaptive_damping)->default_value(false), "use adaptive damping")
-			(label("damping-factor").c_str(), po::value<double>(&s.damping_factor)->default_value(1.), "daping factor");
-		// clang-format on
-		return desc;
-	}
-};
-
-template<std::size_t dim_bound = 10, std::size_t version = 0>
-using topo_work = topo_work_base<nwork + 2 * (dim_bound + 1), version>;
-
-template<class Workspace>
-struct solver : krylov_interface<Workspace> {
-	using settings_type = settings;
-	using iface = krylov_interface<Workspace>;
-	using real = typename iface::real;
-	using iface::work;
-
-	template<class V>
-	solver(const settings & params, V && workspace)
-		: iface{std::forward<V>(workspace)}, params(params),
-		  substore(params.max_dim + 1, nwork) {
+	nka(Params p) : base_t(std::move(p)),
+	                substore(params.settings.max_dim + 1, ::flecsolve::nka::nwork) {
 		reset();
 	}
 
-	void reset(const settings & params) {
-		this->params = params;
-		reset();
-	}
+	const auto & get_operator() const { return params.A(); }
 
 	void reset() {
-		this->params.validate();
-		flog_assert(work.size() >= (params.max_dim + 1) * 2 + nwork,
+		using namespace ::flecsolve::nka;
+		params.settings.validate();
+		const auto & settings = params.settings;
+		auto & work = params.work;
+		flog_assert(work.size() >= (settings.max_dim + 1) * 2 + nwork,
 		            "NKA: not enough work vectors for specified max_dim");
 		current_correction = 0;
 		have_pending = false;
 		have_subspace = false;
-		subindex.reset(params.max_dim + 1);
-		if (static_cast<int>(substore.w.size()) < params.max_dim + 1)
-			substore = subspace_store(params.max_dim + 1, nwork);
+		subindex.reset(settings.max_dim + 1);
+		if (static_cast<int>(substore.w.size()) < settings.max_dim + 1)
+			substore = subspace_store(settings.max_dim + 1, nwork);
 	}
 
-	template<class Op,
-	         class DomainVec,
-	         class RangeVec,
-	         class Precond,
-	         class Diag>
-	solve_info apply(const Op & F,
-	                 const RangeVec & f,
-	                 DomainVec & u,
-	                 Precond & P,
-	                 Diag && user_diagnostic) {
+	template<class DomainVec, class RangeVec>
+	solve_info apply(const RangeVec & f, DomainVec & u) const {
+		using namespace ::flecsolve::nka;
+
 		solve_info info;
 
+		const auto & settings = params.settings;
+
+		auto & work = params.work;
 		auto & sol = std::get<workvecs::sol>(work);
 		auto & res = std::get<workvecs::res>(work);
 		auto & correction = std::get<workvecs::correction>(work);
+
+		auto & user_diagnostic = params.ops.diagnostic;
+
+		const auto & F = params.A();
+		const auto & P = params.P();
 
 		F.residual(f, u, res);
 		res.scale(-1.);
@@ -125,7 +86,7 @@ struct solver : krylov_interface<Workspace> {
 		auto res_norm = res.l2norm().get();
 		info.res_norm_initial = res_norm;
 
-		if (res_norm < params.atol) {
+		if (res_norm < settings.atol) {
 			info.status = solve_info::stop_reason::converged_atol;
 			return info;
 		}
@@ -136,11 +97,11 @@ struct solver : krylov_interface<Workspace> {
 
 		auto & pc_op = P.get_operator();
 		// if using a frozen preconditioner set it up
-		if (params.freeze_pc) {
+		if (settings.freeze_pc) {
 			pc_op.reset(pc_params);
 		}
-		for (int iter = 0; iter < params.maxiter; iter++) {
-			if (!params.freeze_pc) {
+		for (int iter = 0; iter < settings.maxiter; iter++) {
+			if (!settings.freeze_pc) {
 				pc_params = F.template get_parameters<op::label::jacobian>(sol);
 				pc_op.reset(pc_params);
 			}
@@ -156,12 +117,12 @@ struct solver : krylov_interface<Workspace> {
 
 			res_norm = res.l2norm().get();
 
-			if (res_norm < params.atol) {
+			if (res_norm < settings.atol) {
 				info.iters = iter + 1;
 				info.status = solve_info::stop_reason::converged_atol;
 				break;
 			}
-			if (res_norm < params.rtol * info.res_norm_initial) {
+			if (res_norm < settings.rtol * info.res_norm_initial) {
 				info.iters = iter + 1;
 				info.status = solve_info::stop_reason::converged_rtol;
 				break;
@@ -180,7 +141,7 @@ struct solver : krylov_interface<Workspace> {
 		return info;
 	}
 
-	void relax() {
+	void relax() const {
 		if (have_pending) {
 			// drop the initial slot where pending vectors are stored.
 			subindex.drop_first();
@@ -188,12 +149,12 @@ struct solver : krylov_interface<Workspace> {
 		}
 	}
 
-	void factorize_normal_mat() {
+	void factorize_normal_mat() const {
 		// Solve the least squares problem using a Cholesky
 		// factorization, dropping any vectors that
 		// render the system nearly rank deficient
 		// we'll first follow Carlson's implementation
-
+		const auto & settings = params.settings;
 		auto & h = substore.h;
 		auto first = subindex.begin();
 
@@ -206,7 +167,7 @@ struct solver : krylov_interface<Workspace> {
 		for (auto k = first + 1; k != subindex.end(); ++k) {
 			++nvec;
 
-			if (nvec > params.max_dim) {
+			if (nvec > settings.max_dim) {
 				flog_assert(*k == subindex.last, "NKA: list error");
 				subindex.pop();
 				break;
@@ -227,7 +188,7 @@ struct solver : krylov_interface<Workspace> {
 				hkk -= hkj * hkj;
 			}
 
-			if (hkk > params.angle_tol * params.angle_tol) {
+			if (hkk > settings.angle_tol * settings.angle_tol) {
 				hk[*k] = std::sqrt(hkk);
 			}
 			else {
@@ -242,8 +203,10 @@ struct solver : krylov_interface<Workspace> {
 	}
 
 	template<class RangeVec>
-	std::vector<real> forward_backward_solve(const RangeVec & f) {
-		std::vector<real> cv(params.max_dim + 1, 0.);
+	std::vector<real> forward_backward_solve(const RangeVec & f) const {
+		auto & work = params.work;
+
+		std::vector<real> cv(params.settings.max_dim + 1, 0.);
 		auto & h = substore.h;
 		auto w = substore.w.span(work);
 
@@ -271,7 +234,9 @@ struct solver : krylov_interface<Workspace> {
 	}
 
 	template<class RangeVec>
-	void compute_correction(RangeVec & f) {
+	void compute_correction(RangeVec & f) const {
+		auto & work = params.work;
+		const auto & settings = params.settings;
 		++current_correction;
 
 		auto & h = substore.h;
@@ -303,7 +268,7 @@ struct solver : krylov_interface<Workspace> {
 			w.scale(1. / s);
 			v.scale(1. / s);
 
-			if (!params.use_qr) {
+			if (!settings.use_qr) {
 				// update H.
 				for (auto k = subindex.begin() + 1; k != subindex.end(); ++k) {
 					h[subindex.first][*k] = w.dot(w_arr[*k]).get();
@@ -334,9 +299,9 @@ struct solver : krylov_interface<Workspace> {
 		if (have_subspace) {
 			// create a row vector to store the solution components for the
 			// correction vector
-			std::vector<real> cv(params.max_dim + 1, 0.);
+			std::vector<real> cv(settings.max_dim + 1, 0.);
 
-			if (!params.use_qr) {
+			if (!settings.use_qr) {
 				cv = forward_backward_solve(f);
 			}
 			else {
@@ -351,12 +316,12 @@ struct solver : krylov_interface<Workspace> {
 				f.axpy(-cv[k], w_arr[k], f);
 			}
 
-			if (params.use_damping) {
-				real eta = params.damping_factor;
-				if (params.adaptive_damping) {
+			if (settings.use_damping) {
+				real eta = settings.damping_factor;
+				if (settings.adaptive_damping) {
 					eta = 1.0 - std::pow(0.9,
 					                     std::min(current_correction,
-					                              params.max_dim));
+					                              settings.max_dim));
 				}
 
 				// scale the residual vector
@@ -519,9 +484,9 @@ protected:
 	struct subspace_store {
 		struct vec_arr {
 			using size_type = std::size_t;
-			using vec_t = typename iface::workvec_t;
+			using vec_t = typename Params::workvec_t;
 			vec_arr(size_t o, size_t l) : offset(o), len(l) {}
-			flecsi::util::span<vec_t> span(Workspace & work) const {
+			flecsi::util::span<vec_t> span(typename Params::work_t & work) const {
 				return {work.data() + offset, len};
 			}
 
@@ -538,24 +503,103 @@ protected:
 		mat h;
 		vec_arr w, v;
 	};
-	settings params;
-	subspace_index subindex;
-	subspace_store substore;
-	bool have_subspace, have_pending;
-	int current_correction;
+	mutable subspace_index subindex;
+	mutable subspace_store substore;
+	mutable bool have_subspace, have_pending;
+	mutable int current_correction;
 };
-template<class V>
-solver(const settings &, V &&) -> solver<V>;
-}
+template<class P>
+nka(P) -> nka<P>;
 
-namespace flecsolve {
+} // namespace flecsolve::op
 
-template<>
-struct traits<nka::settings> {
+
+namespace flecsolve::nka {
+struct settings : solver_settings {
+
+	void validate() {
+		if (adaptive_damping) {
+			flog_assert(use_damping,
+			            "NKA: damping must be enabled for adaptive_damping");
+		}
+		flog_assert(max_dim > 0, "NKA: maximum dimension must be > 0.");
+		flog_assert(angle_tol > 0., "NKA: angle tolerance must be > 0.0.");
+	}
+
+	int max_dim;
+	double angle_tol;
+	int max_fun_evals;
+	bool freeze_pc;
+	bool use_qr;
+	bool use_damping;
+	bool adaptive_damping;
+	double damping_factor;
+};
+
+struct options : solver_options {
+	using settings_type = settings;
+	using base_t = solver_options;
+
+	options(const char * pre) : base_t(pre) {}
+
+	auto operator()(settings_type & s) {
+		auto desc = base_t::operator()(s);
+		// clang-format off
+		desc.add_options()
+			(label("max-dim").c_str(), po::value<int>(&s.max_dim)->required(), "maximum dimension")
+			(label("angle-tol").c_str(), po::value<double>(&s.angle_tol)->default_value(0.9), "angle tolerance")
+			(label("freeze-pc").c_str(), po::value<bool>(&s.freeze_pc)->default_value(true), "freeze preconditioner")
+			(label("use-qr").c_str(), po::value<bool>(&s.use_qr)->default_value(false), "use QR for factorization")
+			(label("use-damping").c_str(), po::value<bool>(&s.use_damping)->default_value(false), "use damping")
+			(label("adaptive-damping").c_str(), po::value<bool>(&s.adaptive_damping)->default_value(false), "use adaptive damping")
+			(label("damping-factor").c_str(), po::value<double>(&s.damping_factor)->default_value(1.), "daping factor");
+		// clang-format on
+		return desc;
+	}
+};
+
+template<std::size_t dim_bound = 10, std::size_t version = 0>
+using topo_work = topo_work_base<nwork + 2 * (dim_bound + 1), version>;
+
+template<std::size_t version>
+struct dim_bound_t {
+	static constexpr std::size_t value = version;
+};
+
+template<std::size_t V>
+inline dim_bound_t<V> dim_bound;
+
+struct work_factory {
+	template<class Vec>
+	constexpr auto operator()(Vec & b) const {
+		return topo_work<>::get(b);
+	}
+
+	template<class Vec, std::size_t dbound, std::size_t Ver>
+	constexpr auto operator()(dim_bound_t<dbound>, version_t<Ver>, Vec & b) const {
+		return topo_work<dbound, Ver>::get(b);
+	}
+
+	template<class Vec, std::size_t dbound>
+	constexpr auto operator()(dim_bound_t<dbound>, Vec & b) const {
+		return topo_work<dbound, 0>::get(b);
+	}
+};
+
+static inline work_factory make_work;
+
+template<class Work>
+struct solver : krylov_solver<op::nka, settings, Work>
+{
+	using base_t = krylov_solver<op::nka, settings, Work>;
+
 	template<class W>
-	using solver_type = nka::solver<W>;
+	solver(const settings & s, W && w) :
+		base_t{s, std::forward<W>(w)} {}
 };
+template<class W>
+solver(const settings &, W &&) -> solver<W>;
 
-}
+} // namespace flecsolve::nka
 
 #endif

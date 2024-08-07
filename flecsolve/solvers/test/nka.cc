@@ -5,13 +5,12 @@
 #include "flecsi/util/unit/types.hh"
 
 #include "flecsolve/util/config.hh"
-#include "flecsolve/solvers/krylov_operator.hh"
 #include "flecsolve/vectors/topo_view.hh"
 #include "flecsolve/solvers/cg.hh"
 #include "flecsolve/solvers/nka.hh"
-#include "flecsolve/solvers/factory.hh"
 #include "flecsolve/matrices/io/matrix_market.hh"
 #include "flecsolve/util/test/mesh.hh"
+#include "flecsolve/solvers/factory.hh"
 
 namespace flecsolve {
 
@@ -38,12 +37,12 @@ struct simple_registry {
 	using settings = null_settings<V>;
 	using options = null_options<V>;
 	template<class Op>
-	static auto make(const settings &, Op & A) {
+	static auto make(const settings &, op::handle<Op> & A) {
 		if constexpr (V == simple_target::identity) {
-			return op::I;
+			return op::I.get();
 		}
 		else if constexpr (V == simple_target::Dinv) {
-			return A.Dinv();
+			return A.get().Dinv();
 		}
 	}
 };
@@ -60,10 +59,11 @@ int nkatest() {
 	UNIT () {
 		testmesh::slot msh;
 
-		auto mtx = mat::io::matrix_market<>::read("Chem97ZtZ.mtx").tocsr();
-		init_mesh(mtx.rows(), msh);
+		auto A = op::make_shared<csr_op>(
+			mat::io::matrix_market<>::read("Chem97ZtZ.mtx").tocsr());
 
-		auto A = op::make_shared1<csr_op>(std::move(mtx));
+		init_mesh(A.get().rows(), msh);
+
 		auto [x, b] = vec::make(msh)(xd, bd);
 		{
 			b.set_scalar(1.);
@@ -74,12 +74,10 @@ int nkatest() {
 			                cg::options("preconditioner"),
 			                nka::options("solver"));
 
-			auto P = op::make(op::krylov(op::krylov_parameters(
-				pre_settings, cg::topo_work<>::get(b), A)));
-
-			op::krylov slv(op::krylov_parameters(
-				nnl_settings, nka::topo_work<5>::get(b), A, std::move(P)));
-			auto info = slv.apply(b, x);
+			auto P = cg::solver(pre_settings, cg::make_work(b))(A);
+			auto slv = nka::solver(nnl_settings,
+			                       nka::make_work(nka::dim_bound<5>, b))(A, op::ref(P));
+			auto info = slv(b, x);
 			EXPECT_EQ(info.iters, 17);
 		}
 		{
@@ -92,19 +90,15 @@ int nkatest() {
 			                krylov_factory::options("linear-solver"),
 			                simple_factory::options("inner"));
 
-			op::krylov_parameters params(
+			auto slv = nka::solver(
 				nnl_settings,
-				nka::topo_work<5>::get(b),
-				A,
-				krylov_factory::make(
-					lin_settings,
-					b,
+				nka::make_work(nka::dim_bound<10>, b))(
 					A,
-					simple_factory::make(precond_settings, *A)));
-
-			op::krylov slv(std::move(params));
-
-			auto info = slv.apply(b, x);
+					krylov_factory::make_shared(
+						lin_settings, b, A,
+						simple_factory::make_shared(
+							precond_settings, A)));
+			auto info = slv(b, x);
 			EXPECT_EQ(info.iters, 3);
 		}
 	};

@@ -41,11 +41,18 @@ constexpr auto cref(const T & o) {
 	return handle<const T>{std::ref(o)};
 }
 
-template<class T, class ... Args>
+template<class T, std::enable_if_t<!is_operator_v<T>, bool> = false, class ... Args>
 constexpr auto make_shared(Args && ... args) {
 	return handle<op::core<T>>{
 		std::make_shared<op::core<T>>(
 			std::forward<Args>(args)...)};
+}
+
+template<class T>
+constexpr auto make_shared(op::core<T> && op) {
+	return handle<op::core<T>>{
+		std::make_shared<op::core<T>>(
+			std::move(op))};
 }
 
 }

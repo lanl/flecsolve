@@ -59,7 +59,7 @@ protected:
 struct solve_stats {};
 
 struct solve_info {
-	solve_info() : iters(0), restarts(0) {}
+	solve_info() : iters(0), restarts(0), status(stop_reason::unknown) {}
 
 	enum class stop_reason {
 		converged_atol,
@@ -67,7 +67,8 @@ struct solve_info {
 		converged_user,
 		diverged_dtol,
 		diverged_iters,
-		diverged_breakdown
+		diverged_breakdown,
+		unknown
 	};
 	stop_reason status;
 	int iters;
@@ -82,6 +83,42 @@ struct solve_info {
 		       (status == stop_reason::converged_user);
 	}
 };
+
+inline std::ostream & operator<<(std::ostream & os, const solve_info::stop_reason & r) {
+	switch (r) {
+	case solve_info::stop_reason::converged_atol:
+		os << "Converged to absolute tolerance";
+		break;
+	case solve_info::stop_reason::converged_rtol:
+		os << "Converged to residual tolerance";
+		break;
+	case solve_info::stop_reason::converged_user:
+		os << "Converged to user tolerance";
+		break;
+	case solve_info::stop_reason::diverged_iters:
+		os << "Diverged: exceeded maximum iterations";
+		break;
+	case solve_info::stop_reason::diverged_breakdown:
+		os << "Diverged due to breakdown";
+		break;
+	case solve_info::stop_reason::diverged_dtol:
+		os << "Diverged: reached divergence tolerance";
+		break;
+	case solve_info::stop_reason::unknown:
+		os << "Status unknown";
+		break;
+	};
+
+	return os;
+}
+
+template<std::size_t version>
+struct version_t {
+	static constexpr std::size_t value = version;
+};
+
+template<std::size_t V>
+inline version_t<V> version;
 
 template<class Vec,
          std::size_t NumWork,
@@ -149,5 +186,17 @@ protected:
 	}
 };
 
+template<std::size_t nwork>
+struct work_factory {
+	template<class Vec>
+	constexpr auto operator()(Vec & b) const {
+		return topo_work_base<nwork, 0>::get(b);
+	}
+
+	template<class Vec, std::size_t Ver>
+	constexpr auto operator()(Vec & b, version_t<Ver>) const {
+		return topo_work_base<nwork, Ver>::get(b);
+	}
+};
 }
 #endif

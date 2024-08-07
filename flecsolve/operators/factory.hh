@@ -22,6 +22,7 @@ to do so.
 
 #include "flecsolve/util/config.hh"
 #include "core.hh"
+#include "handle.hh"
 
 namespace flecsolve::op {
 
@@ -145,6 +146,13 @@ struct factory {
 	}
 
 	template<class... Args>
+	static auto make_shared(const settings & s, Args &&... args) {
+		auto var = make_policy(s, std::forward<Args>(args)...);
+		return ::flecsolve::op::make_shared<factory_prod<decltype(var)>>(
+			factory_prod<decltype(var)>{std::move(var)});
+	}
+
+	template<class... Args>
 	static auto make_policy(const settings & s, Args &&... args) {
 		return make(s, targets(), std::forward<Args>(args)...);
 	}
@@ -167,7 +175,7 @@ private:
 				}
 			}(flecsi::util::constant<V>{}),
 			...);
-		return ret.value();
+		return std::move(ret).value();
 	}
 
 	template<auto... V>
@@ -307,6 +315,13 @@ struct factory_union {
 	static auto make(const settings & s, Args &&... args) {
 		auto var = make_policy(s, std::forward<Args>(args)...);
 		return op::core<factory_prod<decltype(var)>>(
+			factory_prod<decltype(var)>{std::move(var)});
+	}
+
+	template<class... Args>
+	static auto make_shared(const settings & s, Args &&... args) {
+		auto var = make_policy(s, std::forward<Args>(args)...);
+		return op::make_shared<factory_prod<decltype(var)>>(
 			factory_prod<decltype(var)>{std::move(var)});
 	}
 

@@ -109,7 +109,10 @@ struct core : P {
 	         std::enable_if_t<is_vector_v<D>, bool> = true,
 	         std::enable_if_t<is_vector_v<R>, bool> = true>
 	decltype(auto) apply(const D & x, R & y) const {
-		return P::apply(x, y);
+		decltype(auto) ys = y.subset(output_var);
+		decltype(auto) xs = x.subset(input_var);
+
+		return P::apply(xs, ys);
 	}
 
 	template<class D,
@@ -117,7 +120,10 @@ struct core : P {
 	         std::enable_if_t<is_vector_v<D>, bool> = true,
 	         std::enable_if_t<is_vector_v<R>, bool> = true>
 	decltype(auto) operator()(const D & x, R & y) const {
-		return P::apply(x, y);
+		decltype(auto) ys = y.subset(output_var);
+		decltype(auto) xs = x.subset(input_var);
+
+		return P::apply(xs, ys);
 	}
 
 	template<class B,

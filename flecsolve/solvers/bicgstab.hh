@@ -20,43 +20,33 @@ to do so.
 #include <flecsi/execution.hh>
 
 #include "solver_settings.hh"
-#include "krylov_operator.hh"
+#include "krylov_parameters.hh"
 
-namespace flecsolve::bicgstab {
+namespace flecsolve::op {
+template<class Params>
+struct bicgstab : base<Params,
+                       typename Params::input_var_t,
+                       typename Params::output_var_t>
+{
+	using base_t = base<Params, typename Params::input_var_t, typename Params::output_var_t>;
+	using base_t::params;
+	using real = typename Params::real;
 
-static constexpr std::size_t nwork = 8;
+	bicgstab(Params p) : base_t(std::move(p)) {}
 
-struct settings : solver_settings {};
-struct options : solver_options {
-	using settings_type = settings;
-	options(const char * pre) : solver_options(pre) {}
-};
+	const auto & get_operator() const { return params.A(); }
 
-template<std::size_t Version = 0>
-using topo_work = topo_work_base<nwork, Version>;
-
-template<class Workspace>
-struct solver : krylov_interface<Workspace> {
-	using settings_type = settings;
-	using iface = krylov_interface<Workspace>;
-	using real = typename iface::real;
-	using iface::work;
-
-	template<class W>
-	solver(const settings & params, W && workspace)
-		: iface{std::forward<W>(workspace)}, params(params) {}
-
-	void reset(const settings & params) { this->params = params; }
-
-	template<class Op, class DomainVec, class RangeVec, class Pre, class F>
-	solve_info apply(const Op & A,
-	                 const RangeVec & b,
-	                 DomainVec & x,
-	                 Pre & P,
-	                 F && user_diagnostic) {
+	template<class DomainVec, class RangeVec>
+	solve_info apply(const RangeVec & b,
+	                 DomainVec & x) const {
 		solve_info info;
 
-		auto & [res, r_tilde, p, v, p_hat, s, s_hat, t] = work;
+		const auto & A = params.A();
+		const auto & P = params.P();
+		auto & user_diagnostic = params.ops.diagnostic;
+		const auto & settings = params.settings;
+
+		auto & [res, r_tilde, p, v, p_hat, s, s_hat, t] = params.work;
 
 		real b_norm = b.l2norm().get();
 
@@ -65,11 +55,11 @@ struct solver : krylov_interface<Workspace> {
 			b_norm = 1.;
 		}
 
-		const real terminate_tol = params.rtol * b_norm;
+		const real terminate_tol = settings.rtol * b_norm;
 
 		info.rhs_norm = b_norm;
 
-		if (params.use_zero_guess) {
+		if (settings.use_zero_guess) {
 			info.sol_norm_initial = 0;
 			res.copy(b);
 			x.set_scalar(0.);
@@ -104,7 +94,7 @@ struct solver : krylov_interface<Workspace> {
 
 		p.zero();
 		v.zero();
-		for (int iter = 0; iter < params.maxiter; iter++) {
+		for (int iter = 0; iter < settings.maxiter; iter++) {
 			rho[1] = r_tilde.dot(res).get();
 
 			real angle = std::sqrt(std::fabs(rho[1]));
@@ -143,7 +133,7 @@ struct solver : krylov_interface<Workspace> {
 
 			const real s_norm = s.l2norm().get();
 
-			if (s_norm < params.rtol) {
+			if (s_norm < settings.rtol) {
 				// early convergence
 				x.axpy(alpha, p_hat, x);
 
@@ -195,21 +185,33 @@ struct solver : krylov_interface<Workspace> {
 
 		return info;
 	}
-
-protected:
-	settings params;
 };
-template<class V>
-solver(const settings &, V &&) -> solver<V>;
-
+template<class P>
+bicgstab(P)->bicgstab<P>;
 }
 
-namespace flecsolve {
-template<>
-struct traits<bicgstab::settings> {
-	template<class W>
-	using solver_type = bicgstab::solver<W>;
+namespace flecsolve::bicgstab {
+
+static constexpr std::size_t nwork = 8;
+
+struct settings : solver_settings {};
+struct options : solver_options {
+	using settings_type = settings;
+	options(const char * pre) : solver_options(pre) {}
 };
+
+static inline work_factory<nwork> make_work;
+
+template<class Workspace>
+struct solver : krylov_solver<op::bicgstab, settings, Workspace> {
+	using base_t = krylov_solver<op::bicgstab, settings, Workspace>;
+
+	template<class W>
+	solver(const settings & s, W && w) :
+		base_t{s, std::forward<W>(w)} {}
+};
+template<class W>
+solver(const settings &, W &&) -> solver<std::decay_t<W>>;
 
 }
 #endif

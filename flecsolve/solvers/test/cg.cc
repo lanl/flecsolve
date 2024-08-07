@@ -75,14 +75,12 @@ int cgtest() {
 			x.set_random(7);
 
 			diagnostic diag{A, x, cs.cond};
-			op::krylov slv(op::krylov_parameters(
+			auto slv_op = cg::solver(
 				read_config("cg.cfg", cg::options("cg-solver")),
-				vec::seq_work<double, cg::nwork>{b},
-				std::ref(A),
-				op::I,
-				std::ref(diag)));
+				vec::seq_work<double, cg::nwork>{b})(
+					op::ref(A), op::I, std::ref(diag));
 
-			auto info = slv.apply(b, x);
+			auto info = slv_op(b, x);
 
 			EXPECT_TRUE((info.iters == cs.iters) ||
 			            (info.iters == cs.iters_rel));

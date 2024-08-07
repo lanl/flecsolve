@@ -19,56 +19,50 @@ to do so.
 #include <flecsi/flog.hh>
 #include <flecsi/execution.hh>
 
-#include "krylov_operator.hh"
 #include "solver_settings.hh"
+#include "krylov_parameters.hh"
 
-namespace flecsolve::cg {
+namespace flecsolve::op {
 
-static constexpr std::size_t nwork = 4;
+template<class Params>
+struct cg : base<Params,
+                 typename Params::input_var_t,
+                 typename Params::output_var_t>
+{
+	using base_t = base<Params,
+	                    typename Params::input_var_t,
+	                    typename Params::output_var_t>;
+	using base_t::params;
+	using real = typename Params::real;
+	using scalar = typename Params::scalar;
 
-using settings = solver_settings;
-using options = solver_options;
-template<std::size_t Version = 0>
-using topo_work = topo_work_base<nwork, Version>;
+	cg(Params p) : base_t(std::move(p)) {}
 
-template<class Workspace>
-struct solver : krylov_interface<Workspace> {
-	using settings_type = settings;
-	using iface = krylov_interface<Workspace>;
-	using iface::work;
+	const auto & get_operator() const { return params.A(); }
 
-	template<class V>
-	solver(const settings & params, V && workspace)
-		: iface{std::forward<V>(workspace)}, params(params) {}
-
-	void reset(const settings & params) { this->params = params; }
-
-	template<class Op,
-	         class DomainVec,
-	         class RangeVec,
-	         class Precond,
-	         class Diag>
-	solve_info apply(const Op & A,
-	                 const RangeVec & b,
-	                 DomainVec & x,
-	                 Precond & P,
-	                 Diag && user_diagnostic) {
+	template<class DomainVec, class RangeVec>
+	solve_info apply(const RangeVec & b, DomainVec & x) const {
 		solve_info info;
 		using scalar = typename DomainVec::scalar;
 		using real = typename DomainVec::real;
 
-		auto & [r, z, p, w] = work;
+		const auto & A = params.A();
+		const auto & P = params.P();
+		auto & user_diagnostic = params.ops.diagnostic;
+		const auto & settings = params.settings;
+
+		auto & [r, z, p, w] = params.work;
 		real b_norm = b.l2norm().get();
 
 		if (b_norm == 0.0)
 			b_norm = 1.0;
 
-		const real terminate_tol = params.rtol * b_norm;
+		const real terminate_tol = settings.rtol * b_norm;
 
 		info.rhs_norm = b_norm;
 
 		// compute initial residual
-		if (params.use_zero_guess) {
+		if (settings.use_zero_guess) {
 			info.sol_norm_initial = 0;
 			x.set_scalar(0.);
 			r.copy(b);
@@ -94,7 +88,7 @@ struct solver : krylov_interface<Workspace> {
 		rho[0] = rho[1];
 
 		p.copy(z);
-		for (auto iter = 0; iter < params.maxiter; iter++) {
+		for (auto iter = 0; iter < settings.maxiter; iter++) {
 			scalar beta = 1.0;
 
 			// w = Ap
@@ -143,21 +137,31 @@ struct solver : krylov_interface<Workspace> {
 
 		return info;
 	}
-
-protected:
-	settings params;
 };
+template<class P>
+cg(P) -> cg<P>;
 
-template<class V>
-solver(const settings &, V &&) -> solver<V>;
+}
 
-} // namespace flecsolve::cg
+namespace flecsolve::cg {
 
-namespace flecsolve {
-template<>
-struct traits<cg::settings> {
+static constexpr std::size_t nwork = 4;
+
+using settings = solver_settings;
+using options = solver_options;
+
+static inline work_factory<nwork> make_work;
+
+template<class Work>
+struct solver : krylov_solver<op::cg, settings, Work> {
+	using base_t = krylov_solver<op::cg, settings, Work>;
+
 	template<class W>
-	using solver_type = cg::solver<W>;
+	solver(const settings & set, W && w)
+		: base_t{set, std::forward<W>(w)} {}
 };
-} // namespace flecsolve
+template<class W>
+solver(const settings &, W &&) -> solver<std::decay_t<W>>;
+
+}
 #endif

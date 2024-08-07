@@ -20,24 +20,9 @@ const realf::definition<testmesh, testmesh::cells> xd, bd;
 enum class vars { var1, var2 };
 const std::array<realf::definition<testmesh, testmesh::cells>, 2> xmd, bmd;
 
-using full_op = op::core<csr_op>;
-
-template<auto var, class Op>
-struct test_op : op::base<std::nullptr_t, variable_t<var>, variable_t<var>> {
-	template<class O>
-	explicit test_op(O && h) : oph{std::forward<O>(h)} {}
-
-	template<class domain_vec, class range_vec>
-	void apply(const domain_vec & x, range_vec & y) const {
-		oph.get().apply(x, y);
-	}
-
-private:
-	op::storage<Op> oph;
-};
-template<auto V, class O>
-auto make_test_op(variable_t<V>, O && o) {
-	return op::core<test_op<V, std::decay_t<O>>>(std::forward<O>(o));
+template<auto V>
+auto make_test_op(variable_t<V>, const mat::csr<double> & m) {
+	return op::core<csr_op_gen<variable_t<V>, variable_t<V>>>(m);
 }
 
 int multicg() {
@@ -47,7 +32,6 @@ int multicg() {
 		auto mtx = mat::io::matrix_market<>::read("Chem97ZtZ.mtx").tocsr();
 
 		init_mesh(mtx.rows(), msh);
-		full_op A(std::move(mtx));
 
 		auto xm = vec::make(vec::make(variable<vars::var1>, msh, xmd[0](msh)),
 		                    vec::make(variable<vars::var2>, msh, xmd[1](msh)));
@@ -61,17 +45,18 @@ int multicg() {
 
 		auto settings = read_config("cgmulti.cfg", cg::options("solver"));
 
-		op::krylov slv1(op::krylov_parameters(
-			settings,
-			cg::topo_work<>::get(bm.subset(variable<vars::var1>)),
-			make_test_op(variable<vars::var1>, std::ref(A))));
-		auto info1 = slv1.apply(bm, xm);
+		auto op1 = make_test_op(variable<vars::var1>, mtx);
+		auto op2 = make_test_op(variable<vars::var2>, mtx);
 
-		op::krylov slv2(op::krylov_parameters(
+		auto slv1 = cg::solver(
 			settings,
-			cg::topo_work<>::get(bm.subset(variable<vars::var2>)),
-			make_test_op(variable<vars::var2>, std::ref(A))));
-		auto info2 = slv2.apply(bm, xm);
+			cg::make_work(bm.subset(variable<vars::var1>)))(op::ref(op1));
+		auto info1 = slv1(bm, xm);
+
+		auto slv2 = cg::solver(
+			settings,
+			cg::make_work(bm.subset(variable<vars::var2>)))(op::ref(op2));
+		auto info2 = slv2(bm, xm);
 
 		EXPECT_EQ(info1.iters, 161);
 		EXPECT_EQ(info2.iters, 143);

@@ -29,35 +29,35 @@ enum class krylov_target { cg, gmres, bicgstab, nka };
 template<krylov_target T>
 struct krylov_registry {};
 
-template<class Settings, class Options, class Workgen>
+template<template<class> class Solver, class Settings, class Options, class Workgen>
 struct krylov_opreg {
 	using settings = Settings;
 	using options = Options;
 	using workgen = Workgen;
 	template<class V, class... Args>
 	static auto make(const settings & s, const V & v, Args &&... args) {
-		return op::krylov(op::krylov_parameters(
-			s, workgen::get(v), std::forward<Args>(args)...));
+		return Solver(s, workgen{}(v))(std::forward<Args>(args)...);
 	}
 };
 
 template<>
 struct krylov_registry<krylov_target::cg>
-	: krylov_opreg<cg::settings, cg::options, cg::topo_work<>> {};
+	: krylov_opreg<cg::solver, cg::settings, cg::options, decltype(cg::make_work)> {};
 
 template<>
 struct krylov_registry<krylov_target::gmres>
-	: krylov_opreg<gmres::settings, gmres::options, gmres::topo_work<>> {};
+	: krylov_opreg<gmres::solver, gmres::settings, gmres::options, decltype(gmres::make_work)> {};
 
 template<>
 struct krylov_registry<krylov_target::bicgstab>
-	: krylov_opreg<bicgstab::settings,
+	: krylov_opreg<bicgstab::solver, bicgstab::settings,
                    bicgstab::options,
-                   bicgstab::topo_work<>> {};
+	               decltype(bicgstab::make_work)> {};
 
 template<>
 struct krylov_registry<krylov_target::nka>
-	: krylov_opreg<nka::settings, nka::options, nka::topo_work<>> {};
+	: krylov_opreg<nka::solver, nka::settings, nka::options,
+	               decltype(nka::make_work)> {};
 
 inline std::istream & operator>>(std::istream & in, krylov_target & reg) {
 	std::string tok;

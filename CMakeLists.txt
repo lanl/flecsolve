@@ -69,7 +69,6 @@ if(FLECSOLVE_ENABLE_AMP)
   endif()
 endif()
 
-
 option(FLECSOLVE_ENABLE_UNIT_TESTS "Enable the Unit tests" On)
 include(FleCSI/unit)
 

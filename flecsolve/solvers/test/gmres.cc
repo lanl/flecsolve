@@ -75,41 +75,37 @@ int gmres_test() {
 		                gmres::options("gmres-norestart"),
 		                gmres::options("gmres-restart"));
 		{
-			op::krylov slv(op::krylov_parameters(settings_norestart,
-			                                     gmres::topo_work<>::get(b),
-			                                     std::ref(A),
-			                                     op::I,
-			                                     std::ref(diag)));
-			auto info = slv.apply(b, x);
+			gmres::solver slv(settings_norestart,
+			                  gmres::make_work(b));
+			auto info = slv(op::ref(A), op::I, std::ref(diag))(b, x);
 
 			EXPECT_EQ(info.iters, 73);
 			EXPECT_FALSE(diag.fail_monotonic);
 			EXPECT_FALSE(diag.fail_convergence);
 
-			auto slv_pre = op::rebind(slv, std::ref(A), std::ref(Dinv));
+			auto slv_pre = slv(op::ref(A), op::ref(Dinv));
 			x.set_random(1);
-			auto info_pre = slv_pre.apply(b, x);
+			auto info_pre = slv_pre(b, x);
 			EXPECT_EQ(info_pre.iters, 18);
 		}
 		{ // test restart
-			op::krylov_parameters params_restart(
-				settings_restart, gmres::topo_work<>::get(b), std::ref(A));
+			gmres::solver slv(
+				settings_restart, gmres::make_work(b));
 			b.set_random(0);
 			x.set_random(1);
 
-			op::krylov slv(params_restart);
-			auto info_restart = slv.apply(b, x);
+			auto info_restart = slv(op::ref(A))(b, x);
 
 			x.set_random(1);
 
-			params_restart.solver_settings.maxiter = 50;
-			slv.reset(params_restart.solver_settings);
-			slv.apply(b, x);
+			slv.settings.maxiter = 50;
+			slv(op::ref(A))(b, x);
 
-			params_restart.solver_settings.maxiter = 100;
-			params_restart.solver_settings.max_krylov_dim = 100;
-			params_restart.solver_settings.restart = false;
-			op::krylov slv1(params_restart);
+			slv.settings.maxiter = 100;
+			slv.settings.max_krylov_dim = 100;
+			slv.settings.restart = false;
+
+			auto slv1 = slv(op::ref(A));
 
 			auto info = slv1.apply(b, x);
 			EXPECT_EQ(50 + info.iters, info_restart.iters);
