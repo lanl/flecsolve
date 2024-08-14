@@ -132,7 +132,6 @@ auto abs = std::make_pair(
 
 int vectest() {
 	testmesh::slot msh;
-	testmesh::cslot coloring;
 
 	init_mesh(32, msh);
 	init_fields(msh, xd, 0, make_is());
