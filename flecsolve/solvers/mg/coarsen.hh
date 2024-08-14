@@ -209,15 +209,27 @@ auto get_unmarked(const mat::csr<scalar, size, data> & diag,
 template<class scalar, class size, template<class> class data>
 auto find_pair(std::size_t r,
                const prospect & unmarked,
-               const mat::csr<scalar, size, data> & diag) {
+               const mat::csr<scalar, size, data> & diag,
+               bool checkdd,
+               const soc_t & soc) {
 	auto [rowptr, colind, values] = diag.rep();
 	std::pair<scalar, std::size_t> curr;
 	curr.first = std::numeric_limits<scalar>::max();
 	curr.second = -1;
+	constexpr bool check_soc = false;
+	auto is_compat = [&](auto c, auto v) {
+		if constexpr (check_soc) {
+			return unmarked.contains(c) && (v < curr.first ||
+			                                (!checkdd && v == curr.first &&
+			                                 (soc[c].find(r) != soc[c].end())));
+		} else {
+			return unmarked.contains(c) && (v < curr.first);
+		}
+	};
 	for (std::size_t off = rowptr[r]; off < rowptr[r + 1]; ++off) {
 		auto c = colind[off];
 		auto v = values[off];
-		if (unmarked.contains(c) && (v < curr.first)) {
+		if (is_compat(c, v)) {
 			curr.first = v;
 			curr.second = c;
 		}
@@ -240,7 +252,7 @@ aggregate_t pairwise_agg(float beta,
 
 	while (!unmarked.empty()) {
 		auto selected = unmarked.pop();
-		auto pair = find_pair(selected, unmarked, diag);
+		auto pair = find_pair(selected, unmarked, diag, checkdd, soc);
 
 		auto update_priorities = [&](std::size_t k) {
 			for (auto l : soc[k]) {
