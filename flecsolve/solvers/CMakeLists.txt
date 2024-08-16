@@ -64,7 +64,7 @@ flecsi_add_test(nka
   LIBRARIES flecsolve
   PROCS 1)
 
-if(TPL_FOUND_LIBMESH AND AMP_DATA)
+if(TPLs_LIBMESH_FOUND AND AMP_DATA)
   flecsi_add_test(amp-amg
 	SOURCES
 	test/amp_boomeramg.cc
