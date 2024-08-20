@@ -126,6 +126,7 @@ auto create_amp_mat(csr_topo::init & init, std::shared_ptr<AMP::Database> input_
     flecsi::util::offsets rowpart(std::move(store));
     init.row_part.set_offsets(rowpart);
     init.col_part.set_offsets(rowpart);
+    init.proc_part.set_block_map(flecsi::processes(), flecsi::processes());
 
     csr procmat(mdata.numLocalRows(), mdata.numLocalColumns());
     procmat.resize(mdata.numberOfNonZeros());
