@@ -22,33 +22,39 @@ to do so.
 
 #include "flecsolve/matrices/parcsr.hh"
 
-namespace flecsolve::mg {
+namespace flecsolve {
 
+namespace mg {
 enum class relax_sweep { forward, backward, symmetric };
 enum class relax_dir { forward, backward };
 
-struct hybrid_gs_settings {
+namespace hybrid_gs {
+struct settings {
 	std::size_t nrelax;
 	relax_sweep sweep;
 };
+}
+}
 
+namespace op {
 template<class scalar, class size>
-struct bound_hybrid_gs : op::base<> {
-	using op_t = op::core<mat::parcsr<scalar, size>>;
+struct hybrid_gs : base<> {
+	using settings_type = mg::hybrid_gs::settings;
+	using op_t = core<mat::parcsr<scalar, size>>;
 
-	op::handle<op_t> A;
+	handle<op_t> A;
 
 	using topo_t = typename mat::parcsr<scalar, size>::topo_t;
 
-	hybrid_gs_settings settings;
+	settings_type settings;
 
-	bound_hybrid_gs(op::handle<op_t> h,
-	                const hybrid_gs_settings & s) :
+	hybrid_gs(handle<op_t> h,
+	          const settings_type & s) :
 		A(h), settings(s) {}
 
 	template<class D, class R>
 	void apply(const D & b, R & x) const {
-		auto run = [&](relax_dir rdir) {
+		auto run = [&](mg::relax_dir rdir) {
 			flecsi::execute<relax>(rdir,
 			                       A.get().data.topo(),
 			                       x.data.ref(),
@@ -56,15 +62,15 @@ struct bound_hybrid_gs : op::base<> {
 		};
 		for (std::size_t i = 0; i < settings.nrelax; ++i) {
 			switch (settings.sweep) {
-			case relax_sweep::forward:
-				run(relax_dir::forward);
+			case mg::relax_sweep::forward:
+				run(mg::relax_dir::forward);
 				break;
-			case relax_sweep::backward:
-				run(relax_dir::backward);
+			case mg::relax_sweep::backward:
+				run(mg::relax_dir::backward);
 				break;
-			case relax_sweep::symmetric:
-				run(relax_dir::forward);
-				run(relax_dir::backward);
+			case mg::relax_sweep::symmetric:
+				run(mg::relax_dir::forward);
+				run(mg::relax_dir::backward);
 				break;
 			}
 		}
@@ -73,7 +79,7 @@ struct bound_hybrid_gs : op::base<> {
 	template<flecsi::partition_privilege_t... PP>
 	using vec_acc = typename flecsi::field<scalar>::template accessor<PP...>;
 
-	static void relax(relax_dir rdir,
+	static void relax(mg::relax_dir rdir,
 	                  typename topo_t::template accessor<flecsi::ro> A,
 	                  vec_acc<flecsi::rw, flecsi::ro> xa,
 	                  vec_acc<flecsi::ro, flecsi::na> ba) {
@@ -109,27 +115,29 @@ struct bound_hybrid_gs : op::base<> {
 		flecsi::util::transform_view backward(forward,
 		                                      [&](size i) { return diag.rows() - i - 1; });
 		switch (rdir) {
-		case relax_dir::forward:
+		case mg::relax_dir::forward:
 			for (auto r : forward) update(r);
 			break;
-		case relax_dir::backward:
+		case mg::relax_dir::backward:
 			for (auto r : backward) update(r);
 			break;
 		}
 	}
 };
 
-struct hybrid_gs {
-	using settings = hybrid_gs_settings;
+}
 
+namespace mg::hybrid_gs {
+
+struct solver {
 	template<class scalar, class size>
 	auto operator()(op::handle<op::core<mat::parcsr<scalar, size>>> A) {
-		return op::core<bound_hybrid_gs<scalar, size>>{A, settings_};
+		return op::core<op::hybrid_gs<scalar, size>>{A, settings_};
 	}
 
 	settings settings_;
 };
-
+}
 }
 
 #endif

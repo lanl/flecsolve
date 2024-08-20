@@ -60,7 +60,7 @@ struct hierarchy_config
 		csr_topo, csr_topo::cols> aggt_def;
 
 	// using smoother = op::core<mg::bound_jacobi<scalar_type, size_type>>;
-	using smoother = op::core<mg::bound_hybrid_gs<scalar_type, size_type>>;
+	using smoother = op::core<op::hybrid_gs<scalar_type, size_type>>;
 	using coarse_op = op::core<mat::parcsr<scalar, size>>;
 	using coarse_smoother = smoother;
 	template<class ... Ops>
@@ -155,8 +155,8 @@ protected:
 		std::size_t nr = settings.nrelax;
 		// mg::jacobi_settings s{settings.jacobi_weight, nr};
 		// return op::make_shared<mg::bound_jacobi<scalar, size>>(op, s);
-		mg::hybrid_gs_settings s{nr, relax_sweep::symmetric};
-		return op::make_shared<mg::bound_hybrid_gs<scalar, size>>(op, s);
+		mg::hybrid_gs::settings s{nr, relax_sweep::symmetric};
+		return op::make_shared<op::hybrid_gs<scalar, size>>(op, s);
 	}
 	solver_settings settings;
 	hier_type hier;
