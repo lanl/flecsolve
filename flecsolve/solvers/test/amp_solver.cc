@@ -175,8 +175,8 @@ int amptest() {
 	std::shared_ptr<AMP::LinearAlgebra::Vector> rhs, sol;
 	std::shared_ptr<AMP::Operator::Operator> linop;
 	flecsi::execute<create_amp_mat,flecsi::mpi>(init, input_db, rhs, sol, linop);
-	op::core<parcsr> A(std::move(init));
-	auto & topo = A.data.topo();
+	auto A = op::make_shared<parcsr>(std::move(init));
+	auto & topo = A.get().data.topo();
 
 	UNIT(){
 		auto [u, f] = vec::make(topo)(ud, fd);
@@ -201,7 +201,7 @@ int amptest() {
 			auto settings = read_config("amp-solver.cfg", amp::solver::options("solver"));
 			amp::solver slv{settings,
 			                *input_db};
-			auto info = slv(std::ref(A))(f, u);
+			auto info = slv(A)(f, u);
 
 			EXPECT_EQ(info.iters, run_directly(settings.solver_name));
 			EXPECT_TRUE(info.success());
@@ -211,9 +211,10 @@ int amptest() {
 			u.set_scalar(1.);
 			A(u, f);
 			u.zero();
+
 			auto settings = read_config("amp-solver-pcg.cfg", amp::solver::options("solver"));
 			amp::solver slv{settings, *input_db};
-			auto info = slv(std::ref(A))(f, u);
+			auto info = slv(A)(f, u);
 
 			EXPECT_EQ(info.iters, run_directly(settings.solver_name));
 			EXPECT_TRUE(info.success());
@@ -223,9 +224,10 @@ int amptest() {
 			u.set_scalar(1.);
 			A(u, f);
 			u.zero();
+
 			auto settings = read_config("amp-solver-gmres.cfg", amp::solver::options("solver"));
 			amp::solver slv{settings, *input_db};
-			auto info = slv(std::ref(A))(f, u);
+			auto info = slv(A)(f, u);
 
 			EXPECT_EQ(info.iters, run_directly(settings.solver_name));
 			EXPECT_TRUE(info.success());

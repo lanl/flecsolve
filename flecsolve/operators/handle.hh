@@ -26,6 +26,9 @@ struct handle {
 	constexpr operator type & () const {
 		return this->get();
 	}
+
+	template<class D, class R>
+	decltype(auto) operator()(const D & x, R & y) const { return this->get()(x, y); }
 };
 
 template<class T>

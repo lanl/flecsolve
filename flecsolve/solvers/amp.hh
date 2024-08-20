@@ -39,6 +39,8 @@ to do so.
 #include "flecsolve/util/config.hh"
 #include "flecsolve/solvers/solver_settings.hh"
 #include "flecsolve/operators/storage.hh"
+#include "flecsolve/operators/handle.hh"
+
 
 namespace flecsolve::amp {
 
@@ -185,25 +187,26 @@ std::shared_ptr<csr_op_wrap> make_op(mat::parcsr<scalar, size> & A)
 	return csr_op;
 }
 
+}
 
-namespace po = boost::program_options;
+
+namespace flecsolve::op {
+
+using namespace amp;
 
 template<class Op>
-struct bound_solver : op::base<>
+struct amp_solver : op::base<>
 {
-	using store = op::storage<Op>;
-	using op_t = typename store::op_type;
-	using scalar = typename op_t::scalar_type;
-	using size = typename op_t::size_type;
+	using scalar = typename Op::scalar_type;
+	using size = typename Op::size_type;
 	using parcsr = mat::parcsr<scalar, size>;
 	using topo_t = typename parcsr::topo_t;
 	using mat_ptr = std::shared_ptr<amp_mat>;
 	using tasks = csr_task<scalar, size>;
 
-	template<class O>
-	bound_solver(O &&  A,
-	             std::shared_ptr<AMP::Solver::SolverStrategy> slv) :
-		A_(std::forward<O>(A)), slv_(slv) {
+	amp_solver(op::handle<Op> A,
+	           std::shared_ptr<AMP::Solver::SolverStrategy> slv) :
+		A_(A), slv_(slv) {
 		register_operator(*slv_, make_op(A_.get()));
 	}
 
@@ -227,11 +230,17 @@ private:
 		if (nest) register_operator(*nest, op);
 	}
 
-	store A_;
+	op::handle<Op> A_;
 	std::shared_ptr<AMP::Solver::SolverStrategy> slv_;
 };
 template<class O>
-bound_solver(O&&, std::shared_ptr<AMP::Solver::SolverStrategy>)->bound_solver<O>;
+amp_solver(op::handle<O>,
+             std::shared_ptr<AMP::Solver::SolverStrategy>) -> amp_solver<O>;
+}
+
+namespace flecsolve::amp {
+
+namespace po = boost::program_options;
 
 struct solver {
 	struct settings {
@@ -248,8 +257,9 @@ struct solver {
 	solver(const settings &, AMP::Database &);
 
 	template<class A>
-	auto operator()(A && a) {
-		return op::core<bound_solver<std::decay_t<A>>>(std::forward<A>(a), slv_);
+	auto operator()(op::handle<A> a) {
+		return op::make(
+			op::amp_solver(a, slv_));
 	}
 
 protected:
@@ -293,10 +303,9 @@ struct solver {
 	solver(const settings &);
 
 	template<class A>
-	auto operator()(A && a) {
-		return [](auto && o) {
-			return op::core<std::decay_t<decltype(o)>>(std::move(o));
-		}(bound_solver{std::forward<A>(a), slv_});
+	auto operator()(op::handle<A> a) {
+		return op::make(
+			op::amp_solver{a, slv_});
 	}
 
 private:

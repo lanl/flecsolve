@@ -167,7 +167,7 @@ int amptest() {
 		boomeramg::solver slv{
 			read_config("amp-amg.cfg",
 			            boomeramg::options("solver"))};
-		auto info = slv(std::ref(A))(f, u);
+		auto info = slv(op::ref(A))(f, u);
 		EXPECT_EQ(info.iters, 14);
 		EXPECT_TRUE(info.success());
 	};
