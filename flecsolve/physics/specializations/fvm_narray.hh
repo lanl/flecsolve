@@ -147,14 +147,45 @@ struct fvm_narray
 	template<class B>
 	struct interface : B {
 
+		template<index_space Space, axis A>
+		auto get_axis() const {
+			return B::template axis<Space, A>();
+		}
+
 		template<index_space IS, axis A, domain DM = base::domain::logical>
 		std::size_t size() const {
-			return B::template size<IS, A, DM>();
+			const auto a = get_axis<IS, A>();
+
+			if constexpr (DM == base::domain::all)
+				return a.layout.extent();
+			else if constexpr (DM == base::domain::logical)
+				return a.layout.logical().size();
+			else if constexpr (DM == base::domain::boundary_low)
+				return a.layout.template logical<0>() - a.layout.template extended<0>();
+			else if constexpr (DM == base::domain::boundary_high)
+				return a.layout.template extended<1>() - a.layout.template logical<1>();
+			else
+				fvmtools::static_no_match();
 		}
 
 		template<index_space IS, axis A, domain DM = base::domain::logical>
 		constexpr auto range() {
-			return B::template range<IS, A, DM>();
+			const auto a = get_axis<IS, A>();
+			if constexpr (DM == base::domain::all)
+				return flecsi::topo::make_ids<IS>(a.layout.all());
+			else if constexpr (DM == base::domain::logical)
+				return flecsi::topo::make_ids<IS>(a.layout.logical());
+			else if constexpr (DM == base::domain::boundary_low) {
+				const auto o = a.layout.template extended<0>();
+				return flecsi::topo::make_ids<IS>(
+					flecsi::util::iota_view<flecsi::util::id>(o, o + size<IS, A, DM>()));
+			}
+			else if constexpr (DM == base::domain::boundary_high) {
+				const auto o = a.layout.template logical<1>();
+				return flecsi::topo::make_ids<IS>(
+					flecsi::util::iota_view<flecsi::util::id>(o, o + size<IS, A, DM>()));
+			} else
+				fvmtools::static_no_match();
 		}
 
 		template<index_space MAJORSPACE = cells,
@@ -187,8 +218,8 @@ struct fvm_narray
 
 		template<axis A, index_space S = cells>
 		FLECSI_INLINE_TARGET std::size_t global_id(std::size_t i) const {
-			return i - B::template offset<S, A, base::domain::logical>() +
-			       B::template offset<S, A, base::domain::global>();
+			const auto a = get_axis<S, A>();
+			return a.global_id(i);
 		}
 
 		template<axis A>
@@ -226,12 +257,11 @@ struct fvm_narray
 
 		template<axis A>
 		double value(std::size_t i) {
+			const auto a = get_axis<index_space::cells, A>();
 			return (dx<A>() *
 			        (static_cast<double>(
 						global_id<A>(i) +
-						B::template size<index_space::cells,
-			                             A,
-			                             base::domain::ghost_low>())));
+						a.layout.template extended<0>())));
 		}
 
 		double volume() { return product(axes()); }
