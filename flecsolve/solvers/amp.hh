@@ -31,10 +31,16 @@ namespace flecsolve::amp {
 using amp_mat =
 	AMP::LinearAlgebra::CSRMatrix<AMP::LinearAlgebra::HypreCSRPolicy>;
 using amp_policy = AMP::LinearAlgebra::HypreCSRPolicy;
-struct amp_storage {
+struct seq_csr_storage {
 	std::vector<amp_policy::lidx_t>   rownnz;
+	std::vector<amp_policy::lidx_t>   rowptr;
 	std::vector<amp_policy::gidx_t>   colind;
 	std::vector<amp_policy::scalar_t> values;
+	std::vector<amp_policy::lidx_t>   colind_local;
+};
+
+struct amp_storage {
+	seq_csr_storage diag, offd;
 };
 
 struct csr_op_wrap : AMP::Operator::LinearOperator
@@ -69,35 +75,50 @@ struct csr_task
 		auto diag = A.diag();
 		auto offd = A.offd();
 
-		auto [drowptr, dcolind, dvalues] = diag.rep();
-		auto [orowptr, ocolind, ovalues] = offd.rep();
+		auto reserve = [](auto & src, auto & dst) {
+			auto [rowptr, colind, values] = src.rep();
+			dst.rownnz.reserve(rowptr.size());
+			dst.rowptr.resize(rowptr.size());
+			dst.rowptr[0] = 0.;
+			dst.colind.reserve(colind.size());
+			dst.colind_local.reserve(colind.size());
+			dst.values.reserve(values.size());
+		};
 
-		store.rownnz.reserve(drowptr.size());
-		store.colind.reserve(dcolind.size()); // est.
-		store.values.reserve(dvalues.size() + ovalues.size());
+		reserve(diag, store.diag);
+		reserve(offd, store.offd);
 
+		// todo: avoid deep copy if types are compatible.
 		for (std::size_t i = 0; i < diag.rows(); ++i) {
-			std::size_t rnnz = 0;
-			auto add_row = [&](auto & rowptr, auto & colind, auto & values) {
+			auto add_row = [&](auto & src, auto & dst, int local_offset) {
+				auto [rowptr, colind, values] = src.rep();
 				for (std::size_t off = rowptr[i]; off < rowptr[i+1]; ++off) {
-					store.colind.push_back(
-						A.global_id(flecsi::topo::id<topo_t::cols>(colind[off])));
-					store.values.push_back(values[off]);
-					++rnnz;
+					auto lcol = colind[off];
+					dst.colind_local.push_back(lcol - local_offset);
+					dst.colind.push_back(
+						A.global_id(flecsi::topo::id<topo_t::cols>(lcol)));
+					dst.values.push_back(values[off]);
 				}
+				dst.rowptr[i+1] = rowptr[i+1];
+				dst.rownnz.push_back(rowptr[i+1] - rowptr[i]);
 			};
-			add_row(drowptr, dcolind, dvalues);
-			if (offd.nnz()) {
-				add_row(orowptr, ocolind, ovalues);
-			}
-			store.rownnz.push_back(rnnz);
+			add_row(diag, store.diag, 0);
+			add_row(offd, store.offd, A.meta().cols.size());
 		}
 
 		const auto & meta = A.meta();
+
+		auto [params_diag, params_offd] = [](auto & ... in) {
+			return std::make_pair(
+				AMP::LinearAlgebra::CSRMatrixParameters<amp_policy>::CSRSerialMatrixParameters{
+					in.rownnz.data(), in.rowptr.data(), in.colind.data(), in.colind_local.data(),
+					in.values.data()}...);
+		}(store.diag, store.offd);
+
 		auto csr_params = std::make_shared<AMP::LinearAlgebra::CSRMatrixParameters<amp_policy>>(
 			meta.rows.beg, meta.rows.end + 1,
-			store.rownnz.data(), store.colind.data(), store.values.data(),
-			AMP::AMP_MPI(meta.comm));
+			params_diag, params_offd,
+			0, AMP::AMP_MPI(meta.comm));
 
 		auto csr_mat = std::make_shared<amp_mat>(csr_params);
 

@@ -1,7 +1,9 @@
+#include <tuple>
+
 #include "AMP/matrices/CSRMatrix.h"
+#include "AMP/matrices/data/CSRMatrixData.h"
 #include "AMP/matrices/CSRMatrixParameters.h"
 #include "AMP/matrices/data/hypre/HypreCSRPolicy.h"
-#include "AMP/matrices/testHelpers/MatrixDataTransforms.h"
 #include "AMP/mesh/Mesh.h"
 #include "AMP/mesh/MeshFactory.h"
 #include "AMP/mesh/MeshParameters.h"
@@ -17,6 +19,7 @@
 #include "AMP/vectors/Variable.h"
 #include "AMP/vectors/Vector.h"
 #include "AMP/vectors/VectorBuilder.h"
+#include "AMP/matrices/testHelpers/MatrixDataTransforms.h"
 
 
 #include "flecsi/flog.hh"
@@ -71,14 +74,47 @@ auto create_amp_mat(csr_topo::init & init) {
     using scalar_t = typename Policy::scalar_t;
 
     gidx_t firstRow, endRow;
-    std::vector<lidx_t> nnz;
-    std::vector<gidx_t> cols;
-    std::vector<scalar_t> coeffs;
+    lidx_t nnz_pad;
+    struct split_params {
+	    std::vector<lidx_t> nnz;
+	    std::vector<lidx_t> rowstart;
+	    std::vector<gidx_t> cols;
+	    std::vector<lidx_t> cols_loc;
+	    std::vector<scalar_t> coeffs;
+    };
+    struct split {
+	    split_params diag, offd;
+    } param_input;
+    [&](split_params & diag, split_params & offd) {
+	    AMP::LinearAlgebra::transformDofToCSR<Policy>(diffusionOperator->getMatrix(),
+	                                                  firstRow, endRow,
+	                                                  diag.nnz,
+	                                                  diag.rowstart,
+	                                                  diag.cols,
+	                                                  diag.cols_loc,
+	                                                  diag.coeffs,
+	                                                  offd.nnz,
+	                                                  offd.rowstart,
+	                                                  offd.cols,
+	                                                  offd.cols_loc,
+	                                                  offd.coeffs,
+	                                                  nnz_pad);
+    }(param_input.diag, param_input.offd);
 
-    AMP::LinearAlgebra::transformDofToCSR<AMP::LinearAlgebra::HypreCSRPolicy>(
-        diffusionOperator->getMatrix(), firstRow, endRow, nnz, cols, coeffs );
+    auto [params_diag, params_offd] = [](auto & ... in) {
+	    return std::make_pair(
+		    AMP::LinearAlgebra::CSRMatrixParameters<Policy>::CSRSerialMatrixParameters{
+			    in.nnz.data(), in.rowstart.data(), in.cols.data(), in.cols_loc.data(),
+			    in.coeffs.data()}...);
+    }(param_input.diag, param_input.offd);
 
-    auto & mdata = *diffusionOperator->getMatrix()->getMatrixData();
+    auto csr_params = std::make_shared<AMP::LinearAlgebra::CSRMatrixParameters<Policy>>(
+	    firstRow, endRow, params_diag, params_offd, nnz_pad, meshAdapter->getComm());
+    auto csrMatrix = std::make_shared<AMP::LinearAlgebra::CSRMatrix<Policy>>(csr_params);
+
+
+    using csr_data = AMP::LinearAlgebra::CSRMatrixData<Policy, AMP::HostAllocator<int>>;
+    auto & mdata = dynamic_cast<csr_data&>(*csrMatrix->getMatrixData());
 
     init.comm = MPI_COMM_WORLD;
     init.ncols = init.nrows = mdata.numGlobalRows();
@@ -89,15 +125,19 @@ auto create_amp_mat(csr_topo::init & init) {
     init.row_part.set_offsets(rowpart);
     init.col_part.set_offsets(rowpart);
 
-    csr procmat(nnz.size(), nnz.size());
-    procmat.resize(coeffs.size());
+    csr procmat(mdata.numLocalRows(), mdata.numLocalColumns());
+    procmat.resize(mdata.numberOfNonZeros());
 
     auto [rowptr, colind, values] = procmat.rep();
-    std::copy(cols.begin(), cols.end(), colind.begin());
-    std::copy(coeffs.begin(), coeffs.end(), values.begin());
-
-    for (std::size_t i = 0; i < nnz.size(); ++i) {
-	    rowptr[i+1] = rowptr[i] + nnz[i];
+    std::size_t nnz_count = 0;
+    for (std::size_t i = 0; i < mdata.numLocalRows(); ++i) {
+	    std::vector<double> coeffs;
+	    std::vector<std::size_t> cols;
+	    mdata.getRowByGlobalID(i + mdata.beginRow(), cols, coeffs);
+	    std::copy(cols.begin(), cols.end(), colind.begin() + nnz_count);
+	    std::copy(coeffs.begin(), coeffs.end(), values.begin() + nnz_count);
+	    nnz_count += cols.size();
+	    rowptr[i+1] = nnz_count;
     }
 
     init.proc_mats.push_back(std::move(procmat));
