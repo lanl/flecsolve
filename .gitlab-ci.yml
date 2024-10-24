@@ -28,7 +28,7 @@ default:
       aud: https://asc-git.lanl.gov
 
 variables:
-  USE_SPACK_UPSTREAM: develop-b81d7d0a
+  USE_SPACK_UPSTREAM: current
   DARWIN_SPACK_UPSTREAM: "/projects/flecsi-devel/gitlab/spack-upstream/${USE_SPACK_UPSTREAM}"
   COLOR_BLUE: "\e[1;34m"
   COLOR_MAGENTA: "\e[1;35m"
