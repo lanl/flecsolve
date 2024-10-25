@@ -46,6 +46,8 @@ inline constexpr std::size_t work_size = workvec::nwork + 6; // max for bdf6
 template<std::size_t Version = 0>
 using topo_work = topo_work_base<work_size, Version>;
 
+static inline work_factory<work_size> make_work;
+
 short order(method meth);
 
 template<class O, class W, class S>
@@ -84,7 +86,7 @@ struct integrator : base<parameters<O, W, S>> {
 		auto & rhs = getvec<workvec::rhs>();
 		auto & source = getvec<workvec::source>();
 		auto & sol = getvec<workvec::current_sol>();
-		decltype(auto) solver = params.get_solver();
+		auto & solver = params.get_solver();
 
 		rhs.scale(-1., source);
 		auto info = solver.apply(rhs, sol);

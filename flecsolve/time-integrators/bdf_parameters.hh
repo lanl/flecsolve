@@ -155,22 +155,19 @@ struct parameters : time_integrator::parameters<settings, Op, Work> {
 	using base = time_integrator::parameters<settings, Op, Work>;
 
 	template<class O, class W, class S>
-	parameters(const settings & s, O && op, W && work, S && solver)
-		: base(s, std::forward<O>(op), std::forward<W>(work)),
-		  solver(std::forward<S>(solver)) {}
+	parameters(const settings & s, op::handle<O> op, W && work, op::handle<S> solver)
+		: base(s, op, std::forward<W>(work)),
+		  solver(solver) {}
 
 	auto & get_solver() {
-		if constexpr (is_reference_wrapper_v<Solver>)
-			return solver.get();
-		else
-			return solver;
+		return solver.get();
 	}
 
 protected:
-	std::decay_t<Solver> solver;
+	op::handle<Solver> solver;
 };
 
 template<class O, class W, class S>
-parameters(const settings &, O &&, W &&, S &&) -> parameters<O, W, S>;
+parameters(const settings &, op::handle<O>, W &&, op::handle<S>) -> parameters<O, W, S>;
 }
 #endif
