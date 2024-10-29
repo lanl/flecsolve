@@ -146,7 +146,7 @@ struct csr_base {
 	template<flecsi::PrivilegeCount N>
 	static void
 	set_ptrs(flecsi::data::multi<
-				 flecsi::field<flecsi::data::points::Value>::accessor1<
+	         flecsi::field<flecsi::data::copy_engine::Point>::accessor1<
 					 flecsi::privilege_repeat<flecsi::wo, N>>> aa,
 	         const std::vector<std::map<
 				 flecsi::Color,
@@ -155,12 +155,12 @@ struct csr_base {
 	         const MPI_Comm &) {
 		std::size_t ci = 0;
 		for (auto & a : aa.accessors()) {
-			for (auto const & si : points[ci++]) {
-				for (auto p : si.second) {
+			for (auto const & [owner, ghosts] : points[ci++]) {
+				for (auto const & [local_offset, remote_offset] : ghosts) {
 					// si.first: owner
 					// p.first: local ghost offset
 					// p.second: remote shared offset
-					a[p.first] = flecsi::data::points::make(si.first, p.second);
+					a[local_offset] = flecsi::data::copy_engine::point(owner, remote_offset);
 				}
 			}
 		}
@@ -193,10 +193,10 @@ struct csr_category : csr_base, flecsi::topo::with_meta<P> {
 	template<typename Type,
 	         flecsi::data::layout Layout,
 	         typename P::index_space Space>
-	void ghost_copy(
-		const flecsi::data::field_reference<Type, Layout, P, Space> & f) {
+	[[nodiscard]] const flecsi::data::copy_plan * ghost_copy(
+		const flecsi::data::field_reference<Type, Layout, P, Space> &) {
 		static_assert(Space == P::column_space);
-		column_plan_.issue_copy(f.fid());
+		return &column_plan_;
 	}
 
 	csr_category(const coloring & c)
