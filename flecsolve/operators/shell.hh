@@ -38,15 +38,30 @@ protected:
 };
 
 template<class F, auto I, auto O>
-auto make_shell(F && f, variable_t<I>, variable_t<O>) { 
+auto make_shell(F && f, variable_t<I>, variable_t<O>) {
 	return core<shell<std::decay_t<F>, variable_t<I>, variable_t<O>>>(
 		std::forward<F>(f), variable<I>, variable<O>);
+}
+
+template<class F, auto... I, auto... O>
+auto make_shell(F && f, multivariable_t<I...>, multivariable_t<O...>) {
+	return core<shell<std::decay_t<F>, multivariable_t<I...>, multivariable_t<O...>>>(
+		std::forward<F>(f), multivariable<I...>, multivariable<O...>);
 }
 
 template<class F>
 auto make_shell(F && f) {
 	return make_shell(std::forward<F>(f),
 	                  variable<anon_var::anonymous>, variable<anon_var::anonymous>);
+}
+
+template<class F, auto... I, auto... O>
+auto make_shared_shell(F && f, multivariable_t<I...>, multivariable_t<O...>) {
+	return make_shared<shell<F,
+		multivariable_t<I...>,
+		multivariable_t<O...>>>(std::forward<F>(f),
+		                        multivariable<I...>,
+		                        multivariable<O...>);
 }
 
 template<class F, auto I, auto O>
@@ -62,6 +77,12 @@ auto make_shared_shell(F && f) {
 	return make_shared_shell(std::forward<F>(f),
 	                         variable<anon_var::anonymous>,
 	                         variable<anon_var::anonymous>);
+}
+
+template<auto... I, auto... O>
+auto make_identity(multivariable_t<I...>, multivariable_t<O...>) {
+	return make_shared_shell([](const auto & x, auto & y) { y.copy(x); },
+	                         multivariable<I...>, multivariable<O...>);
 }
 
 template<auto ivar, auto ovar>

@@ -52,14 +52,14 @@ declared previously.  A helper function is added that will be used to
 intialize these once the mesh has been allocated:
 
     void initialize_vectors() {
-	    u_.emplace(m, ud[0](m));
-	    unew_.emplace(m, ud[1](m));
+	    u_.emplace(flecsolve::vec::make(m, ud[0](m)));
+	    unew_.emplace(flecsolve::vec::make(m, ud[1](m)));
     }
 
 **Operator** The operator used to apply $`\alpha \Delta`$ to a vector is defined in [heat.hh](./heat.hh):
 
-    struct heat_op {
-        heat_op(double d) : diffusivity(d) {}
+    struct heat_op : flecsolve::op::base<heat_params> {
+        heat_op(double d) : flecsolve::op::base<heat_params>(d)) {}
 
         template<class Domain, class Range>
         void apply(const Domain & x, Range & y) const {
@@ -68,11 +68,6 @@ intialize these once the mesh has been allocated:
                                            y.data.ref(),
                                            x.data.ref());
         }
-
-        double diffusivity;
-
-        static constexpr auto input_var = flecsolve::variable<flecsolve::anon_var::anonymous>;
-        static constexpr auto output_var = flecsolve::variable<flecsolve::anon_var::anonymous>;
     };
 
 The operator needs to provide what variables it operates on and
@@ -87,34 +82,30 @@ and `main` function for the explicit and implicit binaries is
 mesh and then uses the control policy object `cp` to save information
 about the mesh and initialize the vectors.
 
-    m.allocate(coloring.get(), geometry);
+    m.allocate(mesh::mpi_coloring(idef), geometry);
 
     cp.diffusivity = diffusivity.value();
     cp.initialize_vectors();
     cp.save_geometry(geometry, axis_extents);
 
 **Time Integration** The explicit time integration can be found in
-[explicit.cc](./explicit.cc).  First the parameters for the time
-integrator are created:
+[explicit.cc](./explicit.cc).  First the time integrator is created from
+its parameters:
 
-    rk23::parameters params("time-integrator",
-                            heat_op{cp.diffusivity},
-                            rk23::topo_work<>::get(u));
+    rk23::integrator ti(rk23::parameters(
+	    read_config("explicit.cfg", rk23::options("time-integrator")),
+		op::ref(F),
+		rk23::make_work(u)));
 
-The first parameters to `rk23::parameters` is the name of the section
-a config file that contains the runtime options for the integrator.
-The second parameters is the operator to use.  The third parameter is
-an array of work vectors needed by `rk23`.  `rk23::topo_work` is a
-helper struct for automatically creating this workspace array given a
-template vector.  The next couple of lines finalize the parameters and
-create the time integrator:
+The first parameter to `rk23::parameters` is the runtime settings for the integrator.
+These are given by reading a configuration file.  In this example, `explicit.cfg` is the
+filename of the configuration file and `"time-integrator"` is the named section of the
+configuration file specifying the options for the integrator.  The second parameter to
+`rk23::parameters` is a handle to the operator used for the time integrator.  The last
+parameter is an array of work vectors needed by `rk23`.  `rk23::make_work` is a helper
+for automatically creating this workspace array given a template vector.
 
-    read_config("explicit.cfg", params);
-    rk23::integrator ti(std::move(params));
-
-The first line reads the dynamic options into the parameters from a
-config file, and the second line creates the integrator.  Finally, the
-time integration loop uses $`u^k`$ and $`u^{k+1}`$ (called `u` and
+Finally, the time integration loop uses $`u^k`$ and $`u^{k+1}`$ (called `u` and
 `unew`) to integrate the solution in time:
 
     auto dt = ti.get_current_dt();
@@ -135,18 +126,19 @@ The implicit time integration is implemented in
 explicit time integration.  One main difference is the parameters
 given to the `bdf` integrator:
 
-    bdf::parameters params("time-integrator",
-                           operator_adapter<heat_op>(cp.diffusivity),
-                           bdf::topo_work<>::get(u),
-                           krylov_factory());
+    auto F = op::make_shared<operator_adapter<heat_op>>(cp.diffusivity);
+    bdf::integrator ti(
+		bdf::parameters(ti_settings,
+		                F,
+		                bdf::make_work(u),
+	                    krylov_factory::make_shared(slv_settings, u, F)));
 
 Instead of giving the implicit integrator the `heat_op` operator
 directly, an `operator_adapter` is used to provide the operator that
 will be inverted during the time integration.  Specifically, the
 adapter takes the heat operator $`F = \alpha \Delta`$ and computes:
-$`(I - \gamma F)`$ where $`\gamma`$ is parameterized
-scaling from the time integrator (e.g., $`\Delta t`$ for backward
-Euler).  The `bdf::parameters` also takes either a solver or a solver
-factory as its final parameters.  In this case, a factory is given
-that will construct the specified solver based on the options
-specified in the input file.
+$`(I - \gamma F)`$ where $`\gamma`$ is parameterized scaling from the
+time integrator (e.g., $`\Delta t`$ for backward Euler).  The
+`bdf::parameters` also takes a solver as its final parameter.  In this
+case, a factory is used to construct the specified solver based on the
+options specified in the input file.

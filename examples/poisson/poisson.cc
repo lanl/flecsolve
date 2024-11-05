@@ -3,7 +3,6 @@
 
 #include "flecsolve/solvers/factory.hh"
 #include "flecsolve/solvers/cg.hh"
-#include "flecsolve/solvers/krylov_operator.hh"
 
 #include "control.hh"
 #include "mesh.hh"
@@ -49,18 +48,10 @@ void set_problem(mesh::accessor<ro> m,
 	const auto h2 = m.dxdy();
 
 	std::size_t ibeg{2}, jbeg{2};
-	if (m.is_boundary<mesh::x_axis, mesh::boundary::low>(ibeg - 1))
-		++ibeg;
-	if (m.is_boundary<mesh::y_axis, mesh::boundary::low>(jbeg - 1))
-		++jbeg;
 
-	auto ext = std::array{m.size<mesh::axis::x_axis, mesh::domain::all>(),
-	                      m.size<mesh::axis::y_axis, mesh::domain::all>()};
+	auto ext = std::array{m.extent<mesh::axis::x_axis>(),
+	                      m.extent<mesh::axis::y_axis>()};
 	std::size_t iend{ext[0] - 2}, jend{ext[1] - 2};
-	if (m.is_boundary<mesh::x_axis, mesh::boundary::high>(iend))
-		--iend;
-	if (m.is_boundary<mesh::y_axis, mesh::boundary::high>(jend))
-		--jend;
 
 	for (std::size_t j{2}; j <= jend; ++j) {
 		for (std::size_t i{ibeg}; i <= iend; ++i) {
@@ -78,6 +69,7 @@ void set_problem(mesh::accessor<ro> m,
 		const double y = m.value<mesh::y_axis>(j);
 		for (auto i : m.vertices<mesh::x_axis>()) {
 			const double x = m.value<mesh::x_axis>(i);
+
 			f(i, j) = rhs(x, y) * h2;
 			u(i, j) = sol(x, y);
 
@@ -96,9 +88,9 @@ void output(mesh::accessor<ro> m,
 	std::ofstream ofile(std::string{base_fname} + "-" +
 	                    std::to_string(flecsi::process()) + ".dat");
 
-	for (auto j : m.vertices<mesh::y_axis, mesh::logical>()) {
+	for (auto j : m.vertices<mesh::y_axis, mesh::extended>()) {
 		const double y = m.value<mesh::y_axis>(j);
-		for (auto i : m.vertices<mesh::x_axis, mesh::logical>()) {
+		for (auto i : m.vertices<mesh::x_axis, mesh::extended>()) {
 			const double x = m.value<mesh::x_axis>(i);
 			ofile << x << " " << y << " " << u(i, j) << '\n';
 		}
@@ -146,17 +138,15 @@ void solve(control_policy & cp) {
 	auto & u = cp.u();
 
 	std::size_t iter{0};
-	op::krylov slv(op::krylov_parameters(
+	op::core<poisson_op> so(sod(cp.m));
+	auto slv = cg::solver(
 		read_config("poisson.cfg", cg::options("solver")),
-		cg::topo_work<>::get(f),
-		op::make(poisson_op{sod(cp.m)}),
-		op::I,
-		[&](const auto &, double rnorm) {
-			std::cout << ++iter << " " << rnorm << std::endl;
+		cg::make_work(f))(op::ref(so), op::I, [&](auto &, double rnorm) {
+			flog(info) << iter++ << " " << rnorm << std::endl;
 			return false;
-		}));
+		});
 
-	slv.apply(f, u);
+	slv(f, u);
 }
 inline control::action<solve, cp::solve> solve_action;
 
@@ -181,19 +171,13 @@ inline control::action<check_error, cp::finalize> err_action;
 }
 
 int main(int argc, char * argv[]) {
+	flecsi::getopt()(argc, argv);
+	const flecsi::run::dependencies_guard dg;
+	flecsi::run::config cfg;
 
-	auto status = flecsi::initialize(argc, argv);
-	status = poisson::control::check_status(status);
-
-	if (status != flecsi::run::status::success) {
-		return status < flecsi::run::status::clean ? 0 : status;
-	}
+	const flecsi::runtime run(cfg);
 
 	flecsi::flog::add_output_stream("clog", std::clog, true);
 
-	status = flecsi::start(poisson::control::execute);
-
-	flecsi::finalize();
-
-	return 0;
+	return run.control<poisson::control>();
 }

@@ -17,9 +17,9 @@ void ics(mesh::accessor<ro> m, field<double>::accessor<wo, na> ua) {
 
 	auto u = m.mdcolex<mesh::vertices>(ua);
 
-	for (auto j : m.vertices<mesh::y_axis, mesh::logical>()) {
+	for (auto j : m.vertices<mesh::y_axis, mesh::extended>()) {
 		const double y = m.value<mesh::y_axis>(j);
-		for (auto i : m.vertices<mesh::x_axis, mesh::logical>()) {
+		for (auto i : m.vertices<mesh::x_axis, mesh::extended>()) {
 			const double x = m.value<mesh::x_axis>(i);
 			u(i, j) = f(x, y);
 		}
@@ -39,9 +39,8 @@ void init_mesh(control_policy & cp) {
 		mesh::base::distribute(flecsi::processes(), axis_extents),
 		axis_extents);
 
-	for (auto & a : idef.axes) {
-		a.hdepth = 1;
-	}
+	for (auto & a : idef.axes)
+		a.hdepth = a.bdepth = 1;
 
 	mesh::grect geometry;
 	geometry[0][0] = 0.0;
@@ -78,19 +77,14 @@ inline control::action<output_solution, cp::finalize> output_action;
 }
 
 int main(int argc, char * argv[]) {
+	flecsi::getopt()(argc, argv);
 
-	auto status = flecsi::initialize(argc, argv);
-	status = heat::control::check_status(status);
+	const flecsi::run::dependencies_guard dg;
+	flecsi::run::config cfg;
 
-	if (status != flecsi::run::status::success) {
-		return status < flecsi::run::status::clean ? 0 : status;
-	}
+	const flecsi::runtime run(cfg);
 
 	flecsi::flog::add_output_stream("clog", std::clog, true);
 
-	status = flecsi::start(heat::control::execute);
-
-	flecsi::finalize();
-
-	return 0;
+	return run.control<heat::control>();
 }

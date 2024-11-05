@@ -2,7 +2,6 @@ flecsolve_headers(
   bicgstab.hh
   cg.hh
   gmres.hh
-  krylov_operator.hh
   krylov_parameters.hh
   nka.hh
   solver_settings.hh

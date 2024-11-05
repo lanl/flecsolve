@@ -20,12 +20,12 @@ void time_integration(control_policy & cp) {
 		read_config("implicit.cfg",
 	                bdf::options("time-integrator"),
 	                krylov_factory::options("linear-solver"));
-	op::core<operator_adapter<heat_op>, op::shared_storage> F(cp.diffusivity);
+	auto F = op::make_shared<operator_adapter<heat_op>>(cp.diffusivity);
 	bdf::integrator ti(
 		bdf::parameters(ti_settings,
-	                    F,
-	                    bdf::topo_work<>::get(u),
-	                    krylov_factory::make(slv_settings, u, F)));
+		                F,
+		                bdf::make_work(u),
+	                    krylov_factory::make_shared(slv_settings, u, F)));
 
 	auto output = [&]() {
 		if (output_steps.value()) {

@@ -18,7 +18,7 @@ struct rate : op::base<parameters> {
 	using base = op::base<parameters>;
 	explicit rate(double l) : base{l} {}
 	template<class D, class R>
-	void apply(const D & x, R & y) {
+	void apply(const D & x, R & y) const {
 		y.scale(params.lambda, x);
 	}
 };
@@ -33,7 +33,7 @@ int extest() {
 
 		init_mesh(1, msh);
 
-		rate F(-1);
+		op::core<rate> F(-1.);
 
 		auto x = vec::make(msh)(xd);
 		auto xnew = vec::make(msh)(xnewd);
