@@ -48,10 +48,15 @@ void set_problem(mesh::accessor<ro> m,
 	const auto h2 = m.dxdy();
 
 	std::size_t ibeg{2}, jbeg{2};
+	if (m.is_low<mesh::x_axis>()) ++ibeg;
+	if (m.is_low<mesh::y_axis>()) ++jbeg;
 
 	auto ext = std::array{m.extent<mesh::axis::x_axis>(),
 	                      m.extent<mesh::axis::y_axis>()};
+
 	std::size_t iend{ext[0] - 2}, jend{ext[1] - 2};
+	if (m.is_high<mesh::x_axis>()) --iend;
+	if (m.is_high<mesh::y_axis>()) --jend;
 
 	for (std::size_t j{2}; j <= jend; ++j) {
 		for (std::size_t i{ibeg}; i <= iend; ++i) {
@@ -111,7 +116,7 @@ void init_mesh(control_policy & cp) {
 		axis_extents);
 	for (auto & a : idef.axes) {
 		a.hdepth = 2;
-		a.bdepth = 1;
+		a.bdepth = 2;
 	}
 
 	mesh::grect geometry;
@@ -136,6 +141,8 @@ void solve(control_policy & cp) {
 
 	auto & f = cp.f();
 	auto & u = cp.u();
+
+	u.set_random();
 
 	std::size_t iter{0};
 	op::core<poisson_op> so(sod(cp.m));

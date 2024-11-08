@@ -69,31 +69,36 @@ struct mesh : flecsi::topo::specialization<flecsi::topo::narray, mesh> {
 	template<class B>
 	struct interface : B {
 
-		template<enum axis A>
-		auto axis() const {
+		template<axis A>
+		auto get_axis() const {
 			return B::template axis<mesh::vertices, A>();
 		}
 
-
-		template<enum axis A>
+		template<axis A>
 		std::size_t global_id(std::size_t i) const {
-			return axis<A>().global_id(i);
+			const flecsi::topo::narray_impl::axis_info & a = get_axis<A>();
+			const auto l0 = a.layout.logical<0>();
+			const auto l1 = a.layout.logical<1>();
+			if (a.low() && i == l0 - 1) return l0 - 2;
+			else return a.offset + i - l0 + 1;
 		}
 
-		template<enum axis A, domain DM = domain::interior>
+		template<axis A, domain DM = domain::interior>
 		auto vertices() const {
 			if constexpr (DM == domain::interior) {
 				return flecsi::topo::make_ids<index_space::vertices>(
-					axis<A>().layout.logical());
+					get_axis<A>().layout.logical());
 			} else if constexpr (DM == domain::extended) {
+				const flecsi::topo::narray_impl::axis_layout & l = get_axis<A>().layout;
 				return flecsi::topo::make_ids<index_space::vertices>(
-					axis<A>().layout.extended());
+					flecsi::util::iota_view(
+						l.extended<0>() + is_low<A>(), l.extended<1>() - is_high<A>()));
 			}
 		}
 
-		template<enum axis A>
+		template<axis A>
 		auto extent() {
-			return axis<A>().layout.extent();
+			return get_axis<A>().layout.extent();
 		}
 
 		double xdelta() { return this->policy_meta().xdelta; }
@@ -126,7 +131,7 @@ struct mesh : flecsi::topo::specialization<flecsi::topo::narray, mesh> {
 				this->template mdcolex<S>(a)};
 		}
 
-		template<enum axis A>
+		template<axis A>
 		double dx() {
 			if constexpr (A == x_axis)
 				return xdelta();
@@ -134,49 +139,19 @@ struct mesh : flecsi::topo::specialization<flecsi::topo::narray, mesh> {
 				return ydelta();
 		}
 
-		template<enum axis A>
+		template<axis A>
 		double value(std::size_t i) {
 			return (dx<A>() * global_id<A>(i));
 		}
 
-		template<enum axis A, boundary BD>
-		bool is_boundary(std::size_t i) {
+		template<axis A>
+		bool is_low() const {
+			return get_axis<A>().low();
+		}
 
-			const flecsi::topo::narray_impl::axis_info & a = axis<A>();
-			const bool l = a.low();
-			const bool h = a.high();
-
-			const auto loff = a.layout.logical<0>();
-			const auto lsize = a.layout.logical<1>() - loff;
-
-
-			if (l && h) { /* degenerate */
-				if constexpr (BD == boundary::low) {
-					return i == loff;
-				}
-				else {
-					return i == (lsize + loff - 1);
-				}
-			}
-			else if (l) {
-				if constexpr (BD == boundary::low) {
-					return i == loff;
-				}
-				else {
-					return false;
-				}
-			}
-			else if (h) {
-				if constexpr (BD == boundary::low) {
-					return false;
-				}
-				else {
-					return i == (lsize + loff - 1);
-				}
-			}
-			else { /* interior */
-				return false;
-			}
+		template<axis A>
+		bool is_high() const {
+			return get_axis<A>().high();
 		}
 
 		template<index_space Space>
@@ -188,18 +163,18 @@ struct mesh : flecsi::topo::specialization<flecsi::topo::narray, mesh> {
 		void set_geom(const grect & g) {
 			auto & md = this->policy_meta();
 			double xdelta =
-				std::abs(g[0][1] - g[0][0]) / (axis<x_axis>().layout.extent() - 1);
+				std::abs(g[0][1] - g[0][0]) / (get_axis<x_axis>().axis.extent + 1);
 			double ydelta =
-				std::abs(g[1][1] - g[1][0]) / (axis<y_axis>().layout.extent() - 1);
+				std::abs(g[1][1] - g[1][0]) / (get_axis<y_axis>().axis.extent + 1);
 
 			md.xdelta = xdelta;
 			md.ydelta = ydelta;
 		}
 
 	protected:
-		template<index_space Space, enum axis A>
+		template<index_space Space, axis A>
 		util::srange interior_subrange() {
-			const auto & l = axis<A>().layout;
+			const auto & l = get_axis<A>().layout;
 			return {l.template logical<0>(), l.template logical<1>()};
 		}
 
