@@ -73,13 +73,10 @@ auto create_amp_mat(csr_topo::init & init) {
     using lidx_t   = typename Policy::lidx_t;
     using scalar_t = typename Policy::scalar_t;
 
-    gidx_t firstRow, endRow;
-    lidx_t nnz_pad;
+    std::array<gidx_t, 2> row_rng, col_rng;
     struct split_params {
 	    std::vector<lidx_t> nnz;
-	    std::vector<lidx_t> rowstart;
 	    std::vector<gidx_t> cols;
-	    std::vector<lidx_t> cols_loc;
 	    std::vector<scalar_t> coeffs;
     };
     struct split {
@@ -87,38 +84,33 @@ auto create_amp_mat(csr_topo::init & init) {
     } param_input;
     [&](split_params & diag, split_params & offd) {
 	    AMP::LinearAlgebra::transformDofToCSR<Policy>(diffusionOperator->getMatrix(),
-	                                                  firstRow, endRow,
+	                                                  row_rng[0], row_rng[1],
+	                                                  col_rng[0], col_rng[1],
 	                                                  diag.nnz,
-	                                                  diag.rowstart,
 	                                                  diag.cols,
-	                                                  diag.cols_loc,
 	                                                  diag.coeffs,
 	                                                  offd.nnz,
-	                                                  offd.rowstart,
 	                                                  offd.cols,
-	                                                  offd.cols_loc,
-	                                                  offd.coeffs,
-	                                                  nnz_pad);
+	                                                  offd.coeffs);
     }(param_input.diag, param_input.offd);
 
     auto [params_diag, params_offd] = [](auto & ... in) {
 	    return std::make_pair(
 		    AMP::LinearAlgebra::CSRMatrixParameters<Policy>::CSRSerialMatrixParameters{
-			    in.nnz.data(), in.rowstart.data(), in.cols.data(), in.cols_loc.data(),
-			    in.coeffs.data()}...);
+			    in.nnz.data(), in.cols.data(), in.coeffs.data()}...);
     }(param_input.diag, param_input.offd);
 
     auto csr_params = std::make_shared<AMP::LinearAlgebra::CSRMatrixParameters<Policy>>(
-	    firstRow, endRow, params_diag, params_offd, nnz_pad, meshAdapter->getComm());
+	    row_rng[0], row_rng[1], col_rng[0], col_rng[1], params_diag, params_offd, meshAdapter->getComm());
     auto csrMatrix = std::make_shared<AMP::LinearAlgebra::CSRMatrix<Policy>>(csr_params);
 
 
-    using csr_data = AMP::LinearAlgebra::CSRMatrixData<Policy, AMP::HostAllocator<int>>;
+    using csr_data = AMP::LinearAlgebra::CSRMatrixData<Policy>;
     auto & mdata = dynamic_cast<csr_data&>(*csrMatrix->getMatrixData());
 
     init.comm = MPI_COMM_WORLD;
     init.ncols = init.nrows = mdata.numGlobalRows();
-    auto lastrow = flecsi::util::mpi::all_gatherv(endRow);
+    auto lastrow = flecsi::util::mpi::all_gatherv(row_rng[1]);
     flecsi::util::offsets::storage store;
     std::copy(lastrow.begin(), lastrow.end(), std::back_inserter(store));
     flecsi::util::offsets rowpart(std::move(store));

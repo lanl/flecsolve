@@ -33,10 +33,8 @@ using amp_mat =
 using amp_policy = AMP::LinearAlgebra::HypreCSRPolicy;
 struct seq_csr_storage {
 	std::vector<amp_policy::lidx_t>   rownnz;
-	std::vector<amp_policy::lidx_t>   rowptr;
 	std::vector<amp_policy::gidx_t>   colind;
 	std::vector<amp_policy::scalar_t> values;
-	std::vector<amp_policy::lidx_t>   colind_local;
 };
 
 struct amp_storage {
@@ -78,10 +76,7 @@ struct csr_task
 		auto reserve = [](auto & src, auto & dst) {
 			auto [rowptr, colind, values] = src.rep();
 			dst.rownnz.reserve(rowptr.size());
-			dst.rowptr.resize(rowptr.size());
-			dst.rowptr[0] = 0.;
 			dst.colind.reserve(colind.size());
-			dst.colind_local.reserve(colind.size());
 			dst.values.reserve(values.size());
 		};
 
@@ -90,20 +85,18 @@ struct csr_task
 
 		// todo: avoid deep copy if types are compatible.
 		for (std::size_t i = 0; i < diag.rows(); ++i) {
-			auto add_row = [&](auto & src, auto & dst, int local_offset) {
+			auto add_row = [&](auto & src, auto & dst) {
 				auto [rowptr, colind, values] = src.rep();
 				for (std::size_t off = rowptr[i]; off < rowptr[i+1]; ++off) {
 					auto lcol = colind[off];
-					dst.colind_local.push_back(lcol - local_offset);
 					dst.colind.push_back(
 						A.global_id(flecsi::topo::id<topo_t::cols>(lcol)));
 					dst.values.push_back(values[off]);
 				}
-				dst.rowptr[i+1] = rowptr[i+1];
 				dst.rownnz.push_back(rowptr[i+1] - rowptr[i]);
 			};
-			add_row(diag, store.diag, 0);
-			add_row(offd, store.offd, A.meta().cols.size());
+			add_row(diag, store.diag);
+			add_row(offd, store.offd);
 		}
 
 		const auto & meta = A.meta();
@@ -111,14 +104,14 @@ struct csr_task
 		auto [params_diag, params_offd] = [](auto & ... in) {
 			return std::make_pair(
 				AMP::LinearAlgebra::CSRMatrixParameters<amp_policy>::CSRSerialMatrixParameters{
-					in.rownnz.data(), in.rowptr.data(), in.colind.data(), in.colind_local.data(),
-					in.values.data()}...);
+					in.rownnz.data(), in.colind.data(), in.values.data()}...);
 		}(store.diag, store.offd);
 
 		auto csr_params = std::make_shared<AMP::LinearAlgebra::CSRMatrixParameters<amp_policy>>(
 			meta.rows.beg, meta.rows.end + 1,
+			meta.cols.beg, meta.cols.end + 1,
 			params_diag, params_offd,
-			0, AMP::AMP_MPI(meta.comm));
+			AMP::AMP_MPI(meta.comm));
 
 		auto csr_mat = std::make_shared<amp_mat>(csr_params);
 
@@ -157,7 +150,7 @@ struct csr_task
 	                           solve_info & info) {
 		info.iters = slv.getIterations();
 		info.res_norm_final = slv.getResidualNorm().get<float>();
-		if (slv.getConvergenceStatus())
+		if (slv.getConverged())
 			info.status = solve_info::stop_reason::converged_user;
 		else
 			info.status = solve_info::stop_reason::diverged_breakdown;
