@@ -11,6 +11,7 @@ class Flecsolve(CMakePackage):
     variant("tests", default=False, description="Enable unit tests")
 
     depends_on('flecsi@2.2:')
+    depends_on('amp')
 
     def cmake_args(self):
         args = [
