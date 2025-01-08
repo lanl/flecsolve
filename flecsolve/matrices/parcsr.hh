@@ -22,7 +22,6 @@ struct parcsr_data {
 		return *topo_slot;
 	}
 	typename topo_t::slot & topo() const { return *topo_slot; }
-	typename topo_t::cslot coloring;
 	typename topo_t::init coloring_input;
 
 	auto spmv_tmp() { return vec::make(topo(), spmv_tmp_def(topo())); }
@@ -101,14 +100,12 @@ struct parcsr : flecsolve::mat::sparse<parcsr_data,
 		: comm_(comm), colors_(colors) {
 		flecsi::execute<read_mat, flecsi::mpi>(
 			comm, fname, colors, data.coloring_input);
-		data.coloring.allocate(data.coloring_input);
-		data.topo().allocate(data.coloring.get(), data.coloring_input);
+		data.topo().allocate(typename topo_t::mpi_coloring(data.coloring_input), data.coloring_input);
 	}
 
 	explicit parcsr(typename topo_t::init && init) {
 		data.coloring_input = std::move(init);
-		data.coloring.allocate(data.coloring_input);
-		data.topo().allocate(data.coloring.get(), data.coloring_input);
+		data.topo().allocate(typename topo_t::mpi_coloring(data.coloring_input), data.coloring_input);
 	}
 
 	template<typename topo::csr<scalar, size>::index_space S>
