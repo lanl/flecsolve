@@ -53,7 +53,8 @@ print_usage() {
   echo "To enable CDash submission, set environment variable SUBMIT_TO_CDASH=true"
   echo
   echo "Use the environment variable PROJECT_SPACK_ENV to select a different"
-  echo "upstream."
+  echo "upstream. You can also configure the AMP Data location by setting"
+  echo "the AMP_DATA environment variable."
   echo
   echo "positional arguments:"
   echo "  system         name of the system"
@@ -89,8 +90,10 @@ export SPACK_ENV_NAME=$2
 
 if [[ "$SYSTEM_NAME" == "darwin" || "$SYSTEM_NAME" == "rocinante" || "$SYSTEM_NAME" == "venado" ]]; then
   PROJECT_SPACK_ENV=${PROJECT_SPACK_ENV:-/usr/projects/xcap/spack-env/${PROJECT_TYPE}/${PROJECT_SPACK_ENV_VERSION}}
+  AMP_DATA=${AMP_DATA:-/usr/projects/xcap/spack-env/AMP-Data.tar.gz}
 elif [[ "$SYSTEM_NAME" == "rzadams" || "${SYSTEM_NAME}" == "rzansel" || "$SYSTEM_NAME" == "rzvernal" ]]; then
   PROJECT_SPACK_ENV=${PROJECT_SPACK_ENV:-/usr/workspace/xcap/spack-env/${PROJECT_TYPE}/${PROJECT_SPACK_ENV_VERSION}}
+  AMP_DATA=${AMP_DATA:-/usr/workspace/xcap/spack-env/AMP-Data.tar.gz}
 else
   echo "Unkown system '${SYSTEM_NAME}'"
   false
@@ -173,7 +176,7 @@ cmake_build() {
   section start "cmake_build[collapsed=false]" "CMake Build"
   (
   source ${BUILD_ENV}
-  cmake -DCMAKE_VERBOSE_MAKEFILE=off -DCMAKE_INSTALL_PREFIX=$PWD/${BUILD_DIR}/install $@ ${BUILD_DIR}
+  cmake -DCMAKE_VERBOSE_MAKEFILE=off -DAMP_DATA=$AMP_DATA -DCMAKE_INSTALL_PREFIX=$PWD/${BUILD_DIR}/install $@ ${BUILD_DIR}
   if ${BUILD_WITH_CTEST}; then
     ctest -VV -S .gitlab/build_and_test.cmake,Configure,Build,$REPORT_ERRORS
   else

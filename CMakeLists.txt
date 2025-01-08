@@ -39,10 +39,10 @@ if( AMP_DATA OR AMP_DATA_URL )
     # AMP_DATA is a file, try to unpack it
     execute_process(
       COMMAND ${CMAKE_COMMAND} -E tar xzf "${AMP_DATA}"
-      WORKING_DIRECTORY "${AMP_INSTALL_DIR}"
+      WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
     )
-    if( EXISTS "${AMP_INSTALL_DIR}/AMP-Data" )
-      set( AMP_DATA "${AMP_INSTALL_DIR}/AMP-Data" )
+    if( EXISTS "${CMAKE_BINARY_DIR}/AMP-Data" )
+      set( AMP_DATA "${CMAKE_BINARY_DIR}/AMP-Data" )
     else()
       message(FATAL_ERROR "Error unpacking tar file ${AMP_DATA}")
     endif()
