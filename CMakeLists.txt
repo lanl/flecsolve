@@ -39,10 +39,10 @@ if( AMP_DATA OR AMP_DATA_URL )
     # AMP_DATA is a file, try to unpack it
     execute_process(
       COMMAND ${CMAKE_COMMAND} -E tar xzf "${AMP_DATA}"
-      WORKING_DIRECTORY "${AMP_INSTALL_DIR}"
+      WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
     )
-    if( EXISTS "${AMP_INSTALL_DIR}/AMP-Data" )
-      set( AMP_DATA "${AMP_INSTALL_DIR}/AMP-Data" )
+    if( EXISTS "${CMAKE_BINARY_DIR}/AMP-Data" )
+      set( AMP_DATA "${CMAKE_BINARY_DIR}/AMP-Data" )
     else()
       message(FATAL_ERROR "Error unpacking tar file ${AMP_DATA}")
     endif()
@@ -55,9 +55,6 @@ elseif( NOT TPLs_LIBMESH_FOUND AND NOT AMP_DATA )
 endif()
 
 option(ENABLE_UNIT_TESTS "Enable the Unit tests" On)
-set(ENABLE_FLOG ${FleCSI_ENABLE_FLOG})
-set(FLECSI_RUNTIME_MODEL ${FleCSI_RUNTIME_MODEL})
-set(FLECSI_BACKEND ${FleCSI_BACKEND})
 include(FleCSI/unit)
 
 if(ENABLE_UNIT_TESTS)
@@ -187,9 +184,9 @@ if(ENABLE_FORMAT AND TARGET ClangFormat::ClangFormat)
 endif()
 string(APPEND _summary "\n")
 flecsi_summary_info("FLECSI_BACKEND" "${FleCSI_BACKEND}" TRUE)
-flecsi_summary_option("ENABLE_FLOG" ${ENABLE_FLOG} "")
+flecsi_summary_option("ENABLE_FLOG" ${FleCSI_ENABLE_FLOG} "")
 flecsi_summary_option("ENABLE_UNIT_TESTS" ${ENABLE_UNIT_TESTS} "")
 flecsi_summary_option("FLECSOLVE_BUILD_EXAMPLES" ${FLECSOLVE_BUILD_EXAMPLES} "")
-flecsi_summary_option("AMP_DATA" ${AMP_DATA} "")
+flecsi_summary_option("AMP_DATA" "${AMP_DATA}" "")
 
 message(STATUS ${_summary})
