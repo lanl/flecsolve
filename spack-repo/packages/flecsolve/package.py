@@ -15,7 +15,7 @@ class Flecsolve(CMakePackage):
 
     def cmake_args(self):
         args = [
-            self.define_from_variant("ENABLE_UNIT_TESTS", "tests"),
+            self.define_from_variant("FLECSOLVE_ENABLE_UNIT_TESTS", "tests"),
         ]
         return args
 

@@ -13,8 +13,10 @@ flecsolve_headers(
   mg/coarsen.hh
   mg/intergrid.hh)
 
-flecsolve_sources(
-  amp.cc)
+if(FLECSOLVE_ENABLE_AMP)
+  flecsolve_sources(
+	amp.cc)
+endif()
 
 flecsi_add_test(cg
   SOURCES
@@ -64,7 +66,7 @@ flecsi_add_test(nka
   LIBRARIES flecsolve
   PROCS 1)
 
-if(TPLs_LIBMESH_FOUND AND AMP_DATA)
+if(FLECSOLVE_ENABLE_AMP AND TPLs_LIBMESH_FOUND AND AMP_DATA)
   flecsi_add_test(amp-amg
 	SOURCES
 	test/amp_boomeramg.cc

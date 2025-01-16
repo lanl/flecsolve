@@ -19,45 +19,49 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 endif()
 
 find_package(FleCSI REQUIRED)
-find_package(AMP REQUIRED)
-find_package(TPLs REQUIRED)
+option(FLECSOLVE_ENABLE_AMP "Enable AMP wrapper in flecsolve" ON)
+if(FLECSOLVE_ENABLE_AMP)
+  find_package(AMP REQUIRED)
+  find_package(TPLs REQUIRED)
 
-# amp data
-if( AMP_DATA OR AMP_DATA_URL )
-  if( AMP_DATA_URL )
-    message( STATUS "Downloading AMP Data - ${AMP_DATA_URL}" )
-    get_filename_component( AMP_DATA "${AMP_DATA_URL}" NAME)
-    setT( AMP_DATA "${CMAKE_CURRENT_BINARY_DIR}/${AMP_DATA}" )
-    file( DOWNLOAD "${AMP_DATA_URL}" "${AMP_DATA}" )
+  # amp data
+  if( AMP_DATA OR AMP_DATA_URL )
+	if( AMP_DATA_URL )
+      message( STATUS "Downloading AMP Data - ${AMP_DATA_URL}" )
+      get_filename_component( AMP_DATA "${AMP_DATA_URL}" NAME)
+      setT( AMP_DATA "${CMAKE_CURRENT_BINARY_DIR}/${AMP_DATA}" )
+      file( DOWNLOAD "${AMP_DATA_URL}" "${AMP_DATA}" )
+	endif()
+	if( "${AMP_DATA}" STREQUAL "" )
+      unset( AMP_DATA )
+	endif()
+	if ( IS_DIRECTORY "${AMP_DATA}" )
+      # AMP_DATA is a directory
+	elseif( EXISTS "${AMP_DATA}" )
+      # AMP_DATA is a file, try to unpack it
+      execute_process(
+		COMMAND ${CMAKE_COMMAND} -E tar xzf "${AMP_DATA}"
+		WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
+      )
+      if( EXISTS "${CMAKE_BINARY_DIR}/AMP-Data" )
+		set( AMP_DATA "${CMAKE_BINARY_DIR}/AMP-Data" )
+      else()
+		message(FATAL_ERROR "Error unpacking tar file ${AMP_DATA}")
+      endif()
+	endif()
   endif()
-  if( "${AMP_DATA}" STREQUAL "" )
-    unset( AMP_DATA )
-  endif()
-  if ( IS_DIRECTORY "${AMP_DATA}" )
-    # AMP_DATA is a directory
-  elseif( EXISTS "${AMP_DATA}" )
-    # AMP_DATA is a file, try to unpack it
-    execute_process(
-      COMMAND ${CMAKE_COMMAND} -E tar xzf "${AMP_DATA}"
-      WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
-    )
-    if( EXISTS "${CMAKE_BINARY_DIR}/AMP-Data" )
-      set( AMP_DATA "${CMAKE_BINARY_DIR}/AMP-Data" )
-    else()
-      message(FATAL_ERROR "Error unpacking tar file ${AMP_DATA}")
-    endif()
+  if( AMP_DATA )
+	add_definitions( -DUSE_AMP_DATA )
+  elseif( NOT TPLs_LIBMESH_FOUND AND NOT AMP_DATA )
+	message(WARNING "LIBMESH not found or AMP_DATA is not set, some tests will be disabled" )
   endif()
 endif()
-if( AMP_DATA )
-  add_definitions( -DUSE_AMP_DATA )
-elseif( NOT TPLs_LIBMESH_FOUND AND NOT AMP_DATA )
-  message(WARNING "LIBMESH not found or AMP_DATA is not set, some tests will be disabled" )
-endif()
 
-option(ENABLE_UNIT_TESTS "Enable the Unit tests" On)
+
+option(FLECSOLVE_ENABLE_UNIT_TESTS "Enable the Unit tests" On)
 include(FleCSI/unit)
 
-if(ENABLE_UNIT_TESTS)
+if(FLECSOLVE_ENABLE_UNIT_TESTS)
   flecsi_enable_testing()
 
   # Avoid warning about DOWNLOAD_EXTRACT_TIMESTAMP in CMake 3.24:
@@ -82,10 +86,10 @@ if(ENABLE_UNIT_TESTS)
 endif()
 
 include(FleCSI/summary)
-option(ENABLE_FORMAT "Enable format target" OFF)
-mark_as_advanced(ENABLE_FORMAT)
+option(FLECSOLVE_ENABLE_FORMAT "Enable format target" OFF)
+mark_as_advanced(FLECSOLVE_ENABLE_FORMAT)
 
-if(ENABLE_FORMAT)
+if(FLECSOLVE_ENABLE_FORMAT)
   include(FleCSI/format)
 
   set(ClangFormat_VERSION "13.0.1" CACHE STRING
@@ -98,8 +102,9 @@ endif()
 # option to build examples
 option(FLECSOLVE_BUILD_EXAMPLES "Build the examples" OFF)
 
-option(BUILD_SHARED_LIBS "Build shared libs" ON)
-mark_as_advanced(BUILD_SHARED_LIBS)
+option(FLECSOLVE_BUILD_SHARED_LIBS "Build flecsolve with shared libraries" ON)
+mark_as_advanced(FLECSOLVE_BUILD_SHARED_LIBS)
+set(BUILD_SHARED_LIBS "${FLECSOLVE_BUILD_SHARED_LIBS}")
 
 include(GNUInstallDirs)
 
@@ -179,14 +184,15 @@ flecsi_summary_info("CMAKE_CXX_FLAGS" "${CMAKE_CXX_FLAGS}" TRUE)
 flecsi_summary_info("CMAKE_C_COMPILER" "${CMAKE_C_COMPILER}" TRUE)
 flecsi_summary_info("CMAKE_C_COMPILER_VERSION" "${CMAKE_C_COMPILER_VERSION}" TRUE)
 flecsi_summary_info("CMAKE_C_FLAGS" "${CMAKE_C_FLAGS}" TRUE)
-if(ENABLE_FORMAT AND TARGET ClangFormat::ClangFormat)
+if(FLECSOLVE_ENABLE_FORMAT AND TARGET ClangFormat::ClangFormat)
   flecsi_summary_info("ClangFormat_EXECUTABLE" "${ClangFormat_EXECUTABLE}" TRUE)
 endif()
 string(APPEND _summary "\n")
 flecsi_summary_info("FLECSI_BACKEND" "${FleCSI_BACKEND}" TRUE)
-flecsi_summary_option("ENABLE_FLOG" ${FleCSI_ENABLE_FLOG} "")
-flecsi_summary_option("ENABLE_UNIT_TESTS" ${ENABLE_UNIT_TESTS} "")
+flecsi_summary_option("FLECSI_ENABLE_FLOG" ${FleCSI_ENABLE_FLOG} "")
+flecsi_summary_option("FLECSOLVE_ENABLE_UNIT_TESTS" ${FLECSOLVE_ENABLE_UNIT_TESTS} "")
+flecsi_summary_option("FLECSOLVE_ENABLE_AMP" "${FLECSOLVE_ENABLE_AMP}" "")
 flecsi_summary_option("FLECSOLVE_BUILD_EXAMPLES" ${FLECSOLVE_BUILD_EXAMPLES} "")
-flecsi_summary_option("AMP_DATA" "${AMP_DATA}" "")
+flecsi_summary_info("AMP_DATA" "${AMP_DATA}" TRUE)
 
 message(STATUS ${_summary})

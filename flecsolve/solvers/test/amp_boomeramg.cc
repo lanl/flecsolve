@@ -75,7 +75,7 @@ auto create_amp_mat(csr_topo::init & init) {
 
     std::array<gidx_t, 2> row_rng, col_rng;
     struct split_params {
-	    std::vector<lidx_t> nnz;
+	    std::vector<lidx_t> rowptr;
 	    std::vector<gidx_t> cols;
 	    std::vector<scalar_t> coeffs;
     };
@@ -86,18 +86,18 @@ auto create_amp_mat(csr_topo::init & init) {
 	    AMP::LinearAlgebra::transformDofToCSR<Policy>(diffusionOperator->getMatrix(),
 	                                                  row_rng[0], row_rng[1],
 	                                                  col_rng[0], col_rng[1],
-	                                                  diag.nnz,
+	                                                  diag.rowptr,
 	                                                  diag.cols,
 	                                                  diag.coeffs,
-	                                                  offd.nnz,
+	                                                  offd.rowptr,
 	                                                  offd.cols,
 	                                                  offd.coeffs);
     }(param_input.diag, param_input.offd);
 
     auto [params_diag, params_offd] = [](auto & ... in) {
 	    return std::make_pair(
-		    AMP::LinearAlgebra::CSRMatrixParameters<Policy>::CSRSerialMatrixParameters{
-			    in.nnz.data(), in.cols.data(), in.coeffs.data()}...);
+		    AMP::LinearAlgebra::CSRMatrixParameters<Policy>::CSRLocalMatrixParameters{
+			    in.rowptr.data(), in.cols.data(), in.coeffs.data()}...);
     }(param_input.diag, param_input.offd);
 
     auto csr_params = std::make_shared<AMP::LinearAlgebra::CSRMatrixParameters<Policy>>(

@@ -13,7 +13,6 @@
 
 #include <AMP/vectors/data/VectorData.h>
 #include <AMP/vectors/data/ArrayVectorData.h>
-#include <AMP/vectors/operations/VectorOperationsDefault.h>
 #include "AMP/discretization/DOF_Manager.h"
 
 #include "AMP/solvers/SolverStrategy.h"
@@ -32,7 +31,7 @@ using amp_mat =
 	AMP::LinearAlgebra::CSRMatrix<AMP::LinearAlgebra::HypreCSRPolicy>;
 using amp_policy = AMP::LinearAlgebra::HypreCSRPolicy;
 struct seq_csr_storage {
-	std::vector<amp_policy::lidx_t>   rownnz;
+	std::vector<amp_policy::lidx_t>   rowptr;
 	std::vector<amp_policy::gidx_t>   colind;
 	std::vector<amp_policy::scalar_t> values;
 };
@@ -75,9 +74,10 @@ struct csr_task
 
 		auto reserve = [](auto & src, auto & dst) {
 			auto [rowptr, colind, values] = src.rep();
-			dst.rownnz.reserve(rowptr.size());
+			dst.rowptr.reserve(rowptr.size());
 			dst.colind.reserve(colind.size());
 			dst.values.reserve(values.size());
+			dst.rowptr.push_back(0);
 		};
 
 		reserve(diag, store.diag);
@@ -93,7 +93,7 @@ struct csr_task
 						A.global_id(flecsi::topo::id<topo_t::cols>(lcol)));
 					dst.values.push_back(values[off]);
 				}
-				dst.rownnz.push_back(rowptr[i+1] - rowptr[i]);
+				dst.rowptr.push_back(rowptr[i+1]);
 			};
 			add_row(diag, store.diag);
 			add_row(offd, store.offd);
@@ -103,8 +103,8 @@ struct csr_task
 
 		auto [params_diag, params_offd] = [](auto & ... in) {
 			return std::make_pair(
-				AMP::LinearAlgebra::CSRMatrixParameters<amp_policy>::CSRSerialMatrixParameters{
-					in.rownnz.data(), in.colind.data(), in.values.data()}...);
+				AMP::LinearAlgebra::CSRMatrixParameters<amp_policy>::CSRLocalMatrixParameters{
+					in.rowptr.data(), in.colind.data(), in.values.data()}...);
 		}(store.diag, store.offd);
 
 		auto csr_params = std::make_shared<AMP::LinearAlgebra::CSRMatrixParameters<amp_policy>>(
