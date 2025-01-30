@@ -261,6 +261,8 @@ struct settings {
 	float strong_threshold;
 	int interp_type;
 	int relax_order;
+	int nrelax;
+	int agg_num_levels;
 };
 
 

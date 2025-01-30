@@ -66,6 +66,8 @@ po::options_description options::operator()(settings_type & s) {
 		(label("strong-threshold").c_str(), po::value<float>(&s.strong_threshold)->default_value(0.25), "Strong threshold")
 		(label("interp-type").c_str(), po::value<int>(&s.interp_type)->default_value(6), "Interpolation type")
 		(label("relax-order").c_str(), po::value<int>(&s.relax_order)->default_value(0), "Relaxation order")
+		(label("nrelax").c_str(), po::value<int>(&s.nrelax)->default_value(-1), "Number of relaxation sweeps")
+		(label("agg-num-levels").c_str(), po::value<int>(&s.agg_num_levels)->default_value(-1), "Number of levels to aggressively coarsen.")
 		(label("print-info-level").c_str(), po::value<int>(&s.print_info_level)->default_value(0), "Info level to print");
 	//clang-format on
 
@@ -93,6 +95,10 @@ create_db(const boomeramg::settings & s) {
 	db.putScalar("strong_threshold", s.strong_threshold);
 	db.putScalar("interp_type", s.interp_type);
 	db.putScalar("relax_oder", s.relax_order);
+	if (s.nrelax >= 0)
+		db.putScalar("number_sweeps", s.nrelax);
+    if (s.agg_num_levels)
+      db.putScalar("agg_num_levels", s.agg_num_levels);
 
 	return ret;
 }
