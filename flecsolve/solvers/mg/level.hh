@@ -10,7 +10,7 @@
 namespace flecsolve::mg {
 
 enum class oplabel : std::size_t { A, presmoother, postsmoother, P, R, size };
-enum class veclabel : std::size_t { rhs, sol, res, correction, c, v, btilde, d, size };
+enum class veclabel : std::size_t { rhs, sol, res, correction, c, v, btilde, d, w, size };
 
 
 template<class P, class R, class... Ops>
@@ -111,6 +111,9 @@ struct level :
 
 	auto & btilde() { return vecstore::template get<veclabel::btilde>(); }
 	const auto & btilde() const { return vecstore::template get<veclabel::btilde>(); }
+
+	auto & w() { return vecstore::template get<veclabel::w>(); }
+	const auto & w() const { return vecstore::template get<veclabel::w>(); }
 };
 
 

@@ -613,6 +613,7 @@ struct coarsen_settings {
 	std::size_t min_local_coarse = 5;
 	std::size_t pairwise_passes = 2;
 	bool coarsen_to_serial = false;
+	bool redistribute = true;
 };
 
 template<class scalar, class size, class Ref>
@@ -631,9 +632,9 @@ auto coarsen(const mat::parcsr<scalar, size> & Af, Ref aggt_ref,
 	                                  [](const auto & a, const auto & b) {
 		                                  return a.size() < b.size();
 	                                  })).size();
-	if (settings.coarsen_to_serial ||
+	if (settings.redistribute && topo_init.row_part.size() > 1 && (settings.coarsen_to_serial ||
 	    (nrow_min <= settings.min_local_coarse
-	     && topo_init.row_part.size() > 1)) {
+	     && topo_init.row_part.size() > 1))) {
 		auto prev_colors = topo_init.row_part.size();
 		flecsi::execute<task::redistribute<scalar, size>, flecsi::mpi>(lm, topo_init,
 		                                                               settings.redist_coarsen_factor,

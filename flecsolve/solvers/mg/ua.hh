@@ -75,10 +75,13 @@ struct solver_settings {
 	std::size_t max_levels;
 	std::size_t min_coarse;
 	std::size_t maxiter;
+	float atol;
 	coarsen_settings coarsening_settings;
 	float jacobi_weight;
 	std::size_t nrelax;
 	cycle_type cycle;
+	int kappa;
+	float ktol;
 };
 
 
@@ -140,9 +143,16 @@ struct bound_solver : op::base<> {
 			case cycle_type::relaxed_w:
 				relaxed_wcycle(b, x, ml, *cg_solver);
 				break;
+			case cycle_type::relaxed_kappa:
+				relaxed_kappa_cycle(b, x, ml, *cg_solver, 1.75, settings.kappa);
+				break;
+			case cycle_type::kappa_k:
+				kappa_kcycle(b, x, ml, *cg_solver, settings.kappa, settings.ktol);
+				break;
 			}
 			A.residual(b, x, r);
 			auto rnorm = r.l2norm().get();
+			if (rnorm <= settings.atol) break;
 			// flog(info) << "[" << i << "] " << rnorm << " "
 			//            << rnorm / prev << std::endl;
 			prev = rnorm;
