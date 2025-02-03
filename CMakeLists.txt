@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.23)
 
-project(flecsolve VERSION 0.0.1 LANGUAGES CXX C)
+project(flecsolve VERSION 0.0.1 LANGUAGES CXX C Fortran)
 
 set(PROJ flecsolve)
 if(NOT CMAKE_BUILD_TYPE)
@@ -21,8 +21,20 @@ endif()
 find_package(FleCSI REQUIRED)
 option(FLECSOLVE_ENABLE_AMP "Enable AMP wrapper in flecsolve" ON)
 if(FLECSOLVE_ENABLE_AMP)
+  set(VARS_TO_CHECK CMAKE_C_FLAGS CMAKE_CXX_FLAGS CMAKE_Fortran_FLAGS)
+  set(VARS_TO_UNSET "")
+  foreach(VAR ${VARS_TO_CHECK})
+	if (NOT ${VAR})
+	  list(APPEND VARS_TO_UNSET ${VAR})
+	endif()
+  endforeach()
+
   find_package(AMP REQUIRED)
   find_package(TPLs REQUIRED)
+
+  foreach(VAR ${VARS_TO_UNSET})
+	unset(${VAR})
+  endforeach()
 
   # amp data
   if( AMP_DATA OR AMP_DATA_URL )
