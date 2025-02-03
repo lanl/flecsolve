@@ -16,11 +16,9 @@ flecsolve_headers(
   mg/cg_solve.hh
   mg/intergrid.hh)
 
-set(solvers_src mg/ua.cc)
 if(FLECSOLVE_ENABLE_AMP)
-  list(APPEND solvers_src amp.cc)
+  flecsolve_sources(amp.cc mg/ua.cc)
 endif()
-flecsolve_sources(${solvers_src})
 
 flecsi_add_test(cg
   SOURCES

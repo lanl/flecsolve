@@ -11,6 +11,7 @@
 #include "flecsolve/solvers/mg/coarsen.hh"
 #include "flecsolve/solvers/mg/cycle.hh"
 #include "flecsolve/solvers/mg/cg_solve.hh"
+#include "flecsolve/solvers/amp.hh"
 
 
 namespace flecsolve::mg::ua {
@@ -80,6 +81,7 @@ struct solver_settings {
 	float jacobi_weight;
 	std::size_t nrelax;
 	cycle_type cycle;
+	bool boomer_cg;
 	int kappa;
 	float ktol;
 };
@@ -93,6 +95,7 @@ struct bound_solver : op::base<> {
 		settings{s},
 		hier{op, create_smoother(0, op), create_smoother(0, op)}
 	{
+		if (settings.boomer_cg) settings.coarsening_settings.redistribute = false;
 		setup();
 	}
 
@@ -121,7 +124,15 @@ struct bound_solver : op::base<> {
 				op::make_shared<mg::ua::restrict<scalar, size>>(iparams));
 			if (coarse_size < settings.min_coarse) break;
 		}
-		cg_solver.emplace(op::ref(hier.get(-1).A()));
+		auto cg_op = op::ref(hier.get(-1).A());
+		if (settings.boomer_cg) {
+			cg_solver_boomer.emplace(
+				amp::boomeramg::solver(
+					read_config("boomer-cg.cfg",
+					            amp::boomeramg::options("cg-solver")))(cg_op));
+		} else {
+			cg_solver_lapack.emplace(cg_op);
+		}
 	}
 
 	template<class D, class R>
@@ -129,6 +140,10 @@ struct bound_solver : op::base<> {
 		x.set_scalar(0.); // TODO: only for iterative mode
 		auto & ml = const_cast<hier_type&>(hier);
 
+		auto coarse_solver = [&](const auto & b, auto & x) {
+			if (settings.boomer_cg) *cg_solver_boomer(b, x);
+			else *cg_solver_lapack(b, x);
+		};
 		float prev;
 		auto & A = ml.get(0).A();
 		auto & r = ml.get(0).res();
@@ -137,17 +152,16 @@ struct bound_solver : op::base<> {
 		for (std::size_t i = 0; i < settings.maxiter; ++i) {
 			switch (settings.cycle) {
 			case cycle_type::v:
-				vcycle(b, x,
-				       ml, *cg_solver);
+				vcycle(b, x, ml, coarse_solver);
 				break;
 			case cycle_type::relaxed_w:
-				relaxed_wcycle(b, x, ml, *cg_solver);
+				relaxed_wcycle(b, x, ml, coarse_solver);
 				break;
 			case cycle_type::relaxed_kappa:
-				relaxed_kappa_cycle(b, x, ml, *cg_solver, 1.75, settings.kappa);
+				relaxed_kappa_cycle(b, x, ml, coarse_solver, 1.75, settings.kappa);
 				break;
 			case cycle_type::kappa_k:
-				kappa_kcycle(b, x, ml, *cg_solver, settings.kappa, settings.ktol);
+				kappa_kcycle(b, x, ml, coarse_solver, settings.kappa, settings.ktol);
 				break;
 			}
 			A.residual(b, x, r);
@@ -170,7 +184,8 @@ protected:
 	}
 	solver_settings settings;
 	hier_type hier;
-	std::optional<op::core<lapack_solver<scalar, size>>> cg_solver;
+	std::optional<op::core<op::amp_solver<op::core<mat::parcsr<scalar, size>>>>> cg_solver_boomer;
+	std::optional<op::core<lapack_solver<scalar, size>>> cg_solver_lapack;
 };
 
 namespace po = boost::program_options;
