@@ -372,6 +372,20 @@ auto double_pairwise_agg(float beta,
 	return agg_union(agg1, agg2);
 }
 
+template<class scalar, class size, template<class> class data>
+auto triple_pairwise_agg(float beta,
+                         const mat::csr<scalar, size, data> & diag,
+                         const mat::csr<scalar, size, data> & offd,
+                         bool checkdd) {
+	auto agg1 = pairwise_agg(beta, diag, offd, checkdd);
+	auto aux = create_aux(diag, offd, agg1);
+	auto agg2 = pairwise_agg(beta, aux.first, aux.second, false);
+	auto aux1 = create_aux(aux.first, aux.second, agg2);
+	auto agg3 = pairwise_agg(beta, aux1.first, aux1.second, false);
+
+	return agg_union(agg_union(agg1, agg2), agg3);
+}
+
 inline auto create_partition(MPI_Comm comm, const std::vector<aggregate_t> & agg) {
 	std::vector<std::size_t> local_agg_sizes;
 	for (const auto & a : agg) {
@@ -394,13 +408,20 @@ inline auto create_partition(MPI_Comm comm, const std::vector<aggregate_t> & agg
 template<class scalar, class size>
 void aggregate_and_partition(
 	float beta,
+	std::size_t pairwise_passes,
 	csr_acc<scalar, size> AA,
 	std::vector<aggregate_t> & agg_out,
 	aggt_acc<flecsi::wo, flecsi::na> aggt,
 	csr_init<scalar, size> & topo_init) {
 	std::vector<aggregate_t> aggs;
 	for (auto A : AA.accessors()) {
-		aggs.emplace_back(double_pairwise_agg(beta, A.diag(), A.offd(), true));
+		if (pairwise_passes == 2) {
+			aggs.emplace_back(double_pairwise_agg(beta, A.diag(), A.offd(), true));
+		} else if (pairwise_passes == 3) {
+			aggs.emplace_back(triple_pairwise_agg(beta, A.diag(), A.offd(), true));
+		} else {
+			flog(error) << "UA Coarsening: error invalid number of pairwise passes: " << pairwise_passes << std::endl;
+		}
 	}
 
 	auto comm = MPI_COMM_WORLD;
@@ -590,6 +611,7 @@ struct coarsen_settings {
 	float beta = 0.25;
 	std::size_t redist_coarsen_factor = 2;
 	std::size_t min_local_coarse = 5;
+	std::size_t pairwise_passes = 2;
 	bool coarsen_to_serial = false;
 };
 
@@ -601,7 +623,7 @@ auto coarsen(const mat::parcsr<scalar, size> & Af, Ref aggt_ref,
 	auto lm = flecsi::data::launch::make(Af.data.topo());
 	auto aggt = flecsi::data::multi_reference(aggt_ref, lm);
 	flecsi::execute<task::aggregate_and_partition<scalar, size>, flecsi::mpi>(
-		settings.beta, lm, agg, aggt, topo_init);
+		settings.beta, settings.pairwise_passes, lm, agg, aggt, topo_init);
 	flecsi::execute<task::coarsen_with_aggregates<scalar, size>, flecsi::mpi>(
 		lm, agg, aggt, topo_init);
 
