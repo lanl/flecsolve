@@ -141,8 +141,8 @@ struct bound_solver : op::base<> {
 		auto & ml = const_cast<hier_type&>(hier);
 
 		auto coarse_solver = [&](const auto & b, auto & x) {
-			if (settings.boomer_cg) *cg_solver_boomer(b, x);
-			else *cg_solver_lapack(b, x);
+			if (settings.boomer_cg) (*cg_solver_boomer)(b, x);
+			else (*cg_solver_lapack)(b, x);
 		};
 		float prev;
 		auto & A = ml.get(0).A();

@@ -31,6 +31,7 @@ if(FLECSOLVE_ENABLE_AMP)
 
   find_package(AMP REQUIRED)
   find_package(TPLs REQUIRED)
+  find_package(LapackWrappers REQUIRED)
 
   foreach(VAR ${VARS_TO_UNSET})
 	unset(${VAR})
@@ -132,7 +133,7 @@ target_include_directories(flecsolve
 )
 
 target_link_libraries(flecsolve PUBLIC
-  FleCSI::FleCSI MPI::MPI_CXX ${AMP_LIBRARIES} ${TPL_LIBRARIES})
+  FleCSI::FleCSI MPI::MPI_CXX ${AMP_LIBRARIES} ${TPL_LIBRARIES} LapackWrappers::LapackWrappers)
 
 add_subdirectory(flecsolve)
 
