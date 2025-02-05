@@ -21,8 +21,8 @@ namespace {
 int jacobitest() {
 
 	UNIT () {
-		op::core<parcsr, op::shared_storage> A(MPI_COMM_WORLD, "nos7.mtx");
-		auto & topo = A.source().data.topo();
+		op::core<parcsr> A(MPI_COMM_WORLD, "nos7.mtx");
+		auto & topo = A.data.topo();
 		auto [u, f] = vec::make(topo)(ud, fd);
 
 		u.set_random();
@@ -30,7 +30,7 @@ int jacobitest() {
 
 		mg::jacobi smoother{
 			read_config("jacobi.cfg", mg::jacobi::options("smoother"))};
-		smoother(A)(f, u);
+		smoother(std::ref(A))(f, u);
 	};
 	return 0;
 }

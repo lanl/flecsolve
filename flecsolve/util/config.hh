@@ -21,7 +21,7 @@ struct null_settings {};
 template<auto V>
 struct null_options : with_label {
 	explicit null_options(const char * pre) : with_label(pre) {}
-	auto operator()(null_settings<V> s) {
+	auto operator()(null_settings<V>) {
 		return boost::program_options::options_description{};
 	}
 };

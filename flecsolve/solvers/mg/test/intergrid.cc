@@ -60,12 +60,12 @@ int check_interp(csr_topo::accessor<ro> fine,
 
 int intergridtest() {
 	UNIT () {
-		op::core<parcsr, op::shared_storage> A(MPI_COMM_WORLD, "nos7.mtx");
+		op::core<parcsr> A(MPI_COMM_WORLD, "nos7.mtx");
 
-		auto & topof = A.source().data.topo();
+		auto & topof = A.data.topo();
 		auto aggt_ref = aggt_def(topof);
 		auto Ac = op::make(
-			mg::ua::coarsen<scalar, std::size_t>(A.source(), aggt_ref));
+			mg::ua::coarsen<scalar, std::size_t>(A, aggt_ref));
 		execute<init>(topof, xd(topof));
 
 		mg::ua::intergrid_params<scalar, std::size_t> params{aggt_ref};
@@ -73,12 +73,12 @@ int intergridtest() {
 		mg::ua::prolong<scalar, std::size_t> P(params);
 		mg::ua::restrict<scalar, std::size_t> R(params);
 
-		auto x = A.source().vec(xd);
-		auto y = Ac.source().vec(yd);
+		auto x = A.vec(xd);
+		auto y = Ac.vec(yd);
 
 		R.apply(x, y);
 
-		auto & topoc = Ac.source().data.topo();
+		auto & topoc = Ac.data.topo();
 
 		EXPECT_EQ(test<check_restrict>(topof, topoc, aggt_ref, y.data.ref()),
 		          0);

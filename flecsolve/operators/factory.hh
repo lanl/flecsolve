@@ -98,7 +98,7 @@ struct factory_config {
 		}
 	};
 };
-template<class P, template<class> class StoragePolicy = shared_storage>
+template<class P>
 struct factory {
 	using config =
 		factory_config<typename P::target,
@@ -125,7 +125,7 @@ struct factory {
 	template<class... Args>
 	static auto make(const settings & s, Args &&... args) {
 		auto var = make_policy(s, std::forward<Args>(args)...);
-		return op::core<factory_prod<decltype(var)>, StoragePolicy>(
+		return op::core<factory_prod<decltype(var)>>(
 			factory_prod<decltype(var)>{std::move(var)});
 	}
 
@@ -291,7 +291,7 @@ struct factory_union {
 	template<class... Args>
 	static auto make(const settings & s, Args &&... args) {
 		auto var = make_policy(s, std::forward<Args>(args)...);
-		return op::core<factory_prod<decltype(var)>, shared_storage>(
+		return op::core<factory_prod<decltype(var)>>(
 			factory_prod<decltype(var)>{std::move(var)});
 	}
 

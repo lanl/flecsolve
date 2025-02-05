@@ -3,6 +3,7 @@
 
 #include "flecsolve/util/config.hh"
 #include "flecsolve/matrices/parcsr.hh"
+#include "flecsolve/operators/storage.hh"
 
 namespace flecsolve::mg {
 
@@ -11,24 +12,28 @@ struct jacobi_settings {
 	std::size_t nrelax;
 };
 
-template<class Scalar, class Size, template<class> class storage>
+template<class Op>
 struct bound_jacobi : op::base<> {
-	using scalar = Scalar;
-	using size = Size;
-	op::core<mat::parcsr<Scalar, Size>, storage> A;
+	using store = op::storage<Op>;
+	using op_t = typename store::op_type;
+	using scalar = typename op_t::scalar_type;
+	using size = typename op_t::size_type;
+	store A;
+
 	using topo_t = typename mat::parcsr<scalar, size>::topo_t;
 	static inline const typename topo_t::template vec_def<topo_t::cols> tmpd;
 	jacobi_settings settings;
 
-	bound_jacobi(op::core<mat::parcsr<Scalar, Size>, storage> A,
+	template<class O>
+	bound_jacobi(O && o,
 	             jacobi_settings s)
-		: A(std::move(A)), settings(s) {}
+		: A(std::forward<O>(o)), settings(s) {}
 
 	template<class D, class R>
 	void apply(const D & b, R & x) const {
 		for (std::size_t i = 0; i < settings.nrelax; ++i) {
 			flecsi::execute<relax>(settings.omega,
-			                       A.source().data.topo(),
+			                       A.get().data.topo(),
 			                       x.data.ref(),
 			                       b.data.ref(),
 			                       tmpd(x.data.topo()));
@@ -97,7 +102,7 @@ struct jacobi {
 
 	template<class A>
 	auto operator()(A && a) {
-		return op::make(bound_jacobi{std::forward<A>(a), settings_});
+		return op::core<bound_jacobi<std::decay_t<A>>>{std::forward<A>(a), settings_};
 	}
 
 	jacobi_settings settings_;

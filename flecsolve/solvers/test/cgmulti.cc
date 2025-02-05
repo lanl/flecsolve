@@ -20,21 +20,25 @@ const realf::definition<testmesh, testmesh::cells> xd, bd;
 enum class vars { var1, var2 };
 const std::array<realf::definition<testmesh, testmesh::cells>, 2> xmd, bmd;
 
-using full_op = op::core<csr_op, op::shared_storage>;
+using full_op = op::core<csr_op>;
 
-template<auto var>
+template<auto var, class Op>
 struct test_op : op::base<std::nullptr_t, variable_t<var>, variable_t<var>> {
-
-	explicit test_op(full_op op) : op(op) {}
+	template<class O>
+	explicit test_op(O && h) : oph{std::forward<O>(h)} {}
 
 	template<class domain_vec, class range_vec>
 	void apply(const domain_vec & x, range_vec & y) const {
-		op.apply(x, y);
+		oph.get().apply(x, y);
 	}
 
-protected:
-	full_op op;
+private:
+	op::storage<Op> oph;
 };
+template<auto V, class O>
+auto make_test_op(variable_t<V>, O && o) {
+	return op::core<test_op<V, std::decay_t<O>>>(std::forward<O>(o));
+}
 
 int multicg() {
 	UNIT () {
@@ -60,13 +64,13 @@ int multicg() {
 		op::krylov slv1(op::krylov_parameters(
 			settings,
 			cg::topo_work<>::get(bm.subset(variable<vars::var1>)),
-			op::core<test_op<vars::var1>>(A)));
+			make_test_op(variable<vars::var1>, std::ref(A))));
 		auto info1 = slv1.apply(bm, xm);
 
 		op::krylov slv2(op::krylov_parameters(
 			settings,
 			cg::topo_work<>::get(bm.subset(variable<vars::var2>)),
-			op::core<test_op<vars::var2>>(A)));
+			make_test_op(variable<vars::var2>, std::ref(A))));
 		auto info2 = slv2.apply(bm, xm);
 
 		EXPECT_EQ(info1.iters, 161);

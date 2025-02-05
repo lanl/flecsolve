@@ -20,8 +20,8 @@ csr_topo::vec_def<csr_topo::cols> xd, yd;
 
 int csr_test() {
 	UNIT () {
-		op::core<parcsr, op::shared_storage> A(MPI_COMM_WORLD, "Chem97ZtZ.mtx");
-		auto & topo = A.source().data.topo();
+		op::core<parcsr> A(MPI_COMM_WORLD, "Chem97ZtZ.mtx");
+		auto & topo = A.data.topo();
 		auto [x, y] = vec::make(topo)(xd, yd);
 
 		y.set_scalar(0.0);
@@ -30,7 +30,7 @@ int csr_test() {
 		auto slv = op::krylov_solver(op::krylov_parameters(
 			read_config("parcsr.cfg", cg::options("solver")),
 			cg::topo_work<>::get(x),
-			A));
+			std::ref(A)));
 
 		auto info = slv.apply(y, x);
 		EXPECT_TRUE(info.iters == 167);

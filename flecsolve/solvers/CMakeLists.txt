@@ -13,6 +13,11 @@ flecsolve_headers(
   mg/coarsen.hh
   mg/intergrid.hh)
 
+if(FLECSOLVE_ENABLE_AMP)
+  flecsolve_sources(
+	amp.cc)
+endif()
+
 flecsi_add_test(cg
   SOURCES
   test/cg.cc
@@ -60,5 +65,29 @@ flecsi_add_test(nka
   test/nka-factory.cfg
   LIBRARIES flecsolve
   PROCS 1)
+
+if(FLECSOLVE_ENABLE_AMP AND TPLs_LIBMESH_FOUND AND AMP_DATA)
+  flecsi_add_test(amp-amg
+	SOURCES
+	test/amp_boomeramg.cc
+	INPUTS
+	${AMP_DATA}/meshes/CubeMeshes/cube64.with.boundary.labels.e
+	test/amp-amg.cfg
+	test/amp-input
+	LIBRARIES flecsolve
+	PROCS 3)
+
+  flecsi_add_test(amp-solver
+	SOURCES
+	test/amp_solver.cc
+	INPUTS
+	${AMP_DATA}/meshes/CubeMeshes/cube64.with.boundary.labels.e
+	test/amp-solver.cfg
+	test/amp-solver-pcg.cfg
+	test/amp-solver-gmres.cfg
+	test/amp-solver-input
+	LIBRARIES flecsolve
+	PROCS 3)
+endif()
 
 add_subdirectory(mg)

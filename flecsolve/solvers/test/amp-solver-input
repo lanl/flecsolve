@@ -1,0 +1,128 @@
+Mesh{
+    FileName = "cube64.with.boundary.labels.e"
+    MeshName = "bar"
+    MeshType = "libMesh"
+    dim      = 3
+    x_offset = 0
+    y_offset = 0
+    z_offset = 0
+    NumberOfElements = 1088
+}
+
+DiffusionBVPOperator {
+   name="LinearBVPOperator"
+   print_info_level = 1
+   VolumeOperator = "DiffusionLinearFEOperator1"
+   BoundaryOperator = "ColumnBoundaryOperator1"
+}
+
+DiffusionLinearFEOperator1{
+   name="DiffusionLinearFEOperator"
+   FixedTemperature = TRUE
+   FixedConcentration = TRUE
+   FixedBurnup   = TRUE
+   InputVariable = "therm"
+   OutputVariable = "therm"
+ 
+   DiffusionElement {
+     name="DiffusionLinearElement"
+        FE_ORDER = "FIRST"  
+     FE_FAMILY = "LAGRANGE"
+     QRULE_TYPE = "QGAUSS"
+     QRULE_ORDER = "DEFAULT"
+   }
+   LocalModel = "DiffusionTransportModel1"
+}
+
+ColumnBoundaryOperator1 {
+   name="ColumnBoundaryOperator"
+   numberOfBoundaryOperators=2
+   boundaryOperators="RobinBoundaryOperator","DirichletMatrixCorrection"
+
+}
+
+RobinBoundaryOperator {
+   name="RobinMatrixCorrection"
+   skip_params = FALSE
+   FE_ORDER = "FIRST"  
+   FE_FAMILY = "LAGRANGE"
+   QRULE_TYPE = "QGAUSS"
+   QRULE_ORDER = "DEFAULT"
+   alpha          = 1.0
+   beta           = 1.0
+   gamma          = 1.0
+    number_of_ids    = 1
+   id_0             = 2
+   number_of_dofs_0 =   1
+   dof_0_0          =   0
+   value_0_0        = 101.
+}
+
+DirichletMatrixCorrection{
+   name="DirichletMatrixCorrection"
+   skip_params = FALSE
+   skip_rhs_correction = FALSE
+   skip_rhs_add_correction = FALSE
+    number_of_ids = 1
+   id_0             = 1
+   number_of_dofs_0 =   1
+   dof_0_0          =   0
+   value_0_0        = 300.
+}
+
+DiffusionTransportModel1 {
+     name="DiffusionTransportModel"
+     Material = "Independent"
+     Property = "ThermalConductivity"
+        Default_Concentration = .1
+     Default_Temperature   = 300.
+     Default_Burnup   = 0.0
+   }
+
+LinearSolver{
+  name = "BoomerAMGSolver"
+  max_iterations = 25
+  relative_tolerance = 1.0e-12
+  absolute_tolerance = 1.0e-12
+  print_info_level = 3
+  min_coarse_size = 10
+  strong_threshold = 0.5
+  cycle_type = 1
+  relax_type = 16
+  coarsen_type = 10
+  interp_type = 17
+  relax_order = 0
+}
+
+LinearSolverPre{
+  name = "HyprePCGSolver"
+  uses_preconditioner = TRUE
+  absolute_tolerance = 1.0e-12
+  relative_tolerance = 1.0e-12
+  print_info_level = 2
+  max_iterations = 25
+}
+
+LinearSolverGMRES{
+  name = "GMRESSolver"
+  uses_preconditioner = TRUE
+  absolute_tolerance = 1.0e-12
+  relative_tolerance = 1.0e-12
+  print_info_level = 2
+  max_iterations = 25
+}
+
+Preconditioner{
+  name = "BoomerAMGSolver"
+  max_iterations = 1
+  relative_tolerance = 1.0e-12
+  absolute_tolerance = 1.0e-12
+  print_info_level = 0
+  min_coarse_size = 10
+  strong_threshold = 0.5
+  cycle_type = 1
+  relax_type = 16
+  coarsen_type = 10
+  interp_type = 17
+  relax_order = 0
+}

@@ -174,7 +174,7 @@
     - section start build "Build"
     - mkdir -p ${CI_PROJECT_DIR}/state/build
     - cd ${CI_PROJECT_DIR}/state/build
-    - cmake -DENABLE_UNIT_TESTS=ON -DCMAKE_INSTALL_PREFIX=${CI_PROJECT_DIR}/state/install ${CMAKE_OPTIONS} ../..
+    - cmake -DFLECSOLVE_ENABLE_UNIT_TESTS=ON -DCMAKE_INSTALL_PREFIX=${CI_PROJECT_DIR}/state/install ${CMAKE_OPTIONS} ../..
     - cmake --build . -j $(nproc)
     - section end build
     - section start test "Test"
@@ -318,7 +318,7 @@
 #     - spack arch
 #     - *darwin_setup_hip
 #     - *print_build_standalone_info
-#     - spack python ${CI_PROJECT_DIR}/tools/spack_cmake -B ${CI_PROJECT_DIR}/state/build-${LABEL} -S ${CI_PROJECT_DIR}/${STDIR} -c -i flecsi -- -DENABLE_UNIT_TESTS=ON -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
+#     - spack python ${CI_PROJECT_DIR}/tools/spack_cmake -B ${CI_PROJECT_DIR}/state/build-${LABEL} -S ${CI_PROJECT_DIR}/${STDIR} -c -i flecsi -- -DFLECSOLVE_ENABLE_UNIT_TESTS=ON -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
 #     - cd ${CI_PROJECT_DIR}/state/build-${LABEL}
 #     - cmake --build .
 #     - export CTEST_OUTPUT_ON_FAILURE=1

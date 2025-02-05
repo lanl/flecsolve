@@ -65,20 +65,20 @@ int cgtest() {
 
 	UNIT () {
 		for (const auto & cs : cases) {
-			op::core<mat::csr<double>, op::shared_storage> A(
+			op::core<mat::csr<double>> A(
 				mat::io::matrix_market<>::read(cs.fname).tocsr());
 
-			vec::seq_vec<double> b{A.source().rows()};
-			vec::seq_vec<double> x{A.source().rows()};
+			vec::seq_vec<double> b{A.rows()};
+			vec::seq_vec<double> x{A.rows()};
 
 			b.set_scalar(0.0);
 			x.set_random(7);
 
-			diagnostic diag(A, x, cs.cond);
+			diagnostic diag{A, x, cs.cond};
 			op::krylov slv(op::krylov_parameters(
 				read_config("cg.cfg", cg::options("cg-solver")),
 				vec::seq_work<double, cg::nwork>{b},
-				A,
+				std::ref(A),
 				op::I,
 				std::ref(diag)));
 

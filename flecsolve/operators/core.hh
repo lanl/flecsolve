@@ -2,8 +2,6 @@
 #define FLECSOLVE_OPERATORS_CORE_HH
 
 #include <initializer_list>
-#include <memory>
-#include <functional>
 #include <type_traits>
 
 #include "traits.hh"
@@ -12,75 +10,6 @@
 #include "flecsolve/vectors/traits.hh"
 
 namespace flecsolve::op {
-
-template<class T>
-struct shared_make {
-	using store = std::shared_ptr<T>;
-	template<class... Args>
-	static store make(Args &&... args) {
-		return std::make_shared<T>(args...);
-	}
-};
-
-template<class T>
-struct unique_make {
-	using store = std::unique_ptr<T>;
-	template<class... Args>
-	static store make(Args &&... args) {
-		return std::make_unique<T>(args...);
-	}
-};
-
-template<class T>
-struct value_make {
-	using store = T;
-	template<class... Args>
-	static store make(Args &&... args) {
-		return T(std::forward<Args>(args)...);
-	}
-};
-
-template<class T, template<class> class P>
-struct storage_policy {
-	using store_type = typename P<T>::store;
-
-	template<
-		class Head,
-		class... Tail,
-		std::enable_if_t<!std::is_same_v<std::decay_t<Head>, storage_policy>,
-	                     bool> = true,
-		std::enable_if_t<std::is_constructible_v<T, Head, Tail...>, bool> =
-			true>
-	storage_policy(Head && h, Tail &&... t)
-		: storage(P<T>::make(std::forward<Head>(h), std::forward<Tail>(t)...)) {
-	}
-
-	T & get() {
-		if constexpr (is_smart_ptr_v<store_type>) {
-			return *storage;
-		}
-		else
-			return storage;
-	}
-
-	const T & get() const {
-		if constexpr (is_smart_ptr_v<store_type>) {
-			return *storage;
-		}
-		else
-			return storage;
-	}
-
-protected:
-	store_type storage;
-};
-
-template<class T>
-using value_storage = storage_policy<T, value_make>;
-template<class T>
-using shared_storage = storage_policy<T, shared_make>;
-template<class T>
-using unique_storage = storage_policy<T, unique_make>;
 
 template<class Params = std::nullptr_t,
          class ivar = variable_t<anon_var::anonymous>,
@@ -113,13 +42,13 @@ struct base {
 
 	template<class T = params_t,
 	         class = std::enable_if_t<std::is_null_pointer_v<T>>>
-	base() {}
+	base() : params{nullptr} {}
 
 	params_t & get_params() { return params; }
 	const params_t & get_params() const { return params; }
 
 	template<op::label tag, class T>
-	auto get_parameters(const T & t) const {
+	auto get_parameters(const T &) const {
 		return nullptr;
 	}
 
@@ -133,42 +62,38 @@ protected:
 	params_t params;
 };
 
-template<class P, template<class> class StoragePolicy = value_storage>
-struct core : StoragePolicy<P> {
+template<class P>
+struct core : P {
 	static constexpr auto input_var = P::input_var;
 	static constexpr auto output_var = P::output_var;
-	using store = StoragePolicy<P>;
 	using params_t = typename P::params_t;
 
 	template<class Head,
 	         class... Tail,
 	         std::enable_if_t<
-				 !std::is_same_v<std::decay_t<Head>, core<P, StoragePolicy>>,
+				 !std::is_same_v<std::decay_t<Head>, core<P>>,
 				 bool> = true,
-	         std::enable_if_t<std::is_constructible_v<store, Head, Tail...>,
+	         std::enable_if_t<std::is_constructible_v<P, Head, Tail...>,
 	                          bool> = true>
 	core(Head && h, Tail &&... t)
-		: store{std::forward<Head>(h), std::forward<Tail>(t)...} {}
+		: P{std::forward<Head>(h), std::forward<Tail>(t)...} {}
 
 	template<
 		class Head,
 		class... Tail,
-		std::enable_if_t<std::is_constructible_v<store,
+		std::enable_if_t<std::is_constructible_v<P,
 	                                             std::initializer_list<Head>,
 	                                             Tail...>,
 	                     bool> = true>
 	core(std::initializer_list<Head> h, Tail &&... t)
-		: store{h, std::forward<Tail>(t)...} {}
-
-	P & source() { return store::get(); }
-	const P & source() const { return store::get(); }
+		: P{h, std::forward<Tail>(t)...} {}
 
 	template<class D,
 	         class R,
 	         std::enable_if_t<is_vector_v<D>, bool> = true,
 	         std::enable_if_t<is_vector_v<R>, bool> = true>
 	decltype(auto) apply(const D & x, R & y) const {
-		return source().apply(x, y);
+		return P::apply(x, y);
 	}
 
 	template<class D,
@@ -176,7 +101,7 @@ struct core : StoragePolicy<P> {
 	         std::enable_if_t<is_vector_v<D>, bool> = true,
 	         std::enable_if_t<is_vector_v<R>, bool> = true>
 	decltype(auto) operator()(const D & x, R & y) const {
-		return source().apply(x, y);
+		return P::apply(x, y);
 	}
 
 	template<class B,
@@ -193,32 +118,22 @@ struct core : StoragePolicy<P> {
 
 		rs.subtract(bs, rs);
 	}
-
-	template<auto tag, class T>
-	decltype(auto) get_parameters(T && t) const {
-		return source().template get_parameters<tag>(std::forward<T>(t));
-	}
-
-	template<class T>
-	void reset(T && v) const {
-		source().reset(std::forward<T>(v));
-	}
-
-	auto & get_operator() { return source().get_operator(); }
-
-	const auto & get_operator() const { return source().get_operator(); }
 };
 
 template<class P>
 auto make(P && p) {
-	return core<std::decay_t<P>, value_storage>(std::forward<P>(p));
+	return core<std::decay_t<P>>(std::forward<P>(p));
+}
+template<class P, class ... Args>
+auto make_shared(Args && ... args) {
+	return std::make_shared<core<P>>(std::forward<Args>(args)...);
 }
 
 template<class T>
 struct is_operator : std::false_type {};
 
-template<class P, template<class> class S>
-struct is_operator<core<P, S>> : std::true_type {};
+template<class P>
+struct is_operator<core<P>> : std::true_type {};
 
 template<class T>
 inline constexpr bool is_operator_v = is_operator<T>::value;

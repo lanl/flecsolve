@@ -80,9 +80,9 @@ struct krylov : detail::krylov_base<Params> {
 template<class P>
 krylov(P) -> krylov<P>;
 
-template<class P, template<class> class S = shared_storage>
+template<class P>
 auto krylov_solver(P && p) {
-	return core<krylov<P>, S>(std::forward<P>(p));
+	return core<krylov<P>>(std::forward<P>(p));
 }
 
 template<class Params, class... Ops>

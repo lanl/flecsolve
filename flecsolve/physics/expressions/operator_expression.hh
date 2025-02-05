@@ -121,8 +121,7 @@ struct OpExpr<multivariable_t<vars...>, std::tuple<Ps...>, has<Is...>>
 
 template<auto... vars, class... Ps>
 inline constexpr auto op_expr(multivariable_t<vars...>, Ps... ps) {
-	return op::core<OpExpr<multivariable_t<vars...>, std::tuple<Ps...>>,
-	                op::value_storage>(ps...);
+	return op::core<OpExpr<multivariable_t<vars...>, std::tuple<Ps...>>>(ps...);
 }
 
 }

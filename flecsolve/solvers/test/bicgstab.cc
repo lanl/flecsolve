@@ -42,7 +42,7 @@ int driver() {
 			op::krylov slv(
 				op::krylov_parameters(settings,
 			                          bicgstab::topo_work<>::get(b),
-			                          op::core<csr_op>(std::move(mtx))));
+				                      op::core<csr_op>(std::move(mtx))));
 
 			auto info = slv.apply(b, x);
 

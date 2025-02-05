@@ -2,8 +2,6 @@
 #define FLECSOLVE_OP_TRAITS_H
 
 #include <cstddef>
-#include <type_traits>
-#include <functional>
 
 #include "flecsolve/vectors/variable.hh"
 
