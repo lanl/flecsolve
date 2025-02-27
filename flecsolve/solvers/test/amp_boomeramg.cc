@@ -2,7 +2,7 @@
 
 #include "AMP/matrices/CSRMatrix.h"
 #include "AMP/matrices/data/CSRMatrixData.h"
-#include "AMP/matrices/CSRMatrixParameters.h"
+#include "AMP/matrices/RawCSRMatrixParameters.h"
 #include "AMP/matrices/data/hypre/HypreCSRPolicy.h"
 #include "AMP/mesh/Mesh.h"
 #include "AMP/mesh/MeshFactory.h"
@@ -96,11 +96,11 @@ auto create_amp_mat(csr_topo::init & init) {
 
     auto [params_diag, params_offd] = [](auto & ... in) {
 	    return std::make_pair(
-		    AMP::LinearAlgebra::CSRMatrixParameters<Policy>::CSRLocalMatrixParameters{
+		    AMP::LinearAlgebra::RawCSRMatrixParameters<Policy>::RawCSRLocalMatrixParameters{
 			    in.rowptr.data(), in.cols.data(), in.coeffs.data()}...);
     }(param_input.diag, param_input.offd);
 
-    auto csr_params = std::make_shared<AMP::LinearAlgebra::CSRMatrixParameters<Policy>>(
+    auto csr_params = std::make_shared<AMP::LinearAlgebra::RawCSRMatrixParameters<Policy>>(
 	    row_rng[0], row_rng[1], col_rng[0], col_rng[1], params_diag, params_offd, meshAdapter->getComm());
     auto csrMatrix = std::make_shared<AMP::LinearAlgebra::CSRMatrix<Policy>>(csr_params);
 
