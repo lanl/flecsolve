@@ -23,7 +23,7 @@ to do so.
 #include <AMP/solvers/hypre/BoomerAMGSolver.h>
 #include <AMP/matrices/data/hypre/HypreCSRPolicy.h>
 #include <AMP/matrices/CSRMatrix.h>
-#include <AMP/matrices/CSRMatrixParameters.h>
+#include <AMP/matrices/RawCSRMatrixParameters.h>
 #include <AMP/operators/LinearOperator.h>
 
 #include <AMP/vectors/data/VectorData.h>
@@ -118,11 +118,11 @@ struct csr_task
 
 		auto [params_diag, params_offd] = [](auto & ... in) {
 			return std::make_pair(
-				AMP::LinearAlgebra::CSRMatrixParameters<amp_policy>::CSRLocalMatrixParameters{
+				AMP::LinearAlgebra::RawCSRMatrixParameters<amp_policy>::RawCSRLocalMatrixParameters{
 					in.rowptr.data(), in.colind.data(), in.values.data()}...);
 		}(store.diag, store.offd);
 
-		auto csr_params = std::make_shared<AMP::LinearAlgebra::CSRMatrixParameters<amp_policy>>(
+		auto csr_params = std::make_shared<AMP::LinearAlgebra::RawCSRMatrixParameters<amp_policy>>(
 			meta.rows.beg, meta.rows.end + 1,
 			meta.cols.beg, meta.cols.end + 1,
 			params_diag, params_offd,
