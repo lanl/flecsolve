@@ -2,8 +2,8 @@
 ###############################################################################
 export PROJECT_NAME=flecsolve
 export PROJECT_DEFAULT_BRANCH=main
-export PROJECT_TYPE=ec
-export PROJECT_GROUP=ec
+export PROJECT_TYPE=oss
+export PROJECT_GROUP=oss
 ###############################################################################
 
 export BUILD_DIR=${BUILD_DIR:-build}
