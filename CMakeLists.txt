@@ -62,6 +62,7 @@ option(FLECSOLVE_ENABLE_UNIT_TESTS "Enable the Unit tests" On)
 include(FleCSI/unit)
 
 if(FLECSOLVE_ENABLE_UNIT_TESTS)
+  include(CTest)
   flecsi_enable_testing()
 
   # Avoid warning about DOWNLOAD_EXTRACT_TIMESTAMP in CMake 3.24:

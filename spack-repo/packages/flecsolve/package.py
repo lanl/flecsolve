@@ -3,8 +3,8 @@ from spack.package import *
 class Flecsolve(CMakePackage):
     """Solvers package built on top of FleCSI"""
 
-    homepage="https://re-git.lanl.gov/xcap/ec/flecsolve/"
-    git = "ssh://git@re-git.lanl.gov:10022/xcap/ec/flecsolve.git"
+    homepage="https://re-git.lanl.gov/xcap/oss/flecsolve/"
+    git = "ssh://git@re-git.lanl.gov:10022/xcap/oss/flecsolve.git"
 
     version("main", branch="main")
 

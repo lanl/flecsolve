@@ -10,7 +10,7 @@ default:
       aud: https://asc-git.lanl.gov
 
 .darwin_job:
-  allow_failure: true
+  allow_failure: false
   variables:
     CLUSTER: darwin
     SCHEDULER_PARAMETERS: "-N 1 --qos=debug -p general,skylake-gold,skylake-platinum --constraint=\"(cpu_family:skylake)&ib:edr\""
@@ -58,7 +58,7 @@ default:
     - if: $ENABLED_CLUSTERS =~ /darwin/ && $CI_MERGE_REQUEST_LABELS =~ /nightly/
 
 .rocinante_job:
-  allow_failure: true
+  allow_failure: false
   variables:
     CLUSTER: rocinante
     SCHEDULER_PARAMETERS: "-N 1 -A asc-ci -p ci --reservation ci --time=02:00:00"
@@ -100,7 +100,7 @@ default:
     - if: $ENABLED_CLUSTERS =~ /rocinante/ && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "push"
 
 .venado_job:
-  allow_failure: true
+  allow_failure: false
   variables:
     CLUSTER: venado
     SCHEDULER_PARAMETERS: "-N 1 -A asc-ci_g -p ci_g --qos ci_g --reservation ci_g --time=02:00:00"
@@ -137,7 +137,7 @@ default:
     - if: $ENABLED_CLUSTERS =~ /venado/ && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "push"
 
 .rzansel_job:
-  allow_failure: true
+  allow_failure: false
   tags:
    - rzansel
    - batch
@@ -168,7 +168,7 @@ default:
     - if: $ENABLED_CLUSTERS =~ /rzansel/ && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "push"
 
 .rzvernal_job:
-  allow_failure: true
+  allow_failure: false
   tags:
    - rzvernal
    - batch
@@ -200,7 +200,7 @@ default:
     - if: $ENABLED_CLUSTERS =~ /rzvernal/ && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "push"
 
 .rzadams_job:
-  allow_failure: true
+  allow_failure: false
   tags:
    - rzadams
    - batch
@@ -275,6 +275,7 @@ default:
   variables:
     GIT_SUBMODULE_STRATEGY: none
   script:
+    - module load cmake
     - cmake --version
     - ls *.tar.gz
     - export SOURCE_DIR=$PWD
