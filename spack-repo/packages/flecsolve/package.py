@@ -1,10 +1,14 @@
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
+#
+# SPDX-License-Identifier: (Apache-2.0 OR MIT)
+
 from spack.package import *
 
 class Flecsolve(CMakePackage):
     """Solvers package built on top of FleCSI"""
 
-    homepage="https://re-git.lanl.gov/xcap/oss/flecsolve/"
-    git = "ssh://git@re-git.lanl.gov:10022/xcap/oss/flecsolve.git"
+    homepage="https://github.com/lanl/flecsolve.git"
+    git = "https://github.com/lanl/flecsolve.git"
 
     version("main", branch="main")
 
