@@ -20,6 +20,7 @@ to do so.
 #include <cstddef>
 #include <string>
 
+#include <AMP/solvers/SolverFactory.h>
 #include <AMP/solvers/hypre/BoomerAMGSolver.h>
 #include <AMP/matrices/data/hypre/HypreCSRPolicy.h>
 #include <AMP/matrices/CSRMatrix.h>
@@ -205,9 +206,20 @@ struct amp_solver : op::base<>
 	using tasks = csr_task<scalar, size>;
 
 	amp_solver(op::handle<Op> A,
-	           std::shared_ptr<AMP::Solver::SolverStrategy> slv) :
-		A_(A), slv_(slv) {
-		register_operator(*slv_, make_op(A_.get()));
+	           std::shared_ptr<AMP::Database> input_db,
+	           const std::string & solver_name) : A_(A) {
+		slv_ = build_solver(input_db, solver_name, make_op(A_.get()));
+	}
+
+	amp_solver(op::handle<Op> A,
+	           std::shared_ptr<AMP::Database> db) :
+		A_(A) {
+		auto params = std::make_shared<AMP::Solver::SolverStrategyParameters>(
+			std::make_shared<AMP::Database>());
+		params->d_db = db;
+		params->d_comm = MPI_COMM_WORLD;
+		params->d_pOperator = make_op(A_.get());
+		slv_ = AMP::Solver::BoomerAMGSolver::createSolver(params);
 	}
 
 	template<class D, class R>
@@ -223,11 +235,22 @@ struct amp_solver : op::base<>
 		return info;
 	}
 private:
-	void register_operator(AMP::Solver::SolverStrategy & slv,
-	                       std::shared_ptr<csr_op_wrap> op) {
-		slv.registerOperator(op);
-		auto nest = slv.getNestedSolver();
-		if (nest) register_operator(*nest, op);
+	std::shared_ptr<AMP::Solver::SolverStrategy>
+	build_solver(std::shared_ptr<AMP::Database> input_db,
+	             const std::string & solver_name,
+	             std::shared_ptr<csr_op_wrap> op) {
+		auto db = input_db->getDatabase(solver_name);
+		auto uses_precond = db->getWithDefault<bool>("uses_preconditioner", false);
+		std::shared_ptr<AMP::Solver::SolverStrategy> pc_solver;
+		if (uses_precond) {
+			auto pc_name = db->getWithDefault<std::string>("pc_name", "Preconditioner");
+			pc_solver = build_solver(input_db, pc_name, op);
+		}
+		auto params = std::make_shared<AMP::Solver::SolverStrategyParameters>(db);
+		params->d_comm = MPI_COMM_WORLD;
+		params->d_pNestedSolver = pc_solver;
+		params->d_pOperator = op;
+		return AMP::Solver::SolverFactory::create(params);
 	}
 
 	op::handle<Op> A_;
@@ -235,7 +258,11 @@ private:
 };
 template<class O>
 amp_solver(op::handle<O>,
-             std::shared_ptr<AMP::Solver::SolverStrategy>) -> amp_solver<O>;
+           std::shared_ptr<AMP::Database>) -> amp_solver<O>;
+template<class O>
+amp_solver(op::handle<O>,
+           std::shared_ptr<AMP::Database>,
+           const std::string &) -> amp_solver<O>;
 }
 
 namespace flecsolve::amp {
@@ -254,23 +281,24 @@ struct solver {
 		po::options_description operator()(settings_type & s);
 	};
 
-	solver(const settings &, AMP::Database &);
+	solver(const settings & s, std::shared_ptr<AMP::Database> db) :
+		input_db{db}, solver_name{s.solver_name} {}
 
 	template<class A>
 	auto operator()(op::handle<A> a) {
 		return op::make(
-			op::amp_solver(a, slv_));
+			op::amp_solver(a, input_db, solver_name));
 	}
 
 protected:
-	std::shared_ptr<AMP::Solver::SolverStrategy> slv_;
+	std::shared_ptr<AMP::Database> input_db;
+	std::string solver_name;
 };
 
 
 namespace boomeramg {
 
-using amp_slv = std::shared_ptr<AMP::Solver::BoomerAMGSolver>;
-
+using amp_db = std::shared_ptr<AMP::Database>;
 struct settings {
 	int min_iterations;
 	int max_coarse_size;
@@ -305,11 +333,11 @@ struct solver {
 	template<class A>
 	auto operator()(op::handle<A> a) {
 		return op::make(
-			op::amp_solver{a, slv_});
+			op::amp_solver{a, db});
 	}
 
 private:
-	amp_slv slv_;
+	amp_db db;
 };
 }
 }
