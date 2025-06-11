@@ -292,7 +292,7 @@ struct topo_view {
 
 	static void dump(std::string_view pre, const vec_data & x) {
 		// TODO: update for multiaccessor
-		flecsi::execute<tasks::dump, flecsi::mpi>(pre, x.topo(), x.ref());
+		flecsi::execute<tasks::dump>(pre, x.topo(), x.ref());
 	}
 
 	template<class F, class... Vecs>

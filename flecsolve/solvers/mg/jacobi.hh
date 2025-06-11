@@ -18,7 +18,7 @@ to do so.
 
 #include "flecsolve/util/config.hh"
 #include "flecsolve/matrices/parcsr.hh"
-#include "flecsolve/operators/storage.hh"
+#include "flecsolve/operators/handle.hh"
 
 namespace flecsolve::mg {
 
@@ -27,22 +27,19 @@ struct jacobi_settings {
 	std::size_t nrelax;
 };
 
-template<class Op>
+template<class scalar, class size>
 struct bound_jacobi : op::base<> {
-	using store = op::storage<Op>;
-	using op_t = typename store::op_type;
-	using scalar = typename op_t::scalar_type;
-	using size = typename op_t::size_type;
-	store A;
+	using op_t = op::core<mat::parcsr<scalar, size>>;
+
+	op::handle<op_t> A;
 
 	using topo_t = typename mat::parcsr<scalar, size>::topo_t;
 	static inline const typename topo_t::template vec_def<topo_t::cols> tmpd;
 	jacobi_settings settings;
 
-	template<class O>
-	bound_jacobi(O && o,
+	bound_jacobi(op::handle<op_t> h,
 	             jacobi_settings s)
-		: A(std::forward<O>(o)), settings(s) {}
+		: A{h}, settings{s} {}
 
 	template<class D, class R>
 	void apply(const D & b, R & x) const {
@@ -115,9 +112,9 @@ struct jacobi {
 		}
 	};
 
-	template<class A>
-	auto operator()(A && a) {
-		return op::core<bound_jacobi<std::decay_t<A>>>{std::forward<A>(a), settings_};
+	template<class scalar, class size>
+	auto operator()(op::handle<op::core<mat::parcsr<scalar, size>>> A) {
+		return op::core<bound_jacobi<scalar, size>>{A, settings_};
 	}
 
 	jacobi_settings settings_;

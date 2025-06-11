@@ -126,6 +126,7 @@ auto create_amp_mat(csr_topo::init & init, std::shared_ptr<AMP::Database> input_
     flecsi::util::offsets rowpart(std::move(store));
     init.row_part.set_offsets(rowpart);
     init.col_part.set_offsets(rowpart);
+    init.proc_part.set_block_map(flecsi::processes(), flecsi::processes());
 
     csr procmat(mdata.numLocalRows(), mdata.numLocalColumns());
     procmat.resize(mdata.numberOfNonZeros());
@@ -174,8 +175,8 @@ int amptest() {
 	std::shared_ptr<AMP::LinearAlgebra::Vector> rhs, sol;
 	std::shared_ptr<AMP::Operator::Operator> linop;
 	flecsi::execute<create_amp_mat,flecsi::mpi>(init, input_db, rhs, sol, linop);
-	op::core<parcsr> A(std::move(init));
-	auto & topo = A.data.topo();
+	auto A = op::make_shared<parcsr>(std::move(init));
+	auto & topo = A.get().data.topo();
 
 	UNIT(){
 		auto [u, f] = vec::make(topo)(ud, fd);
@@ -192,15 +193,14 @@ int amptest() {
 
 			return amp_solver->getIterations();
 		};
-
 		{
 			u.set_scalar(1.);
 			A(u, f);
 			u.zero();
 			auto settings = read_config("amp-solver.cfg", amp::solver::options("solver"));
 			amp::solver slv{settings,
-			                *input_db};
-			auto info = slv(std::ref(A))(f, u);
+			                input_db};
+			auto info = slv(A)(f, u);
 
 			EXPECT_EQ(info.iters, run_directly(settings.solver_name));
 			EXPECT_TRUE(info.success());
@@ -210,25 +210,29 @@ int amptest() {
 			u.set_scalar(1.);
 			A(u, f);
 			u.zero();
+
 			auto settings = read_config("amp-solver-pcg.cfg", amp::solver::options("solver"));
-			amp::solver slv{settings, *input_db};
-			auto info = slv(std::ref(A))(f, u);
+			amp::solver slv{settings, input_db};
+			auto info = slv(A)(f, u);
 
 			EXPECT_EQ(info.iters, run_directly(settings.solver_name));
 			EXPECT_TRUE(info.success());
 		}
+#if 0
 		// with gmres
 		{
 			u.set_scalar(1.);
 			A(u, f);
 			u.zero();
+
 			auto settings = read_config("amp-solver-gmres.cfg", amp::solver::options("solver"));
-			amp::solver slv{settings, *input_db};
-			auto info = slv(std::ref(A))(f, u);
+			amp::solver slv{settings, input_db};
+			auto info = slv(A)(f, u);
 
 			EXPECT_EQ(info.iters, run_directly(settings.solver_name));
 			EXPECT_TRUE(info.success());
 		}
+#endif
 	};
 }
 

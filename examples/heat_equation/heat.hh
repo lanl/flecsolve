@@ -52,9 +52,9 @@ inline void output(mesh::accessor<ro> m,
 	std::ofstream ofile(std::string{base_fname} + "-" +
 	                    std::to_string(flecsi::process()) + ".dat");
 
-	for (auto j : m.vertices<mesh::y_axis, mesh::logical>()) {
+	for (auto j : m.vertices<mesh::y_axis>()) {
 		const double y = m.value<mesh::y_axis>(j);
-		for (auto i : m.vertices<mesh::x_axis, mesh::logical>()) {
+		for (auto i : m.vertices<mesh::x_axis>()) {
 			const double x = m.value<mesh::x_axis>(i);
 			ofile << x << " " << y << " " << u(i, j) << '\n';
 		}
@@ -77,13 +77,13 @@ inline void laplace(mesh::accessor<ro> m,
 	const auto is = *xverts.begin();
 	const auto ie = *(xverts.end() - 1);
 	if (m.is_boundary<mesh::x_axis, mesh::boundary::low>(is)) {
-		for (auto j : m.vertices<mesh::y_axis, mesh::logical>()) {
+		for (auto j : m.vertices<mesh::y_axis, mesh::extended>()) {
 			u(is, j) = 0.;
 		}
 	}
 
 	if (m.is_boundary<mesh::x_axis, mesh::boundary::high>(ie)) {
-		for (auto j : m.vertices<mesh::y_axis, mesh::logical>()) {
+		for (auto j : m.vertices<mesh::y_axis, mesh::extended>()) {
 			u(ie, j) = 0.;
 		}
 	}
@@ -92,13 +92,13 @@ inline void laplace(mesh::accessor<ro> m,
 	const auto js = *yverts.begin();
 	const auto je = *(yverts.end() - 1);
 	if (m.is_boundary<mesh::y_axis, mesh::boundary::low>(js)) {
-		for (auto i : m.vertices<mesh::x_axis, mesh::logical>()) {
+		for (auto i : m.vertices<mesh::x_axis, mesh::extended>()) {
 			u(i, js) = 0.;
 		}
 	}
 
 	if (m.is_boundary<mesh::y_axis, mesh::boundary::high>(je)) {
-		for (auto i : m.vertices<mesh::x_axis, mesh::logical>()) {
+		for (auto i : m.vertices<mesh::x_axis, mesh::extended>()) {
 			u(i, je) = 0.;
 		}
 	}

@@ -173,7 +173,7 @@ bool operator!=(const multi<V0...> & v0, const multi<V1...> & v1) {
 template<class... Vecs,
          std::enable_if_t<(... && is_vector_v<Vecs>), bool> = true>
 auto make(Vecs &&... vecs) {
-	return multi(std::forward<Vecs>(vecs)...);
+	return multi<Vecs...>(std::forward<Vecs>(vecs)...);
 }
 }
 

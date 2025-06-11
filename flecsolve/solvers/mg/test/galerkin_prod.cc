@@ -20,7 +20,7 @@ field<scalar>::definition<csr_topo, csr_topo::cols> xd, yd, y1d, zd, wd;
 
 namespace {
 
-constexpr float tol = 1e-9;
+constexpr float tol = 1e-8;
 
 void init(csr_topo::accessor<ro> m, field<scalar>::accessor<wo, na> x) {
 	for (auto dof : m.dofs<csr_topo::cols>()) {

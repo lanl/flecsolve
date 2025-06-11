@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.23)
 
-project(flecsolve VERSION 0.0.1 LANGUAGES CXX C)
+project(flecsolve VERSION 0.0.1 LANGUAGES CXX C Fortran)
 
 set(PROJ flecsolve)
 if(NOT CMAKE_BUILD_TYPE)
@@ -21,8 +21,21 @@ endif()
 find_package(FleCSI REQUIRED)
 option(FLECSOLVE_ENABLE_AMP "Enable AMP wrapper in flecsolve" ON)
 if(FLECSOLVE_ENABLE_AMP)
+  set(VARS_TO_CHECK CMAKE_C_FLAGS CMAKE_CXX_FLAGS CMAKE_Fortran_FLAGS)
+  set(VARS_TO_UNSET "")
+  foreach(VAR ${VARS_TO_CHECK})
+	if (NOT ${VAR})
+	  list(APPEND VARS_TO_UNSET ${VAR})
+	endif()
+  endforeach()
+
   find_package(AMP REQUIRED)
   find_package(TPLs REQUIRED)
+  find_package(LapackWrappers REQUIRED)
+
+  foreach(VAR ${VARS_TO_UNSET})
+	unset(${VAR})
+  endforeach()
 
   # amp data
   if( AMP_DATA OR AMP_DATA_URL )
@@ -56,7 +69,6 @@ if(FLECSOLVE_ENABLE_AMP)
 	message(WARNING "LIBMESH not found or AMP_DATA is not set, some tests will be disabled" )
   endif()
 endif()
-
 
 option(FLECSOLVE_ENABLE_UNIT_TESTS "Enable the Unit tests" On)
 include(FleCSI/unit)
@@ -121,7 +133,7 @@ target_include_directories(flecsolve
 )
 
 target_link_libraries(flecsolve PUBLIC
-  FleCSI::FleCSI MPI::MPI_CXX ${AMP_LIBRARIES} ${TPL_LIBRARIES})
+  FleCSI::FleCSI MPI::MPI_CXX ${AMP_LIBRARIES} ${TPL_LIBRARIES} LapackWrappers::LapackWrappers)
 
 add_subdirectory(flecsolve)
 

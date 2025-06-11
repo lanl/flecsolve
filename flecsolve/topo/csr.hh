@@ -38,6 +38,7 @@ struct process_coloring {
 };
 
 struct metadata {
+	flecsi::Color colors;
 	MPI_Comm comm;
 	flecsi::util::gid nrows, ncols;
 	struct rng {
@@ -48,7 +49,7 @@ struct metadata {
 	rng cols;
 };
 
-struct partition {
+struct partition : flecsi::util::with_index_iterator<const partition> {
 	partition() : storage{flecsi::util::equal_map(1, 1)} {}
 
 	constexpr auto operator[](flecsi::Color c) const {
@@ -68,6 +69,10 @@ struct partition {
 	}
 
 	void set_offsets(const flecsi::util::offsets & off) { storage = off; }
+
+	constexpr flecsi::Color size() const {
+		return std::visit([=](auto & part) { return part.size(); }, storage);
+	}
 
 protected:
 	std::variant<flecsi::util::equal_map, flecsi::util::offsets> storage;
@@ -101,6 +106,7 @@ struct csr_base {
 			column_ghosts;
 		partition row_part;
 		partition col_part;
+		partition proc_part;
 	};
 
 	static std::size_t idx_size(std::vector<std::size_t> vs, std::size_t c) {
@@ -108,14 +114,13 @@ struct csr_base {
 	}
 
 	static void
-	idx_itvls(flecsi::Color colors,
-	          const csr_impl::partition & cm,
+	idx_itvls(const csr_impl::partition & cm,
+	          const csr_impl::partition & pm,
 	          const std::vector<std::vector<flecsi::util::gid>> ghosts,
 	          destination_intervals & intervals,
 	          source_pointers & pointers,
 	          MPI_Comm comm) {
 		auto [rank, comm_size] = flecsi::util::mpi::info(comm);
-		const flecsi::util::equal_map pm(colors, comm_size);
 		pointers.resize(ghosts.size());
 		intervals.resize(ghosts.size());
 		{
@@ -182,6 +187,26 @@ struct csr_base {
 	}
 };
 
+inline auto proc_claim(const csr_impl::partition & proc_part) {
+	flecsi::data::launch::Claims ret;
+
+	for (auto b : proc_part)
+		ret.emplace_back(b.begin(), b.end());
+
+	return ret;
+}
+
+template<class T>
+flecsi::data::launch::mapping<flecsi::topo::policy_t<T>>
+launch(T & t, const csr_base::coloring & c) {
+	return {t, proc_claim(c.proc_part)};
+}
+template<class P>
+flecsi::data::launch::mapping<P>
+launch(flecsi::data::topology_slot<P> & t, const csr_base::coloring & c) {
+	return launch(t.get(), c);
+}
+
 template<class P>
 struct csr_category : csr_base, flecsi::topo::with_meta<P> {
 	using index_space = typename P::index_space;
@@ -239,7 +264,7 @@ private:
 				  return partitions;
 			  }()))...}},
 		  column_plan_{make_copy_plan(c, part_[index<P::column_space>])} {
-		auto lm = flecsi::data::launch::make(this->meta);
+		auto lm = launch(this->meta, c);
 		flecsi::execute<set_meta, flecsi::mpi>(metadata_field(lm), c);
 	}
 
@@ -250,15 +275,15 @@ private:
 		source_pointers pointers;
 
 		flecsi::execute<idx_itvls, flecsi::mpi>(
-			c.colors, c.col_part, c.column_ghosts, intervals, pointers, c.comm);
+			c.col_part, c.proc_part, c.column_ghosts, intervals, pointers, c.comm);
 
 		auto dest_task = [&](auto f) {
-			auto lm = flecsi::data::launch::make(f.topology());
+			auto lm = launch(f.topology(), c);
 			flecsi::execute<set_dests, flecsi::mpi>(lm(f), intervals, c.comm);
 		};
 
 		auto ptrs_task = [&](auto f) {
-			auto lm = flecsi::data::launch::make(f.topology());
+			auto lm = launch(f.topology(), c);
 			flecsi::execute<
 				set_ptrs<P::template privilege_count<P::column_space>>,
 				flecsi::mpi>(lm(f), pointers, c.comm);
@@ -281,12 +306,13 @@ private:
 
 		const auto & cm = c.col_part;
 		const auto & rm = c.row_part;
-		const flecsi::util::equal_map pm(c.colors, comm_size);
+		const auto & pm = c.proc_part;
 		assert(static_cast<std::size_t>(ma.size()) == pm[rank].size());
 		std::size_t i{0};
 		for (flecsi::Color col : pm[rank]) {
 			auto & e = ma[i++].get();
 			e.comm = c.comm;
+			e.colors = c.colors;
 			e.nrows = c.nrows;
 			e.ncols = c.ncols;
 			e.cols.beg = cm[col].front();
@@ -347,7 +373,7 @@ struct csr_category<P>::access {
 
 	FLECSI_INLINE_TARGET auto colmap() { return colmap_; }
 
-	FLECSI_INLINE_TARGET const csr_impl::metadata & meta() { return *meta_; }
+	FLECSI_INLINE_TARGET const csr_impl::metadata & meta() const { return *meta_; }
 
 private:
 	flecsi::data::scalar_access<csr_category<P>::metadata_field, Priv> meta_;
@@ -412,7 +438,7 @@ struct csr : flecsi::topo::help,
 			                     offda.values.span());
 		}
 
-		FLECSI_INLINE_TARGET const auto & meta() { return B::meta(); }
+		FLECSI_INLINE_TARGET const auto & meta() const { return B::meta(); }
 		FLECSI_INLINE_TARGET auto colmap() { return B::colmap(); }
 
 		template<index_space S>
@@ -441,6 +467,7 @@ struct csr : flecsi::topo::help,
 		MPI_Comm comm;
 		std::size_t nrows, ncols;
 		csr_impl::partition row_part, col_part;
+		csr_impl::partition proc_part;
 		std::vector<csr_t> proc_mats;
 	};
 
@@ -448,16 +475,17 @@ struct csr : flecsi::topo::help,
 		coloring c;
 
 		c.comm = ci.comm;
-		c.colors = flecsi::processes();
+		c.colors = ci.row_part.size();
 		c.nrows = ci.nrows;
 		c.ncols = ci.ncols;
 		c.row_part = ci.row_part;
 		c.col_part = ci.col_part;
+		c.proc_part = ci.proc_part;
 
 		auto [rank, comm_size] = flecsi::util::mpi::info(ci.comm);
 		const auto & cm = ci.col_part;
 		const auto & rm = ci.row_part;
-		const flecsi::util::equal_map pm(c.colors, comm_size);
+		const auto & pm = ci.proc_part;
 
 		std::vector<std::array<flecsi::util::id, index_spaces::size>> isizes;
 		isizes.resize(pm[rank].size());
@@ -521,7 +549,7 @@ struct csr : flecsi::topo::help,
 	          const init & ci) {
 		auto [rank, comm_size] = flecsi::util::mpi::info(c.comm);
 		const auto & cm = ci.col_part;
-		const flecsi::util::equal_map pm(c.colors, comm_size);
+		const auto & pm = ci.proc_part;
 
 		auto ma = m.accessors();
 		auto lmat = ci.proc_mats.begin();
@@ -589,7 +617,7 @@ struct csr : flecsi::topo::help,
 	static void initialize(flecsi::data::topology_slot<csr> & s,
 	                       const coloring & c,
 	                       const init & ci) {
-		auto lm = flecsi::data::launch::make(s);
+		auto lm = launch(s, c);
 		flecsi::execute<init_mats, flecsi::mpi>(lm, c, ci);
 	}
 };

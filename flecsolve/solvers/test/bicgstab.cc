@@ -39,12 +39,9 @@ int driver() {
 			b.set_random(0);
 			x.set_random(1);
 
-			op::krylov slv(
-				op::krylov_parameters(settings,
-			                          bicgstab::topo_work<>::get(b),
-				                      op::core<csr_op>(std::move(mtx))));
-
-			auto info = slv.apply(b, x);
+			op::core<csr_op> A(std::move(mtx));
+			bicgstab::solver slv(settings, bicgstab::make_work(b));
+			auto info = slv(op::ref(A))(b, x);
 
 			EXPECT_EQ(info.status, solve_info::stop_reason::converged_rtol);
 			EXPECT_TRUE((info.iters == std::get<1>(cs)) ||

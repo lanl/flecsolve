@@ -6,7 +6,6 @@
 #include "flecsolve/vectors/seq.hh"
 #include "flecsolve/operators/core.hh"
 #include "flecsolve/solvers/cg.hh"
-#include "flecsolve/solvers/krylov_operator.hh"
 #include "flecsolve/vectors/topo_view.hh"
 #include "flecsolve/matrices/parcsr.hh"
 
@@ -27,12 +26,11 @@ int csr_test() {
 		y.set_scalar(0.0);
 		x.set_scalar(2);
 
-		auto slv = op::krylov_solver(op::krylov_parameters(
+		auto slv = cg::solver(
 			read_config("parcsr.cfg", cg::options("solver")),
-			cg::topo_work<>::get(x),
-			std::ref(A)));
+			cg::make_work(x))(op::ref(A));
 
-		auto info = slv.apply(y, x);
+		auto info = slv(y, x);
 		EXPECT_TRUE(info.iters == 167);
 	};
 	return 0;

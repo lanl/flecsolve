@@ -35,6 +35,8 @@ struct poisson_op : flecsolve::op::base<parameters> {
 	using base = flecsolve::op::base<parameters>;
 	using base::params;
 
+	poisson_op(parameters::ref_t ref) : base(ref) {}
+
 	template<class D, class R>
 	void apply(const D & x, R & y) const {
 		flecsi::execute<spmv>(

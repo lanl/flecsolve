@@ -318,7 +318,7 @@ struct topo_tasks {
 
 	static void dump(std::string_view pre, topo_acc m, acc<ro> x) {
 		std::string fname{pre};
-		fname += "-" + std::to_string(flecsi::process());
+		fname += "-" + std::to_string(flecsi::color());
 		std::ofstream ofile(fname);
 		for (auto dof : util::dofs(m)) {
 			ofile << x(dof) << '\n';

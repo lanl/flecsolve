@@ -12,8 +12,14 @@ namespace flecsolve {
 
 const flecsi::field<double>::definition<testmesh, testmesh::cells> xd, xnewd;
 
-struct rate : op::base<> {
-	rate(double lambda) : lambda(lambda), gamma(1.) {}
+struct parameters {
+	double lambda;
+	double gamma;
+};
+
+struct rate : op::base<parameters> {
+	rate(double lambda) :
+		op::base<parameters>(parameters{lambda, 1.}) {}
 
 	template<class D, class R>
 	void residual(const D & b, const R & x, R & r) const {
@@ -26,12 +32,12 @@ struct rate : op::base<> {
 		// f(x^{n+1})
 		apply_rhs(x, y);
 		// y = x^{n+1} - scaling * f(x^{n+1})
-		y.axpy(-gamma, y, x);
+		y.axpy(-params.gamma, y, x);
 	}
 
 	template<class D, class R>
 	void apply_rhs(const D & x, R & y) const {
-		y.scale(lambda, x);
+		y.scale(params.lambda, x);
 	}
 
 	template<class V>
@@ -39,17 +45,17 @@ struct rate : op::base<> {
 		return true;
 	}
 
-	double get_scaling() const { return gamma; }
-	void set_scaling(double scaling) { gamma = scaling; }
+	double get_scaling() const { return params.gamma; }
+	void set_scaling(double scaling) { params.gamma = scaling; }
 
-	double get_rate() const { return lambda; }
-
-protected:
-	double lambda;
-	double gamma;
+	double get_rate() const { return params.lambda; }
 };
 
-struct rate_solver {
+double get_rate(const rate & r) { return r.get_rate(); }
+
+struct rate_solver : op::base<> {
+	rate_solver(op::handle<op::core<rate>> oph) : F(oph) {}
+
 	template<class D, class R>
 	solve_info apply(const D & b, R & x) const {
 		auto rhs = b.min().get();
@@ -62,7 +68,7 @@ struct rate_solver {
 		return info;
 	}
 
-	std::reference_wrapper<op::core<rate>> F;
+	op::handle<op::core<rate>> F;
 };
 
 int bdftest() {
@@ -75,15 +81,15 @@ int bdftest() {
 
 		init_mesh(1, msh);
 
-		op::core<rate> F(-1.);
+		auto F = op::make_shared<rate>(-1.);
 		auto x = vec::make(msh)(xd);
 		auto xnew = vec::make(msh)(xnewd);
 
-		rate_solver solver{std::ref(F)};
+		auto solver = op::make_shared<rate_solver>(F);
 		auto [ti2, ti5] = std::apply(
 			[&](auto &&... s) {
 				return std::make_tuple(bdf::integrator(bdf::parameters(
-					                                       s, std::ref(F), bdf::topo_work<>::get(x), std::ref(solver)))...);
+					                                       s, F, bdf::make_work(x), solver))...);
 			},
 			read_config(
 				"implicit.cfg", bdf::options("bdf-2"), bdf::options("bdf-5")));
@@ -105,7 +111,7 @@ int bdftest() {
 			}
 
 			auto sol =
-				ic * std::exp(F.get_rate() * ti.get_final_time());
+				ic * std::exp(get_rate(F) * ti.get_final_time());
 			auto approx = x.max().get();
 			return std::tuple(ti.get_final_time(),
 			                  std::abs(sol - approx),

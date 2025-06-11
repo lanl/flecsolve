@@ -13,13 +13,14 @@ namespace flecsolve {
 
 const flecsi::field<double>::definition<testmesh, testmesh::cells> xd, xnewd;
 
-struct rate {
+struct parameters { double lambda; };
+struct rate : op::base<parameters> {
+	using base = op::base<parameters>;
+	explicit rate(double l) : base{l} {}
 	template<class D, class R>
-	void apply(const D & x, R & y) {
-		y.scale(lambda, x);
+	void apply(const D & x, R & y) const {
+		y.scale(params.lambda, x);
 	}
-
-	double lambda;
 };
 
 int extest() {
@@ -32,7 +33,7 @@ int extest() {
 
 		init_mesh(1, msh);
 
-		rate F{-1};
+		op::core<rate> F(-1.);
 
 		auto x = vec::make(msh)(xd);
 		auto xnew = vec::make(msh)(xnewd);
@@ -40,7 +41,7 @@ int extest() {
 		auto [ti23_var, ti23_fixed] = std::apply(
 			[&](auto &&... s) {
 				return std::make_tuple(rk23::integrator(rk23::parameters(
-					s, std::ref(F), rk23::topo_work<>::get(x)))...);
+					                                        s, op::ref(F), rk23::make_work(x)))...);
 			},
 			read_config("explicit.cfg",
 		                rk23::options("variable"),
@@ -49,7 +50,7 @@ int extest() {
 		auto [ti45_var, ti45_fixed] = std::apply(
 			[&](auto &&... s) {
 				return std::make_tuple(rk45::integrator(rk45::parameters(
-					s, std::ref(F), rk45::topo_work<>::get(x)))...);
+					                                        s, op::ref(F), rk45::make_work(x)))...);
 			},
 			read_config("explicit.cfg",
 		                rk45::options("variable"),
@@ -68,7 +69,7 @@ int extest() {
 				dt = ti.get_next_dt(good_solution);
 			}
 
-			auto sol = ic * std::exp(F.lambda * ti.get_final_time());
+			auto sol = ic * std::exp(F.get_params().lambda * ti.get_final_time());
 			auto approx = x.max().get();
 			return std::tuple(ti.get_final_time(),
 			                  std::abs(sol - approx),

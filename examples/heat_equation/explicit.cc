@@ -15,10 +15,11 @@ void time_integration(control_policy & cp) {
 	using namespace flecsolve;
 	using namespace flecsolve::time_integrator;
 
+	op::core<heat_op> F(cp.diffusivity);
 	rk23::integrator ti(rk23::parameters(
 		read_config("explicit.cfg", rk23::options("time-integrator")),
-		op::core<heat_op, op::value_storage>(cp.diffusivity),
-		rk23::topo_work<>::get(u)));
+		op::ref(F),
+		rk23::make_work(u)));
 
 	auto output = [&]() {
 		if (output_steps.value()) {

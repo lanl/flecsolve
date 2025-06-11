@@ -40,6 +40,7 @@ struct parcsr_data {
 	typename topo_t::init coloring_input;
 
 	auto spmv_tmp() { return vec::make(topo(), spmv_tmp_def(topo())); }
+	auto nrows() const { return coloring_input.nrows; }
 
 protected:
 	std::unique_ptr<typename topo_t::slot> topo_slot;
@@ -169,6 +170,7 @@ protected:
 		ci.ncols = shape[1];
 		ci.row_part.set_block_map(ci.nrows, colors);
 		ci.col_part.set_block_map(ci.ncols, colors);
+		ci.proc_part.set_block_map(colors, comm_size);
 	}
 
 	MPI_Comm comm_;

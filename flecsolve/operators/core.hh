@@ -82,6 +82,7 @@ struct core : P {
 	static constexpr auto input_var = P::input_var;
 	static constexpr auto output_var = P::output_var;
 	using params_t = typename P::params_t;
+	using policy_type = P;
 
 	template<class Head,
 	         class... Tail,
@@ -108,7 +109,10 @@ struct core : P {
 	         std::enable_if_t<is_vector_v<D>, bool> = true,
 	         std::enable_if_t<is_vector_v<R>, bool> = true>
 	decltype(auto) apply(const D & x, R & y) const {
-		return P::apply(x, y);
+		decltype(auto) ys = y.subset(output_var);
+		decltype(auto) xs = x.subset(input_var);
+
+		return P::apply(xs, ys);
 	}
 
 	template<class D,
@@ -116,7 +120,10 @@ struct core : P {
 	         std::enable_if_t<is_vector_v<D>, bool> = true,
 	         std::enable_if_t<is_vector_v<R>, bool> = true>
 	decltype(auto) operator()(const D & x, R & y) const {
-		return P::apply(x, y);
+		decltype(auto) ys = y.subset(output_var);
+		decltype(auto) xs = x.subset(input_var);
+
+		return P::apply(xs, ys);
 	}
 
 	template<class B,
@@ -140,7 +147,7 @@ auto make(P && p) {
 	return core<std::decay_t<P>>(std::forward<P>(p));
 }
 template<class P, class ... Args>
-auto make_shared(Args && ... args) {
+auto make_shared1(Args && ... args) {
 	return std::make_shared<core<P>>(std::forward<Args>(args)...);
 }
 

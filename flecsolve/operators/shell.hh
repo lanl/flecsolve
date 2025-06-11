@@ -19,13 +19,14 @@ to do so.
 #include <algorithm>
 
 #include "flecsolve/operators/core.hh"
+#include "flecsolve/operators/handle.hh"
 
 namespace flecsolve::op {
 
-template<class F>
-struct shell : base<> {
+template<class F, class ivar_t, class ovar_t>
+struct shell : base<std::nullptr_t, ivar_t, ovar_t> {
 
-	constexpr shell(F f) : f(std::move(f)) {}
+	constexpr shell(F f, ivar_t, ovar_t) : f(std::move(f)) {}
 
 	template<class domain_vec, class range_vec>
 	constexpr decltype(auto) apply(const domain_vec & x, range_vec & y) const {
@@ -35,16 +36,64 @@ struct shell : base<> {
 protected:
 	F f;
 };
-template<class F>
-shell(F) -> shell<F>;
+
+template<class F, auto I, auto O>
+auto make_shell(F && f, variable_t<I>, variable_t<O>) {
+	return core<shell<std::decay_t<F>, variable_t<I>, variable_t<O>>>(
+		std::forward<F>(f), variable<I>, variable<O>);
+}
+
+template<class F, auto... I, auto... O>
+auto make_shell(F && f, multivariable_t<I...>, multivariable_t<O...>) {
+	return core<shell<std::decay_t<F>, multivariable_t<I...>, multivariable_t<O...>>>(
+		std::forward<F>(f), multivariable<I...>, multivariable<O...>);
+}
 
 template<class F>
 auto make_shell(F && f) {
-	return core<shell<F>>(std::forward<F>(f));
+	return make_shell(std::forward<F>(f),
+	                  variable<anon_var::anonymous>, variable<anon_var::anonymous>);
+}
+
+template<class F, auto... I, auto... O>
+auto make_shared_shell(F && f, multivariable_t<I...>, multivariable_t<O...>) {
+	return make_shared<shell<F,
+		multivariable_t<I...>,
+		multivariable_t<O...>>>(std::forward<F>(f),
+		                        multivariable<I...>,
+		                        multivariable<O...>);
+}
+
+template<class F, auto I, auto O>
+auto make_shared_shell(F && f, variable_t<I>, variable_t<O>) {
+	return make_shared<shell<F,
+	                         variable_t<I>,
+	                         variable_t<O>>>(std::forward<F>(f),
+	                                         variable<I>, variable<O>);
+}
+
+template<class F>
+auto make_shared_shell(F && f) {
+	return make_shared_shell(std::forward<F>(f),
+	                         variable<anon_var::anonymous>,
+	                         variable<anon_var::anonymous>);
+}
+
+template<auto... I, auto... O>
+auto make_identity(multivariable_t<I...>, multivariable_t<O...>) {
+	return make_shared_shell([](const auto & x, auto & y) { y.copy(x); },
+	                         multivariable<I...>, multivariable<O...>);
+}
+
+template<auto ivar, auto ovar>
+auto make_identity(variable_t<ivar>, variable_t<ovar>) {
+	return make_shared_shell([](const auto & x, auto & y) { y.copy(x); },
+	                         variable<ivar>, variable<ovar>);
 }
 
 static inline const auto I =
-	make_shell([](const auto & x, auto & y) { y.copy(x); });
+	make_shared_shell([](const auto & x, auto & y) { y.copy(x); });
 
 }
+
 #endif

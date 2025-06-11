@@ -2,7 +2,6 @@ flecsolve_headers(
   bicgstab.hh
   cg.hh
   gmres.hh
-  krylov_operator.hh
   krylov_parameters.hh
   nka.hh
   solver_settings.hh
@@ -10,12 +9,14 @@ flecsolve_headers(
   factory.hh
   mg/jacobi.hh
   mg/gs.hh
+  mg/level.hh
   mg/coarsen.hh
+  mg/ua.hh
+  mg/cg_solve.hh
   mg/intergrid.hh)
 
 if(FLECSOLVE_ENABLE_AMP)
-  flecsolve_sources(
-	amp.cc)
+  flecsolve_sources(amp.cc mg/ua.cc)
 endif()
 
 flecsi_add_test(cg
@@ -66,7 +67,7 @@ flecsi_add_test(nka
   LIBRARIES flecsolve
   PROCS 1)
 
-if(FLECSOLVE_ENABLE_AMP AND TPLs_LIBMESH_FOUND AND AMP_DATA)
+if(FLECSOLVE_ENABLE_AMP AND AMP_DATA)
   flecsi_add_test(amp-amg
 	SOURCES
 	test/amp_boomeramg.cc

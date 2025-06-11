@@ -21,6 +21,7 @@ to do so.
 
 #include "flecsolve/util/traits.hh"
 #include "flecsolve/util/config.hh"
+#include "flecsolve/operators/handle.hh"
 
 namespace flecsolve::time_integrator {
 
@@ -56,20 +57,17 @@ struct base_options : with_label {
 
 template<class S, class O, class W>
 struct parameters : S {
-	template<class Op, class Work>
-	parameters(const S & s, Op && op, Work && work)
-		: S(s), op(std::forward<Op>(op)), work(std::forward<Work>(work)) {}
+	template<class Work>
+	parameters(const S & s, op::handle<O> op, Work && work)
+		: S(s), op(op), work(std::forward<Work>(work)) {}
 
 	auto & get_operator() {
-		if constexpr (is_reference_wrapper_v<O>)
-			return op.get();
-		else
-			return op;
+		return op.get();
 	}
 
 	auto options() {}
 
-	std::decay_t<O> op;
+	op::handle<O> op;
 	std::decay_t<W> work;
 };
 

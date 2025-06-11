@@ -49,15 +49,16 @@ template<class Op, class Work>
 struct parameters : time_integrator::parameters<settings, Op, Work> {
 	using base = time_integrator::parameters<settings, Op, Work>;
 
-	template<class O, class W>
-	parameters(const settings & s, O && op, W && work)
-		: base(s, std::forward<O>(op), std::forward<W>(work)) {}
+	template<class W>
+	parameters(const settings & s, op::handle<Op> op, W && work)
+		: base(s, op, std::forward<W>(work)) {}
 };
 template<class O, class W>
-parameters(const settings &, O &&, W &&) -> parameters<O, W>;
+parameters(const settings &, op::handle<O>, W &&) -> parameters<O, W>;
 
 enum workvecs : std::size_t { k1, k2, k3, k4, z, next, nvecs };
 
+static inline work_factory<workvecs::nvecs> make_work;
 template<std::size_t Version = 0>
 using topo_work = topo_work_base<workvecs::nvecs, Version>;
 

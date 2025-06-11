@@ -32,7 +32,6 @@ to do so.
 #include "flecsolve/physics/expressions/operator_expression.hh"
 #include "flecsolve/physics/volume_diffusion/diffusion.hh"
 #include "flecsolve/physics/volume_diffusion/coefficient.hh"
-#include "flecsolve/solvers/krylov_operator.hh"
 #include "flecsolve/solvers/cg.hh"
 #include "flecsolve/solvers/solver_settings.hh"
 #include "flecsolve/operators/core.hh"
@@ -339,14 +338,9 @@ inline int driver() {
 
 	flog(info) << "constructing solver\n";
 	// create the solver
-	flecsolve::op::krylov slv(
-		// get the solver parameters and workspace, & bind the operator to the
-	    // solver
-		flecsolve::op::krylov_parameters(
-			flecsolve::read_config("diffusion.cfg",
-	                               flecsolve::cg::options("solver")),
-			flecsolve::cg::topo_work<>::get(RHS),
-			std::ref(A)));
+	auto slv = flecsolve::cg::solver(
+		flecsolve::read_config("diffusion.cfg", flecsolve::cg::options("solver")),
+		flecsolve::cg::make_work(RHS))(flecsolve::op::ref(A));
 
 	flog(info) << "applying the solver\n";
 	// run the solver

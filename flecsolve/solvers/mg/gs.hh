@@ -13,70 +13,73 @@ to reproduce, prepare. derivative works, distribute copies to the
 public, perform publicly and display publicly, and to permit others
 to do so.
 */
-#ifndef FLECSOLVE_SOLVERS_MG_GAUSS_SEIDEL_H
-#define FLECSOLVE_SOLVERS_MG_GAUSS_SEIDEL_H
+#ifndef FLECSOLVE_SOLVERS_MG_GAUSS_SEIDEL_HH
+#define FLECSOLVE_SOLVERS_MG_GAUSS_SEIDEL_HH
 
-#include <functional>
-#include <type_traits>
+#include "flecsolve/util/config.hh"
+#include "flecsolve/matrices/parcsr.hh"
+#include "flecsolve/operators/handle.hh"
 
 #include "flecsolve/matrices/parcsr.hh"
 
 namespace flecsolve {
 
 namespace mg {
+enum class relax_sweep { forward, backward, symmetric };
+enum class relax_dir { forward, backward };
 
-enum class relax_dir { up, down };
-template<class scalar, class size>
-struct hybrid_gs_params {
-	std::reference_wrapper<mat::parcsr<scalar, size>> A;
+namespace hybrid_gs {
+struct settings {
 	std::size_t nrelax;
-	relax_dir direction;
-
-	hybrid_gs_params(std::reference_wrapper<mat::parcsr<scalar, size>> a,
-	                 std::size_t n,
-	                 relax_dir d)
-		: A(a), nrelax(n), direction(d) {}
+	relax_sweep sweep;
 };
-
-template<class scalar, class size>
-struct hybrid_gs;
-
+}
 }
 
 namespace op {
-
 template<class scalar, class size>
-struct traits<mg::hybrid_gs<scalar, size>> {
-	static constexpr auto input_var = variable<anon_var::anonymous>;
-	static constexpr auto output_var = variable<anon_var::anonymous>;
-	using parameters = mg::hybrid_gs_params<scalar, size>;
-};
-}
+struct hybrid_gs : base<> {
+	using settings_type = mg::hybrid_gs::settings;
+	using op_t = core<mat::parcsr<scalar, size>>;
 
-namespace mg {
+	handle<op_t> A;
 
-template<class scalar, class size>
-struct hybrid_gs : op::base<hybrid_gs<scalar, size>> {
-	using base = op::base<hybrid_gs<scalar, size>>;
-	using base::params;
+	using topo_t = typename mat::parcsr<scalar, size>::topo_t;
 
-	hybrid_gs(mg::hybrid_gs_params<scalar, size> p) : base(std::move(p)) {}
+	settings_type settings;
+
+	hybrid_gs(handle<op_t> h,
+	          const settings_type & s) :
+		A(h), settings(s) {}
 
 	template<class D, class R>
-	void apply(const vec::base<D> & b, vec::base<R> & x) {
-		for (std::size_t i = 0; i < params.nrelax; ++i) {
-			flecsi::execute<relax>(params.direction,
-			                       params.A.get().data.topo(),
+	void apply(const D & b, R & x) const {
+		auto run = [&](mg::relax_dir rdir) {
+			flecsi::execute<relax>(rdir,
+			                       A.get().data.topo(),
 			                       x.data.ref(),
 			                       b.data.ref());
+		};
+		for (std::size_t i = 0; i < settings.nrelax; ++i) {
+			switch (settings.sweep) {
+			case mg::relax_sweep::forward:
+				run(mg::relax_dir::forward);
+				break;
+			case mg::relax_sweep::backward:
+				run(mg::relax_dir::backward);
+				break;
+			case mg::relax_sweep::symmetric:
+				run(mg::relax_dir::forward);
+				run(mg::relax_dir::backward);
+				break;
+			}
 		}
 	}
 
-	using topo_t = topo::csr<scalar, size>;
 	template<flecsi::partition_privilege_t... PP>
 	using vec_acc = typename flecsi::field<scalar>::template accessor<PP...>;
 
-	static void relax(relax_dir dir,
+	static void relax(mg::relax_dir rdir,
 	                  typename topo_t::template accessor<flecsi::ro> A,
 	                  vec_acc<flecsi::rw, flecsi::ro> xa,
 	                  vec_acc<flecsi::ro, flecsi::na> ba) {
@@ -102,21 +105,37 @@ struct hybrid_gs : op::base<hybrid_gs<scalar, size>> {
 					rsum += dvalues[off] * x[c];
 			}
 			for (size off = orowptr[r]; off < orowptr[r + 1]; ++off) {
-				rsum += ovalues[off] + x[ocolind[off]];
+				rsum += ovalues[off] * x[ocolind[off]];
 			}
 			auto dinv = 1. / diag;
 			x[r] = dinv * (b[r] - rsum);
 		};
 
-		if (dir == relax_dir::down) {
-			for (size r = 0; r < diag.rows(); ++r)
-				update(r);
-		}
-		else {
-			for (size r = diag.rows() - 1; r >= 0; --r)
-				update(r);
+		flecsi::util::iota_view<size> forward(0, diag.rows());
+		flecsi::util::transform_view backward(forward,
+		                                      [&](size i) { return diag.rows() - i - 1; });
+		switch (rdir) {
+		case mg::relax_dir::forward:
+			for (auto r : forward) update(r);
+			break;
+		case mg::relax_dir::backward:
+			for (auto r : backward) update(r);
+			break;
 		}
 	}
+};
+
+}
+
+namespace mg::hybrid_gs {
+
+struct solver {
+	template<class scalar, class size>
+	auto operator()(op::handle<op::core<mat::parcsr<scalar, size>>> A) {
+		return op::core<op::hybrid_gs<scalar, size>>{A, settings_};
+	}
+
+	settings settings_;
 };
 }
 }
