@@ -55,14 +55,14 @@ struct simple_policy {
 };
 using simple_factory = op::factory<simple_policy>;
 
-int nkatest() {
+int nkatest(flecsi::scheduler & s) {
 	UNIT () {
-		testmesh::slot msh;
+		testmesh::ptr mptr;
 
 		auto A = op::make_shared<csr_op>(
 			mat::io::matrix_market<>::read("Chem97ZtZ.mtx").tocsr());
 
-		init_mesh(A.get().rows(), msh);
+		auto & msh = init_mesh(s, A.get().rows(), mptr);
 
 		auto [x, b] = vec::make(msh)(xd, bd);
 		{

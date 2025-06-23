@@ -42,25 +42,23 @@ using fldr = flecsi::field<scalar_t>::Reference<msh, S>;
 constexpr scalar_t DEFAULT_TOL = 1.0E-8;
 
 inline auto
-make_faces_ref(msh::slot & m,
+make_faces_ref(msh::topology & m,
                const util::key_array<fld<msh::faces>, msh::axes> & fs) {
 	return util::key_array<fldr<msh::faces>, msh::axes>{
 		{fs[msh::x_axis](m), fs[msh::y_axis](m), fs[msh::z_axis](m)}};
 }
 
-inline void init_mesh(msh::slot & m, const std::vector<util::gid> & extents) {
+inline auto & init_mesh(flecsi::scheduler & s, msh::ptr & m, const std::vector<util::gid> & extents) {
 	using mesh = physics::fvm_narray;
 	using mbase = mesh::base;
 	mesh::index_definition idef, idef_faces;
-	idef.axes = mbase::make_axes(
-		mbase::distribute(flecsi::processes(), extents), extents);
+	idef.axes = mbase::make_axes(s.runtime().processes(), extents);
 	for (auto & a : idef.axes) {
 		a.hdepth = 1;
 		a.bdepth = 1;
 	}
 
-	idef_faces.axes = mbase::make_axes(
-		mbase::distribute(flecsi::processes(), extents), extents);
+	idef_faces.axes = mbase::make_axes(s.runtime().processes(), extents);
 
 	for (auto & a : idef_faces.axes) {
 		a.hdepth = 0;
@@ -74,7 +72,7 @@ inline void init_mesh(msh::slot & m, const std::vector<util::gid> & extents) {
 	geometry[msh::y_axis] = geometry[msh::x_axis];
 	geometry[msh::z_axis] = geometry[msh::x_axis];
 
-	m.allocate(mesh::mpi_coloring(idef, idef_faces), geometry);
+	return s.allocate(m, mesh::mpi_coloring(s, idef, idef_faces), geometry);
 }
 
 inline void check_vals(msh::accessor<ro, ro> vm,

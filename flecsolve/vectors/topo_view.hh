@@ -23,25 +23,7 @@ to do so.
 
 namespace flecsolve::vec {
 
-namespace detail {
-template<class Topo, class Ref, typename = void>
-struct is_field_reference : std::false_type {};
-
-template<class Topo, class Ref>
-struct is_field_reference<
-	Topo,
-	Ref,
-	typename std::enable_if_t<
-		std::is_same_v<typename flecsi::field<typename Ref::value_type,
-                                              flecsi::data::layout::dense>::
-                           template Reference<Topo, Ref::space>,
-                       Ref>>> : std::true_type {};
-template<class T, class R>
-inline constexpr bool is_field_reference_v = is_field_reference<T, R>::value;
-
-}
-
-template<auto V, class Scalar, class Topo, typename Topo::index_space Space>
+template<auto V, class Scalar, flecsi::data::layout L, class Topo, typename Topo::index_space Space>
 struct topo_view_config {
 	using scalar = Scalar;
 	using real = typename num_traits<scalar>::real;
@@ -51,45 +33,52 @@ struct topo_view_config {
 	static constexpr std::size_t num_components = 1;
 	using topo_t = Topo;
 	static constexpr typename Topo::index_space space = Space;
+	static constexpr flecsi::data::layout layout = L;
 };
 
-template<auto V, class Scalar, class Topo, typename Topo::index_space Space>
+template<auto V, class Scalar, flecsi::data::layout L, class Topo, typename Topo::index_space Space>
 using topo_view = core<data::topo_view,
                        ops::topo_view,
-                       topo_view_config<V, Scalar, Topo, Space>>;
+                       topo_view_config<V, Scalar, L, Topo, Space>>;
 
 template<auto V,
+         class T,
+         flecsi::data::layout L,
          class Topo,
-         class Ref,
-         std::enable_if_t<detail::is_field_reference_v<Topo, Ref>, bool> = true>
-auto make(variable_t<V>, flecsi::data::topology_slot<Topo> & topo, Ref ref) {
-	using vec_t = topo_view<V, typename Ref::value_type, Topo, Ref::space>;
+         typename Topo::index_space Space>
+auto make(variable_t<V>,
+          flecsi::data::field_reference<T, L, Topo, Space> ref) {
+	using Ref = flecsi::data::field_reference<T, L, Topo, Space>;
+	using vec_t = topo_view<V, T, L, Topo, Space>;
 	using config_t = typename vec_t::config;
 
-	return vec_t{data::topo_view<config_t>{topo, ref}};
+	return vec_t{data::topo_view<config_t>{ref}};
 }
 
-template<class Topo,
-         class Ref,
-         std::enable_if_t<detail::is_field_reference_v<Topo, Ref>, bool> = true>
-auto make(flecsi::data::topology_slot<Topo> & topo, Ref ref) {
-	return make(variable<anon_var::anonymous>, topo, ref);
+
+template<class T,
+         flecsi::data::layout L,
+         class Topo,
+         typename Topo::index_space Space>
+auto make(flecsi::data::field_reference<T, L, Topo, Space> ref) {
+	return vec::make(variable<anon_var::anonymous>, ref);
 }
 
-template<auto V, class Topo>
-auto make(variable_t<V> var, flecsi::data::topology_slot<Topo> & topo) {
+
+template<auto V, class T>
+auto make(variable_t<V> var, flecsi::topology<T> & topo) {
 	return [&, var](auto &... fd) {
 		if constexpr (sizeof...(fd) == 1) {
-			return make(var, topo, fd(topo)...);
+			return make(var, fd(topo)...);
 		}
 		else {
-			return std::tuple(make(var, topo, fd(topo))...);
+			return std::tuple(make(var, fd(topo))...);
 		}
 	};
 }
 
-template<class Topo>
-auto make(flecsi::data::topology_slot<Topo> & topo) {
+template<class T>
+auto make(flecsi::topology<T> & topo) {
 	return make(variable<anon_var::anonymous>, topo);
 }
 

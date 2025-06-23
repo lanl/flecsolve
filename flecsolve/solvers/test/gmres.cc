@@ -12,8 +12,6 @@
 
 namespace flecsolve {
 
-static constexpr std::size_t ncases = 2;
-
 const realf::definition<testmesh, testmesh::cells> xd, bd;
 
 template<class Op, class Vec>
@@ -21,7 +19,7 @@ struct diagnostic {
 	diagnostic(const Op & A, const Vec & x0, const Vec & b, double cfact)
 		: iter(0), cfact(cfact), fail_monotonic(false),
 		  fail_convergence(false) {
-		auto r = vec::make(x0.data.topo(), resdef(x0.data.topo()));
+		auto r = vec::make(resdef(x0.data.topo()));
 		A.residual(b, x0, r);
 		rnorm0 = r.l2norm().get();
 		rnorm_prev = rnorm0;
@@ -50,17 +48,16 @@ struct diagnostic {
 	static inline const realf::definition<testmesh, testmesh::cells> resdef;
 };
 
-int gmres_test() {
+int gmres_test(flecsi::scheduler & s) {
 	UNIT () {
-		std::array<testmesh::slot, ncases> mshs;
+		testmesh::ptr mptr;
 
 		auto matrix = mat::io::matrix_market<>::read("Chem97ZtZ.mtx").tocsr();
 
 		double cond = 2.472189e+02;
 		double cfact = (cond * cond - 1) / (cond * cond);
 
-		auto & msh = mshs[0];
-		init_mesh(matrix.rows(), msh);
+		auto & msh = init_mesh(s, matrix.rows(), mptr);
 
 		op::core<csr_op> A(std::move(matrix));
 		op::core<csr_op> Dinv(A.Dinv());

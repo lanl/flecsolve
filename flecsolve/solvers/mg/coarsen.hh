@@ -32,7 +32,7 @@ using flecsi::data::multi;
 
 template<class scalar, class size>
 using csr_acc = multi<typename topo::csr<scalar, size>::template accessor<flecsi::ro>>;
-template<flecsi::partition_privilege_t... privs>
+template<flecsi::privilege... privs>
 using aggt_acc = multi<
 	typename flecsi::field<flecsi::util::id>::template accessor<privs...>>;
 template<class scalar, class size>
@@ -433,7 +433,8 @@ void aggregate_and_partition(
 			std::fill(at.span().begin(),
 			          at.span().end(),
 			          std::numeric_limits<flecsi::util::id>::max());
-			auto offset = row_part(proc_part(flecsi::process()));
+			// TODO: pass in scheduler
+			auto offset = row_part(proc_part((*flecsi::scheduler::instance).runtime().process()));
 			transpose_aggregates(*agg, at, offset);
 			++agg;
 		}
@@ -621,7 +622,8 @@ auto coarsen(const mat::parcsr<scalar, size> & Af, Ref aggt_ref,
              const coarsen_settings & settings = {}) {
 	typename topo::csr<scalar, size>::init topo_init;
 	std::vector<task::aggregate_t> agg;
-	auto lm = flecsi::data::launch::make(Af.data.topo());
+	// TODO: pass in a scheduler
+	auto lm = flecsi::data::launch::make(*flecsi::scheduler::instance, Af.data.topo());
 	auto aggt = flecsi::data::multi_reference(aggt_ref, lm);
 	flecsi::execute<task::aggregate_and_partition<scalar, size>, flecsi::mpi>(
 		settings.beta, settings.pairwise_passes, lm, agg, aggt, topo_init);
@@ -639,12 +641,14 @@ auto coarsen(const mat::parcsr<scalar, size> & Af, Ref aggt_ref,
 		flecsi::execute<task::redistribute<scalar, size>, flecsi::mpi>(lm, topo_init,
 		                                                               settings.redist_coarsen_factor,
 		                                                               settings.coarsen_to_serial);
-		if (flecsi::process() == 0) {
+		// TODO: pass in scheduler
+		if ((*flecsi::scheduler::instance).runtime().process() == 0) {
 			std::cout << "redistributed from " << prev_colors << " to " << topo_init.row_part.size() << std::endl;
 		}
 	}
 
-	return mat::parcsr<scalar, size>(std::move(topo_init));
+	// TODO: pass in scheduler
+	return mat::parcsr<scalar, size>(*flecsi::scheduler::instance, std::move(topo_init));
 }
 
 }

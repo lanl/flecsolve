@@ -79,7 +79,7 @@ protected:
 };
 }
 // everything that does not depend on policy
-struct csr_base {
+struct csr_base : flecsi::topo::base {
 	using process_coloring = csr_impl::process_coloring;
 	using partition = csr_impl::partition;
 	using metadata = csr_impl::metadata;
@@ -199,16 +199,20 @@ inline auto proc_claim(const csr_impl::partition & proc_part) {
 template<class T>
 flecsi::data::launch::mapping<flecsi::topo::policy_t<T>>
 launch(T & t, const csr_base::coloring & c) {
-	return {t, proc_claim(c.proc_part)};
-}
-template<class P>
-flecsi::data::launch::mapping<P>
-launch(flecsi::data::topology_slot<P> & t, const csr_base::coloring & c) {
-	return launch(t.get(), c);
+	// return {t, proc_claim(c.proc_part)};
+	// TODO: pass in a scheduler
+	return flecsi::data::launch::make(*flecsi::scheduler::instance, t, proc_claim(c.proc_part));
 }
 
 template<class P>
-struct csr_category : csr_base, flecsi::topo::with_meta<P> {
+using csr_category = flecsi::topo::topology<P, csr_base>;
+
+}
+
+namespace flecsi::topo {
+
+template<class P>
+struct topology<P, flecsolve::topo::csr_base> : flecsolve::topo::csr_base, with_meta<P> {
 	using index_space = typename P::index_space;
 	using index_spaces = typename P::index_spaces;
 
@@ -234,13 +238,14 @@ struct csr_category : csr_base, flecsi::topo::with_meta<P> {
 	         flecsi::data::layout Layout,
 	         typename P::index_space Space>
 	[[nodiscard]] const flecsi::data::copy_plan * ghost_copy(
+		flecsi::scheduler &,
 		const flecsi::data::field_reference<Type, Layout, P, Space> &) {
 		static_assert(Space == P::column_space);
 		return &column_plan_;
 	}
 
-	csr_category(const coloring & c)
-		: csr_category(
+	topology(scheduler & s, const coloring & c)
+		: topology(s,
 			  [&c]() -> auto & {
 				  flog_assert(
 					  c.idx_spaces.size() == index_spaces::size,
@@ -251,24 +256,26 @@ struct csr_category : csr_base, flecsi::topo::with_meta<P> {
 
 private:
 	template<auto... VV>
-	csr_category(const csr_base::coloring & c, flecsi::util::constants<VV...>)
-		: flecsi::topo::with_meta<P>(c.colors),
+	topology(scheduler & s, const csr_base::coloring & c, flecsi::util::constants<VV...>)
+		: with_meta<P>(s, c.colors),
 		  part_{{flecsi::topo::make_repartitioned<P, VV>(
-			  c.colors,
-			  flecsi::make_partial<idx_size>([&]() {
-				  std::vector<std::size_t> partitions;
-				  for (const auto & pc : c.idx_spaces[index<VV>]) {
-					  partitions.push_back(pc.entities);
-				  }
-				  flecsi::topo::concatenate(partitions, c.colors, c.comm);
-				  return partitions;
-			  }()))...}},
-		  column_plan_{make_copy_plan(c, part_[index<P::column_space>])} {
+					  c.colors, s,
+					  [p =
+					   [&] {
+						   std::vector<std::size_t> partitions;
+						   for (const auto & pc : c.idx_spaces[index<VV>]) {
+							   partitions.push_back(pc.entities);
+						   }
+						   concatenate(partitions, c.colors, c.comm);
+						   return partitions;
+					   }()](std::size_t i) { return p[i]; })...}},
+		column_plan_{make_copy_plan(s, c, part_[index<P::column_space>])} {
 		auto lm = launch(this->meta, c);
 		flecsi::execute<set_meta, flecsi::mpi>(metadata_field(lm), c);
 	}
 
-	flecsi::data::copy_plan make_copy_plan(const csr_base::coloring & c,
+	flecsi::data::copy_plan make_copy_plan(scheduler & s,
+	                                       const csr_base::coloring & c,
 	                                       flecsi::topo::repartitioned &) {
 		std::vector<std::size_t> num_intervals(c.colors, 1);
 		destination_intervals intervals;
@@ -289,7 +296,7 @@ private:
 				flecsi::mpi>(lm(f), pointers, c.comm);
 		};
 
-		return {*this,
+		return {s, *this,
 		        num_intervals,
 		        dest_task,
 		        ptrs_task,
@@ -350,21 +357,22 @@ private:
 
 template<class P>
 template<flecsi::Privileges Priv>
-struct csr_category<P>::access {
+struct topology<P, flecsolve::topo::csr_base>::access {
+	using csr_category = flecsolve::topo::csr_category<P>;
 	template<class F>
 	void send(F && f) {
 		send_csr<csr_category::diag>(f, diag_);
 		send_csr<csr_category::offd>(f, offd_);
 		const auto meta = [](auto & n) -> auto & { return n.meta; };
 		meta_.topology_send(f, meta);
-		f(colmap_, [](auto & t) { return csr_category::colmap_field(t.get()); });
+		f(colmap_, [](auto & t) { return csr_category::colmap_field(t); });
 	}
 
 	template<class FS, class A, class F>
 	void send_csr(F && f, A & a) {
-		f(a.offsets, [](auto & t) { return FS::offsets(t.get()); });
-		f(a.indices, [](auto & t) { return FS::indices(t.get()); });
-		f(a.values, [](auto & t) { return FS::values(t.get()); });
+		f(a.offsets, [](auto & t) { return FS::offsets(t); });
+		f(a.indices, [](auto & t) { return FS::indices(t); });
+		f(a.values, [](auto & t) { return FS::values(t); });
 	}
 
 	FLECSI_INLINE_TARGET auto diag() { return diag_; }
@@ -373,10 +381,10 @@ struct csr_category<P>::access {
 
 	FLECSI_INLINE_TARGET auto colmap() { return colmap_; }
 
-	FLECSI_INLINE_TARGET const csr_impl::metadata & meta() const { return *meta_; }
+	FLECSI_INLINE_TARGET const flecsolve::topo::csr_impl::metadata & meta() const { return *meta_; }
 
 private:
-	flecsi::data::scalar_access<csr_category<P>::metadata_field, Priv> meta_;
+	flecsi::data::scalar_access<csr_category::metadata_field, Priv> meta_;
 
 	template<const auto & Field>
 	using accessor = flecsi::data::accessor_member<
@@ -393,13 +401,13 @@ private:
 	csr_acc<csr_category::offd> offd_;
 	accessor<csr_category::colmap_field> colmap_;
 };
-}
-namespace flecsi::topo {
+
 template<>
 struct detail::base<flecsolve::topo::csr_category> {
 	using type = flecsolve::topo::csr_base;
 };
-}
+
+} // namespace flecsi::topo
 
 namespace flecsolve::topo {
 template<class scalar, class size = std::size_t>
@@ -544,7 +552,7 @@ struct csr : flecsi::topo::help,
 	*/
 	static void
 	init_mats(flecsi::data::multi<
-				  typename csr<scalar, size>::template accessor<flecsi::wo>> m,
+	          typename csr<scalar, size>::template accessor<flecsi::wo>> m,
 	          const coloring & c,
 	          const init & ci) {
 		auto [rank, comm_size] = flecsi::util::mpi::info(c.comm);
@@ -614,10 +622,11 @@ struct csr : flecsi::topo::help,
 
 	  - execute mpi task to set diag and offd matrices
 	*/
-	static void initialize(flecsi::data::topology_slot<csr> & s,
+	static void initialize(flecsi::scheduler & s,
+	                       typename topo::csr<scalar, size>::topology & topo,
 	                       const coloring & c,
 	                       const init & ci) {
-		auto lm = launch(s, c);
+		auto lm = launch(topo, c);
 		flecsi::execute<init_mats, flecsi::mpi>(lm, c, ci);
 	}
 };

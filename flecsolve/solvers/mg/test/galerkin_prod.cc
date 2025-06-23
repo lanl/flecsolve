@@ -89,9 +89,9 @@ void explicit_restrict(csr_topo::accessor<ro> mf,
 	R.apply(w, y);
 }
 
-int coarsentest() {
+int coarsentest(flecsi::scheduler & s) {
 	UNIT () {
-		op::core<parcsr> A(MPI_COMM_WORLD, "nos7.mtx");
+		op::core<parcsr> A(s, MPI_COMM_WORLD, "nos7.mtx");
 
 		auto & topof = A.data.topo();
 		auto aggt_ref = aggt_def(topof);

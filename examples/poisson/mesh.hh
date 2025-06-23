@@ -27,10 +27,10 @@ namespace poisson {
 enum class five_pt { c, w, s, ndirs };
 enum class nine_pt { c, w, s, sw, nw, ndirs };
 
-static constexpr flecsi::partition_privilege_t na = flecsi::na;
-static constexpr flecsi::partition_privilege_t ro = flecsi::ro;
-static constexpr flecsi::partition_privilege_t wo = flecsi::wo;
-static constexpr flecsi::partition_privilege_t rw = flecsi::rw;
+static constexpr flecsi::privilege na = flecsi::na;
+static constexpr flecsi::privilege ro = flecsi::ro;
+static constexpr flecsi::privilege wo = flecsi::wo;
+static constexpr flecsi::privilege rw = flecsi::rw;
 
 template<typename T, flecsi::data::layout L = flecsi::data::layout::dense>
 using field = flecsi::field<T, L>;
@@ -197,10 +197,11 @@ struct mesh : flecsi::topo::specialization<flecsi::topo::narray, mesh> {
 		sm.set_geom(g);
 	}
 
-	static void initialize(flecsi::data::topology_slot<mesh> & s,
+	static void initialize(flecsi::scheduler & s,
+	                       mesh::topology & m,
 	                       coloring const &,
 	                       grect const & geometry) {
-		flecsi::execute<set_geometry, flecsi::mpi>(s, geometry);
+		flecsi::execute<set_geometry, flecsi::mpi>(m, geometry);
 	}
 };
 

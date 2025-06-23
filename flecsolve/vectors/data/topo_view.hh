@@ -20,25 +20,26 @@ to do so.
 
 namespace flecsolve::vec::data {
 
-template<typename T, flecsi::data::layout L = flecsi::data::layout::dense>
-using field = flecsi::field<T, L>;
-
 template<class Config>
 struct topo_view {
 	using config = Config;
 	using scalar = typename Config::scalar;
 	using topo_t = typename Config::topo_t;
 	static constexpr typename topo_t::index_space space = Config::space;
-	using topo_slot_t = flecsi::data::topology_slot<topo_t>;
+
+	template<class T = typename Config::scalar>
+	using field = flecsi::field<scalar, Config::layout>;
+
 	using field_definition =
-		typename field<scalar>::template definition<topo_t, space>;
+		typename flecsi::field<scalar, Config::layout>::template
+		definition<topo_t, space>;
 	using field_reference =
-		typename field<scalar>::template Reference<topo_t, space>;
+		typename flecsi::field<scalar, Config::layout>::template Reference<topo_t, space>;
 
 	static inline constexpr flecsi::PrivilegeCount num_priv =
 		topo_t::template privilege_count<space>;
 
-	template<flecsi::partition_privilege_t priv>
+	template<flecsi::privilege priv>
 	static inline constexpr flecsi::Privileges dofs_priv =
 		flecsi::privilege_cat<
 			flecsi::privilege_repeat<priv, num_priv - (num_priv > 1)>,
@@ -48,11 +49,11 @@ struct topo_view {
 		topo_t,
 		flecsi::privilege_repeat<flecsi::ro, num_priv>>;
 
-	template<flecsi::partition_privilege_t priv>
-	using acc = typename field<scalar>::template accessor1<dofs_priv<priv>>;
+	template<flecsi::privilege priv>
+	using acc = typename flecsi::field<scalar, Config::layout>::template accessor1<dofs_priv<priv>>;
 
-	template<flecsi::partition_privilege_t priv>
-	using acc_all = typename field<scalar>::template accessor1<
+	template<flecsi::privilege priv>
+	using acc_all = typename flecsi::field<scalar, Config::layout>::template accessor1<
 		flecsi::privilege_repeat<priv, num_priv>>;
 
 	struct util {
@@ -62,12 +63,11 @@ struct topo_view {
 		}
 	};
 
-	std::reference_wrapper<topo_slot_t> topo_slot;
 	field_reference reference;
 
 	auto ref() const { return reference; }
 	auto fid() const { return ref().fid(); }
-	topo_slot_t & topo() const { return topo_slot; }
+	auto & topo() const { return ref().topology(); }
 };
 
 template<class Config>

@@ -78,7 +78,7 @@ template<auto S>
 using vec_fldr = util::key_array<fldr<S>, msh::axes>;
 
 // useful to produce an array of field references from an array of field defs
-inline auto make_faces_ref(msh::slot & m, const vec_fld<msh::faces> & fs) {
+inline auto make_faces_ref(msh::topology & m, const vec_fld<msh::faces> & fs) {
 	return vec_fldr<msh::faces>{
 		fs[msh::x_axis](m), fs[msh::y_axis](m), fs[msh::z_axis](m)};
 }
@@ -99,20 +99,20 @@ std::array<vec_fld<msh::faces>, NVAR> diff_coeffd{};
 //=============== utility functions==================
 //===================================================
 
-void init_mesh(msh::slot & m) {
+auto & init_mesh(flecsi::scheduler & s, msh::ptr & m) {
 	using mbase = msh::base;
 
 	std::vector<flecsi::util::gid> extents{{NX.value(), NY.value(), 1}};
 	msh::index_definition idef, idef_faces;
 	idef.axes = mbase::make_axes(
-		mbase::distribute(flecsi::processes(), extents), extents);
+		s.runtime().processes(), extents);
 	for (auto & a : idef.axes) {
 		a.hdepth = 1;
 		a.bdepth = 1;
 	}
 
 	idef_faces.axes = mbase::make_axes(
-		mbase::distribute(flecsi::processes(), extents), extents);
+		s.runtime().processes(), extents);
 
 	for (auto & a : idef_faces.axes) {
 		a.hdepth = 0;
@@ -126,9 +126,7 @@ void init_mesh(msh::slot & m) {
 	geometry[msh::y_axis] = geometry[msh::x_axis];
 	geometry[msh::z_axis] = geometry[msh::x_axis];
 
-	m.allocate(msh::mpi_coloring(idef, idef_faces), geometry);
-
-	run::context::instance().add_topology(m);
+	return s.allocate(m, msh::mpi_coloring(s, idef, idef_faces), geometry);
 }
 
 /**
@@ -195,7 +193,7 @@ constexpr decltype(auto) make_boundary_operator_pseudo(const Vec &) {
  * used by the diffusion operator
  */
 template<std::size_t N, class Vec>
-decltype(auto) make_volume_operator(msh::slot & m,
+decltype(auto) make_volume_operator(msh::topology & m,
                                     const Vec &,
                                     scalar_t beta,
                                     scalar_t alpha) {
@@ -214,12 +212,12 @@ decltype(auto) make_volume_operator(msh::slot & m,
  */
 namespace detail {
 template<class FieldDefArr, std::size_t... I>
-decltype(auto) make_multivector(msh::slot & m,
+decltype(auto) make_multivector(msh::topology & m,
                                 const FieldDefArr & fd,
                                 std::index_sequence<I...>) {
 	using namespace flecsolve;
 	return vec::make(
-		vec::make(variable<static_cast<diffusion_var>(I)>, m, fd[I](m))...);
+		vec::make(variable<static_cast<diffusion_var>(I)>, fd[I](m))...);
 }
 
 template<std::size_t I>
@@ -243,7 +241,7 @@ void field_out(msh::accessor<ro, ro> vm,
 }
 
 template<class FieldDefArr, std::size_t... I>
-void fields_out(msh::slot & m,
+void fields_out(msh::topology & m,
                 const FieldDefArr & fd,
                 std::ofstream & of,
                 std::index_sequence<I...>) {
@@ -253,30 +251,31 @@ void fields_out(msh::slot & m,
 } // namespace detail
 
 template<class FieldDeffArr>
-void fields_out(msh::slot & m, FieldDeffArr & fd, std::string filen) {
+void fields_out(msh::topology & m, FieldDeffArr & fd, std::string filen) {
 
 	std::stringstream ss;
-	ss << filen << "_" << process() << ".dat";
+	ss << filen << "_" << (*flecsi::scheduler::instance).runtime().process() << ".dat";
 	std::ofstream of(ss.str(), std::ofstream::out);
 
 	detail::fields_out(m, fd, of, std::make_index_sequence<NVAR>{});
 }
 
 template<class FieldDefArr>
-decltype(auto) make_multivector(msh::slot & m, const FieldDefArr & fd) {
+decltype(auto) make_multivector(msh::topology & m, const FieldDefArr & fd) {
 	return detail::make_multivector(m, fd, std::make_index_sequence<NVAR>{});
 }
 
 inline int driver() {
+	auto & s = *flecsi::scheduler::instance;
 
 	flog(info) << "multivector 2D diffusion: \n";
-	flog(info) << "nranks = " << processes() << "\n";
+	flog(info) << "nranks = " << s.runtime().processes() << "\n";
 
 	flog(info) << "initializing mesh\n";
 	// initialize the mesh
-	msh::slot m;
+	msh::ptr mptr;
 
-	init_mesh(m);
+	auto & m = init_mesh(s, mptr);
 
 	//===================================================
 	//=============== multivectors ======================

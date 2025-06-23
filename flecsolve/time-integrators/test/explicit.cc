@@ -23,15 +23,15 @@ struct rate : op::base<parameters> {
 	}
 };
 
-int extest() {
+int extest(flecsi::scheduler & s) {
 	using namespace flecsolve::time_integrator;
 
 	UNIT () {
-		testmesh::slot msh;
+		testmesh::ptr mptr;
 
 		double ic = 3.;
 
-		init_mesh(1, msh);
+		auto & msh = init_mesh(s, 1, mptr);
 
 		op::core<rate> F(-1.);
 

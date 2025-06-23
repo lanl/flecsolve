@@ -17,8 +17,8 @@ static constexpr std::size_t ncases = 2;
 
 const realf::definition<testmesh, testmesh::cells> xd, bd;
 
-int driver() {
-	std::array<testmesh::slot, ncases> mshs;
+int driver(flecsi::scheduler & s) {
+	std::array<testmesh::ptr, ncases> mptrs;
 	std::array cases{std::make_tuple("Chem97ZtZ.mtx", 91, 92),
 	                 std::make_tuple("psmigr_3.mtx", 32, 32)};
 
@@ -31,9 +31,7 @@ int driver() {
 		for (const auto & cs : cases) {
 			auto mtx = mat::io::matrix_market<>::read(std::get<0>(cs)).tocsr();
 
-			auto & msh = mshs[i];
-
-			init_mesh(mtx.rows(), msh);
+			auto & msh = init_mesh(s, mtx.rows(), mptrs[i]);
 
 			auto [x, b] = vec::make(msh)(xd, bd);
 			b.set_random(0);
