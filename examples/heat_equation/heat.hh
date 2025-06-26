@@ -44,13 +44,14 @@ void time_integration(control_policy &);
 
 namespace task {
 
-inline void output(mesh::accessor<ro> m,
+inline void output(flecsi::exec::cpu s,
+                   mesh::accessor<ro> m,
                    field<double>::accessor<ro, ro> ua,
                    const char * base_fname) {
 	auto u = m.mdcolex<mesh::vertices>(ua);
 
 	std::ofstream ofile(std::string{base_fname} + "-" +
-	                    std::to_string(flecsi::process()) + ".dat");
+	                    std::to_string(s.launch().index) + ".dat");
 
 	for (auto j : m.vertices<mesh::y_axis>()) {
 		const double y = m.value<mesh::y_axis>(j);

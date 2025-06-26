@@ -45,16 +45,18 @@ struct control_policy : flecsi::run::control_base {
 		list<point<cp::initialize>, point<cp::advance>, point<cp::finalize>>;
 
 	double diffusivity;
-	mesh::slot m;
+	heat::mesh::ptr m;
 
-	using vec = decltype(flecsolve::vec::make(m, ud[0](m)));
+	auto & mesh() { return *m; }
+
+	using vec = decltype(flecsolve::vec::make(ud[0](*m)));
 	vec & u() { return u_.value(); }
 
 	vec & unew() { return unew_.value(); }
 
 	void initialize_vectors() {
-		u_.emplace(flecsolve::vec::make(m, ud[0](m)));
-		unew_.emplace(flecsolve::vec::make(m, ud[1](m)));
+		u_.emplace(flecsolve::vec::make(ud[0](mesh())));
+		unew_.emplace(flecsolve::vec::make(ud[1](mesh())));
 	}
 
 	template<class T>

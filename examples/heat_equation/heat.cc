@@ -29,6 +29,7 @@ void ics(mesh::accessor<ro> m, field<double>::accessor<wo, na> ua) {
 }
 
 void init_mesh(control_policy & cp) {
+	auto & sc = cp.scheduler();
 	flog(info) << "Initializing " << x_extents.value() << "x"
 			   << y_extents.value() << " mesh" << std::endl;
 	flecsi::flog::flush();
@@ -36,7 +37,7 @@ void init_mesh(control_policy & cp) {
 	mesh::base::gcoord axis_extents{x_extents.value(), y_extents.value()};
 	mesh::index_definition idef;
 	idef.axes = mesh::base::make_axes(
-		mesh::base::distribute(flecsi::processes(), axis_extents),
+		sc.runtime().processes(),
 		axis_extents);
 
 	for (auto & a : idef.axes)
@@ -47,7 +48,7 @@ void init_mesh(control_policy & cp) {
 	geometry[0][1] = 10.0;
 	geometry[1] = geometry[0];
 
-	cp.m.allocate(mesh::mpi_coloring(idef), geometry);
+	sc.allocate(cp.m, mesh::mpi_coloring(sc, idef), geometry);
 
 	cp.diffusivity = diffusivity.value();
 	cp.initialize_vectors();
@@ -61,7 +62,7 @@ void initial_conditions(control_policy & cp) {
 
 	auto & u = cp.u();
 
-	flecsi::execute<task::ics>(cp.m, u.data.ref());
+	flecsi::execute<task::ics>(cp.mesh(), u.data.ref());
 }
 inline control::action<initial_conditions, cp::initialize> ic_action;
 inline auto const dep = ic_action.add(init_mesh_action);
@@ -70,7 +71,7 @@ inline control::action<time_integration, cp::advance> ti_action;
 
 void output_solution(control_policy & cp) {
 	flecsi::execute<task::output, flecsi::mpi>(
-		cp.m, cp.u().data.ref(), "solution");
+		flecsi::exec::on, cp.mesh(), cp.u().data.ref(), "solution");
 }
 inline control::action<output_solution, cp::finalize> output_action;
 
@@ -82,7 +83,7 @@ int main(int argc, char * argv[]) {
 	const flecsi::run::dependencies_guard dg;
 	flecsi::run::config cfg;
 
-	const flecsi::runtime run(cfg);
+	flecsi::runtime run(cfg);
 
 	flecsi::flog::add_output_stream("clog", std::clog, true);
 

@@ -157,7 +157,7 @@ struct seq_ops {
 	template<class X>
 	static void dump(std::string_view pre, const X & x) {
 		std::string fname{pre};
-		fname += "-" + std::to_string(flecsi::color());
+		fname += "-" + std::to_string(flecsi::run::context::instance().process());
 		std::ofstream ofile{fname};
 		fordofs([&](len_t i) { ofile << x[i] << '\n'; }, x);
 	}

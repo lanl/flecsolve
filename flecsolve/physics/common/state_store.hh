@@ -35,7 +35,6 @@ template<class K, class Vec, auto Space, std::size_t Len, std::size_t tag>
 struct topo_state_store {
 	using topo_t = physics::topo_t<Vec>;
 	using scalar_t = physics::scalar_t<Vec>;
-	using topo_slot_t = physics::topo_slot_t<Vec>;
 
 	using fd = field_def<Vec, Space>;
 	// ypename flecsi::field<scalar_t>::template definition<topo_t, Space>;
@@ -44,13 +43,13 @@ struct topo_state_store {
 
 	static inline std::array<fd, Len> fields;
 
-	static auto get_state(topo_slot_t & s) {
+	static auto get_state(typename topo_t::topology & s) {
 		return make_state(s, fields, std::make_index_sequence<Len>());
 	}
 
 protected:
 	template<std::size_t... Index>
-	static decltype(auto) make_state(topo_slot_t & slot,
+	static decltype(auto) make_state(typename topo_t::topology & slot,
 	                                 std::array<fd, Len> & f,
 	                                 std::index_sequence<Index...>) {
 		if constexpr (Len == 1) {

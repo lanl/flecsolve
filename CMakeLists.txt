@@ -133,8 +133,12 @@ target_include_directories(flecsolve
 )
 
 target_link_libraries(flecsolve PUBLIC
-  FleCSI::FleCSI MPI::MPI_CXX ${AMP_LIBRARIES} ${TPL_LIBRARIES} LapackWrappers::LapackWrappers)
+  FleCSI::FleCSI MPI::MPI_CXX)
 
+if(FLECSOLVE_ENABLE_AMP)
+  target_link_libraries(flecsolve PUBLIC
+	${AMP_LIBRARIES} ${TPL_LIBRARIES} LapackWrappers::LapackWrappers)
+endif()
 add_subdirectory(flecsolve)
 
 if(FLECSOLVE_BUILD_EXAMPLES)

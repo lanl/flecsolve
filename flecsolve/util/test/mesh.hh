@@ -68,9 +68,16 @@ struct testmesh : flecsi::topo::specialization<flecsi::topo::narray, testmesh> {
 		}
 	};
 
-	static coloring color(const index_definition & idef) { return {{idef}}; }
+	static coloring color(std::size_t num_colors, gcoord axis_extents) {
+		index_definition idef;
+		idef.axes = base::make_axes(num_colors, axis_extents);
+		for (auto & a : idef.axes)
+			a.hdepth = 1;
+		return {{idef}};
+	}
 
-	static void initialize(flecsi::data::topology_slot<testmesh> &,
+	static void initialize(flecsi::scheduler &,
+	                       testmesh::topology &,
 	                       coloring const &) {}
 };
 
@@ -80,16 +87,11 @@ using flecsi::na;
 using flecsi::ro;
 using flecsi::wo;
 
-inline void init_mesh(std::size_t nrows, testmesh::slot & msh) {
-	testmesh::index_definition idef;
+inline auto & init_mesh(flecsi::scheduler & s, std::size_t nrows, testmesh::ptr & msh) {
 	testmesh::gcoord extents{nrows};
-	idef.axes = testmesh::base::make_axes(
-		testmesh::base::distribute(flecsi::processes(), extents), extents);
 
-	for (auto & a : idef.axes)
-		a.hdepth = 1;
-
-	msh.allocate(testmesh::mpi_coloring(idef));
+	return s.allocate(msh,
+	                  testmesh::mpi_coloring(s, s.runtime().processes(), extents));
 }
 
 inline void spmv(const mat::csr<double> & A,

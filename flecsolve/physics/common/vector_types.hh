@@ -35,9 +35,6 @@ template<class Vec>
 using topo_t = typename Vec::data_t::topo_t;
 
 template<class Vec>
-using topo_slot_t = typename Vec::data_t::topo_slot_t;
-
-template<class Vec>
 using topo_axes_t = typename topo_t<Vec>::axes;
 
 template<class Vec>
@@ -47,20 +44,18 @@ template<class Vec>
 using topo_acc = typename topo_t<Vec>::template accessor<flecsi::ro>;
 // using topo_acc = typename Vec::data_t::topo_acc;
 
-template<class Vec, flecsi::partition_privilege_t priv>
+template<class Vec, flecsi::privilege priv>
 using field_acc = typename Vec::data_t::template acc<priv>;
 
-template<class Vec, flecsi::partition_privilege_t priv>
+template<class Vec, flecsi::privilege priv>
 using field_acc_all = typename Vec::data_t::template acc_all<priv>;
-
-using vec::data::field;
 
 template<class Vec, auto Space = topo_t<Vec>::space>
 using field_def =
-	typename field<scalar_t<Vec>>::template definition<topo_t<Vec>, Space>;
+	typename Vec::data_t::template field<scalar_t<Vec>>::template definition<topo_t<Vec>, Space>;
 template<class Vec, auto Space = topo_t<Vec>::space>
 using field_ref =
-	typename field<scalar_t<Vec>>::template Reference<topo_t<Vec>, Space>;
+	typename Vec::data_t::template field<scalar_t<Vec>>::template Reference<topo_t<Vec>, Space>;
 
 template<class Vec>
 using face_def = field_def<Vec, topo_t<Vec>::faces>;

@@ -39,7 +39,7 @@ void init_field(testmesh::accessor<ro, ro> m,
 }
 
 template<std::size_t... Index>
-void init_fields(testmesh::slot & msh,
+void init_fields(testmesh::topology & msh,
                  const fd_array & arr,
                  int offset,
                  std::index_sequence<Index...>) {
@@ -47,11 +47,11 @@ void init_fields(testmesh::slot & msh,
 }
 
 template<std::size_t... Index>
-auto create_multivector(testmesh::slot & msh,
+auto create_multivector(testmesh::topology & msh,
                         const fd_array & arr,
                         std::index_sequence<Index...>) {
 	static_assert(sizeof...(Index) > 0);
-	return vec::make(vec::make(msh, arr[Index](msh))...);
+	return vec::make(vec::make(arr[Index](msh))...);
 }
 
 static constexpr double ftol = 1e-8;
@@ -130,10 +130,10 @@ auto abs = std::make_pair(
 	[](double gid, double index) { return std::abs((index + 2) * gid - 4.3); },
 	"abs");
 
-int vectest() {
-	testmesh::slot msh;
+int vectest(flecsi::scheduler & s) {
+	testmesh::ptr mptr;
 
-	init_mesh(32, msh);
+	auto & msh = init_mesh(s, 32, mptr);
 	init_fields(msh, xd, 0, make_is());
 	init_fields(msh, yd, 1, make_is());
 	init_fields(msh, zd, 2, make_is());
@@ -218,7 +218,7 @@ int vectest() {
 		}
 
 		auto create = [&](auto var) {
-			return vec::make(var, msh, defs<var.value>()(msh));
+			return vec::make(var, defs<var.value>()(msh));
 		};
 		auto pvec = create(variable<vars::pressure>);
 		auto tvec = create(variable<vars::temperature>);

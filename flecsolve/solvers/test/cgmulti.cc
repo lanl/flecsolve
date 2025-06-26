@@ -25,18 +25,18 @@ auto make_test_op(variable_t<V>, const mat::csr<double> & m) {
 	return op::core<csr_op_gen<variable_t<V>, variable_t<V>>>(m);
 }
 
-int multicg() {
+int multicg(flecsi::scheduler & s) {
 	UNIT () {
-		testmesh::slot msh;
+		testmesh::ptr mptr;
 
 		auto mtx = mat::io::matrix_market<>::read("Chem97ZtZ.mtx").tocsr();
 
-		init_mesh(mtx.rows(), msh);
+		auto & msh = init_mesh(s, mtx.rows(), mptr);
 
-		auto xm = vec::make(vec::make(variable<vars::var1>, msh, xmd[0](msh)),
-		                    vec::make(variable<vars::var2>, msh, xmd[1](msh)));
-		auto bm = vec::make(vec::make(variable<vars::var1>, msh, bmd[0](msh)),
-		                    vec::make(variable<vars::var2>, msh, bmd[1](msh)));
+		auto xm = vec::make(vec::make(variable<vars::var1>, xmd[0](msh)),
+		                    vec::make(variable<vars::var2>, xmd[1](msh)));
+		auto bm = vec::make(vec::make(variable<vars::var1>, bmd[0](msh)),
+		                    vec::make(variable<vars::var2>, bmd[1](msh)));
 
 		bm.set_scalar(0.0);
 		bm.subset(variable<vars::var2>).set_random(3);

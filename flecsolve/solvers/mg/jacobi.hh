@@ -52,7 +52,7 @@ struct bound_jacobi : op::base<> {
 		}
 	}
 
-	template<flecsi::partition_privilege_t... PP>
+	template<flecsi::privilege... PP>
 	using vec_acc = typename flecsi::field<scalar>::template accessor<PP...>;
 
 	static void relax(scalar omega,

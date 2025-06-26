@@ -84,7 +84,7 @@ constexpr decltype(auto) make_boundary_operator_dirichlet(const Vec &) {
 }
 
 template<class Vec>
-decltype(auto) make_volume_operator(msh::slot & m,
+decltype(auto) make_volume_operator(msh::topology & m,
                                     const Vec &,
                                     scalar_t beta,
                                     scalar_t alpha) {
@@ -166,11 +166,11 @@ static inline int boundary_sink(msh::accessor<ro, ro> m,
 	};
 }
 
-int fvm_diffusion_test() {
+int fvm_diffusion_test(flecsi::scheduler & s) {
 	UNIT () {
-		msh::slot m;
+		msh::ptr mptr;
 
-		init_mesh(m, {8, 8, 8});
+		auto & m = init_mesh(s, mptr, {8, 8, 8});
 		auto [x, y, a] = vec::make(m)(xd, yd, ad);
 
 		a.set_scalar(1.0);

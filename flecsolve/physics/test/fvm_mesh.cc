@@ -48,7 +48,7 @@ auto fvm_apply_xargs =
 	std::make_tuple([](std::size_t, std::size_t, std::size_t i) { return i; },
                     "fvm_apply_extra_args");
 
-inline int check_apply_to(msh::slot & m) {
+inline int check_apply_to(msh::topology & m) {
 	UNIT ("fvm_apply") {
 		// check the apply routine
 		execute<fill_box_increment<msh::cells, msh::x_axis>>(m, xd(m), val_in);
@@ -60,10 +60,10 @@ inline int check_apply_to(msh::slot & m) {
 	};
 }
 
-int fvm_mesh_test() {
-	msh::slot m;
+int fvm_mesh_test(flecsi::scheduler & s) {
+	msh::ptr mptr;
 
-	init_mesh(m, {16, 16, 8});
+	auto & m = init_mesh(s, mptr, {16, 16, 8});
 	UNIT () { check_apply_to(m); };
 }
 

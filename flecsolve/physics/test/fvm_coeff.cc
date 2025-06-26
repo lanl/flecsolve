@@ -22,7 +22,7 @@ fld<msh::cells> xd;
 util::key_array<fld<msh::faces>, msh::axes> const_fd{}, avg_fd{};
 
 template<class Vec>
-constexpr auto make_coeff_setters(msh::slot & m, const Vec &) {
+constexpr auto make_coeff_setters(msh::topology & m, const Vec &) {
 	using namespace flecsolve::physics;
 
 	auto constant_coeff = coefficient<constant_coefficient<Vec>, Vec>::create(
@@ -72,11 +72,11 @@ auto chk_avgz =
 	std::make_tuple([](auto...) { return 1.0; },
                     "face coefficient as directional avg of cells [z]");
 
-int fvm_coeff_test() {
-	msh::slot m;
+int fvm_coeff_test(flecsi::scheduler & s) {
+	msh::ptr mptr;
 
-	init_mesh(m, {8, 8, 8});
-	auto x = vec::make(m, xd(m));
+	auto & m = init_mesh(s, mptr, {8, 8, 8});
+	auto x = vec::make(xd(m));
 
 	UNIT () {
 		x.set_scalar(1.0);

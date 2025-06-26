@@ -71,15 +71,15 @@ struct rate_solver : op::base<> {
 	op::handle<op::core<rate>> F;
 };
 
-int bdftest() {
+int bdftest(flecsi::scheduler & s) {
 	using namespace flecsolve::time_integrator;
 
 	UNIT () {
-		testmesh::slot msh;
+		testmesh::ptr mptr;
 
 		double ic = 3.;
 
-		init_mesh(1, msh);
+		auto & msh = init_mesh(s, 1, mptr);
 
 		auto F = op::make_shared<rate>(-1.);
 		auto x = vec::make(msh)(xd);

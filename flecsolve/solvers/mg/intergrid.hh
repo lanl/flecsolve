@@ -44,7 +44,8 @@ struct prolong : op::base<intergrid_params<scalar, size>> {
 		auto & topof = y.data.topo();
 		auto & topoc = x.data.topo();
 		if (topof.colors() != topoc.colors()) {
-			auto lm = flecsi::data::launch::make(topof,
+			// TODO: pass in a scheduler
+			auto lm = flecsi::data::launch::make(*flecsi::scheduler::instance, topof,
 			                                     flecsi::data::launch::block(
 				                                     topof.colors(), topoc.colors()));
 			using namespace flecsi::data;
@@ -64,7 +65,7 @@ struct prolong : op::base<intergrid_params<scalar, size>> {
 protected:
 	using topo_acc =
 		typename topo::csr<scalar, size>::template accessor<flecsi::ro>;
-	template<flecsi::partition_privilege_t priv>
+	template<flecsi::privilege priv>
 	using vec_acc =
 		typename flecsi::field<scalar>::template accessor<priv, flecsi::na>;
 	using aggt_acc = flecsi::field<flecsi::util::id>::accessor<flecsi::ro, flecsi::na>;
@@ -115,14 +116,15 @@ struct restrict : op::base<intergrid_params<scalar, size>> {
 		auto & topof = x.data.topo();
 		auto & topoc = y.data.topo();
 		if (topof.colors() != topoc.colors()) {
-				auto lm = flecsi::data::launch::make(topof,
-				                                     flecsi::data::launch::block(
-					                                     topof.colors(), topoc.colors()));
-				using namespace flecsi::data;
-				flecsi::execute<avem>(lm, topoc,
-				                      multi_reference(params.aggregates, lm),
-				                      multi_reference(x.data.ref(), lm),
-				                      y.data.ref());
+			// TODO: pass in a scheduler
+			auto lm = flecsi::data::launch::make(*flecsi::scheduler::instance, topof,
+			                                     flecsi::data::launch::block(
+				                                     topof.colors(), topoc.colors()));
+			using namespace flecsi::data;
+			flecsi::execute<avem>(lm, topoc,
+			                      multi_reference(params.aggregates, lm),
+			                      multi_reference(x.data.ref(), lm),
+			                      y.data.ref());
 		} else {
 			flecsi::execute<ave>(x.data.topo(),
 			                     y.data.topo(),
@@ -135,7 +137,7 @@ struct restrict : op::base<intergrid_params<scalar, size>> {
 protected:
 	using topo_acc =
 		typename topo::csr<scalar, size>::template accessor<flecsi::ro>;
-	template<flecsi::partition_privilege_t priv>
+	template<flecsi::privilege priv>
 	using vec_acc =
 		typename flecsi::field<scalar>::template accessor<priv, flecsi::na>;
 	using aggt_acc = flecsi::field<flecsi::util::id>::accessor<flecsi::ro, flecsi::na>;

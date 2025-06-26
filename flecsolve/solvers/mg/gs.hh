@@ -76,7 +76,7 @@ struct hybrid_gs : base<> {
 		}
 	}
 
-	template<flecsi::partition_privilege_t... PP>
+	template<flecsi::privilege... PP>
 	using vec_acc = typename flecsi::field<scalar>::template accessor<PP...>;
 
 	static void relax(mg::relax_dir rdir,

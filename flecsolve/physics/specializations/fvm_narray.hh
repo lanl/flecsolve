@@ -323,11 +323,11 @@ struct fvm_narray
 		sm.set_geom(g);
 	}
 
-	static void initialize(flecsi::data::topology_slot<fvm_narray> & s,
+	static void initialize(flecsi::scheduler & s,
+	                       fvm_narray::topology & topo,
 	                       coloring const &,
 	                       gbox const & geometry) {
-
-		flecsi::execute<set_geometry, flecsi::mpi>(s, geometry);
+		flecsi::execute<set_geometry, flecsi::mpi>(topo, geometry);
 	} // initialize
 };
 

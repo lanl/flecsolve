@@ -16,7 +16,7 @@ struct lapack_solver : op::base<>
 	using op_handle = op::handle<op_type>;
 	using topo_type = topo::csr<scalar, size>;
 	using csr_acc = typename topo::csr<scalar, size>::template accessor<flecsi::ro>;
-	template<flecsi::partition_privilege_t priv>
+	template<flecsi::privilege priv>
 	using vec_acc = typename flecsi::field<scalar>::template accessor<priv, flecsi::na>;
 
 	lapack_solver(op_handle Ah)
