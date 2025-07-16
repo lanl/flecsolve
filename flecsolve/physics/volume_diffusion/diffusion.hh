@@ -242,7 +242,7 @@ struct diffusion : operator_settings<diffusion<Vec, Var>> {
 
 	cell_ref<Vec> du;
 
-	diffusion(topo_slot_t<Vec> & s, param_type parameters)
+	diffusion(typename topo_t<Vec>::topology & s, param_type parameters)
 		: base_type(parameters), fluxes(flux_store_t::get_state(s)),
 		  du(du_store_t::get_state(s)) {}
 
@@ -262,7 +262,7 @@ struct operator_creator<diffusion<Vec, Var>> {
 	                                       CellsRef cr,
 	                                       scalar_t<Vec> beta,
 	                                       scalar_t<Vec> alpha,
-	                                       topo_slot_t<Vec> & m) {
+	                                       typename topo_t<Vec>::topology & m) {
 		auto coeffop = CoeffFn<Vec, Var>::create({fra});
 		auto voldiff = diffusion<Vec, Var>::create({cr, fra, beta, alpha}, m);
 		return op_expr(

@@ -85,13 +85,14 @@ void set_problem(mesh::accessor<ro> m,
 
 double scale(mesh::accessor<ro> m, double nrm) { return m.dxdy() * nrm; }
 
-void output(mesh::accessor<ro> m,
+void output(flecsi::exec::cpu s,
+            mesh::accessor<ro> m,
             field<double>::accessor<ro, na> xa,
             const char * base_fname) {
 	auto u = m.mdcolex<mesh::vertices>(xa);
 
 	std::ofstream ofile(std::string{base_fname} + "-" +
-	                    std::to_string(flecsi::process()) + ".dat");
+	                    std::to_string(s.launch().index) + ".dat");
 
 	for (auto j : m.vertices<mesh::y_axis, mesh::extended>()) {
 		const double y = m.value<mesh::y_axis>(j);
@@ -105,6 +106,7 @@ void output(mesh::accessor<ro> m,
 }
 
 void init_mesh(control_policy & cp) {
+	auto & sc = cp.scheduler();
 	flog(info) << "Initializing " << x_extents.value() << "x"
 			   << y_extents.value() << " mesh" << std::endl;
 	flecsi::flog::flush();
@@ -112,7 +114,7 @@ void init_mesh(control_policy & cp) {
 	mesh::base::gcoord axis_extents{x_extents.value(), y_extents.value()};
 	mesh::index_definition idef;
 	idef.axes = mesh::base::make_axes(
-		mesh::base::distribute(flecsi::processes(), axis_extents),
+		sc.runtime().processes(),
 		axis_extents);
 	for (auto & a : idef.axes) {
 		a.hdepth = 2;
@@ -124,7 +126,7 @@ void init_mesh(control_policy & cp) {
 	geometry[0][1] = 1.0;
 	geometry[1] = geometry[0];
 
-	cp.m.allocate(mesh::mpi_coloring(idef), geometry);
+	sc.allocate(cp.m, mesh::mpi_coloring(sc, idef), geometry);
 
 	cp.initialize_vectors();
 }
@@ -132,7 +134,7 @@ inline control::action<init_mesh, cp::initialize> init_mesh_action;
 
 void init_problem(control_policy & cp) {
 	flecsi::execute<task::set_problem>(
-		cp.m, sod(cp.m), cp.f().data.ref(), cp.sol().data.ref());
+		cp.mesh(), sod(cp.mesh()), cp.f().data.ref(), cp.sol().data.ref());
 }
 inline control::action<init_problem, cp::initialize> init_problem_action;
 
@@ -145,7 +147,7 @@ void solve(control_policy & cp) {
 	u.set_random();
 
 	std::size_t iter{0};
-	op::core<poisson_op> so(sod(cp.m));
+	op::core<poisson_op> so(sod(cp.mesh()));
 	auto slv = cg::solver(
 		read_config("poisson.cfg", cg::options("solver")),
 		cg::make_work(f))(op::ref(so), op::I, [&](auto &, double rnorm) {
@@ -160,7 +162,7 @@ inline control::action<solve, cp::solve> solve_action;
 void output(control_policy & cp) {
 	if (output_solution.value()) {
 		flecsi::execute<task::output, flecsi::mpi>(
-			cp.m, cp.u().data.ref(), "solution");
+			flecsi::exec::on, cp.mesh(), cp.u().data.ref(), "solution");
 	}
 }
 inline control::action<output, cp::finalize> output_action;
@@ -170,8 +172,8 @@ void check_error(control_policy & cp) {
 	auto & sol = cp.sol();
 	u.subtract(u, sol);
 	auto nrm = u.l2norm().get();
-	auto err = flecsi::execute<task::scale>(cp.m, nrm * nrm).get();
-	flog(info) << "Error: " << err << std::endl;
+	auto err = flecsi::execute<task::scale>(cp.mesh(), nrm * nrm);
+	flog(info) << "Error: " << err.all()[0] << std::endl;
 }
 inline control::action<check_error, cp::finalize> err_action;
 
@@ -182,7 +184,7 @@ int main(int argc, char * argv[]) {
 	const flecsi::run::dependencies_guard dg;
 	flecsi::run::config cfg;
 
-	const flecsi::runtime run(cfg);
+	flecsi::runtime run(cfg);
 
 	flecsi::flog::add_output_stream("clog", std::clog, true);
 

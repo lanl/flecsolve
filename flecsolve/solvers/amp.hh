@@ -70,7 +70,7 @@ struct csr_op_wrap : AMP::Operator::LinearOperator
 template<class scalar, class size>
 struct csr_task
 {
-	template<flecsi::partition_privilege_t... PP>
+	template<flecsi::privilege... PP>
 	using vec_acc = typename flecsi::field<scalar>::template accessor<PP...>;
 	using topo_t = typename mat::parcsr<scalar, size>::topo_t;
 	using topo_acc = typename topo_t::template accessor<flecsi::ro>;

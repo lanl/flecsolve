@@ -127,7 +127,7 @@ template<class Vec,
 struct topo_solver_state {
 
 	using field_def = typename Vec::data_t::field_definition;
-	using topo_slot_t = typename Vec::data_t::topo_slot_t;
+	using topo_t = typename Vec::data_t::topo_t;
 	static inline std::array<const field_def, NumWork> defs = {};
 
 	static auto get_work(const Vec & rhs) {
@@ -138,13 +138,13 @@ struct topo_solver_state {
 protected:
 	template<std::size_t... Index>
 	static std::array<Vec, NumWork>
-	make_work(topo_slot_t & slot,
+	make_work(typename topo_t::topology & slot,
 	          std::array<const field_def, NumWork> & defs,
 	          std::index_sequence<Index...>) {
 		if constexpr (std::is_same_v<typename Vec::var_t, anon_var>)
-			return {vec::make(slot, defs[Index](slot))...};
+			return {vec::make(defs[Index](slot))...};
 		else
-			return {vec::make(Vec::var, slot, defs[Index](slot))...};
+			return {vec::make(Vec::var, defs[Index](slot))...};
 	}
 };
 

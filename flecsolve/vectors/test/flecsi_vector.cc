@@ -148,16 +148,16 @@ int run(FN && fn, M & m, FRS &&... frs) {
 	return test<check_f<FN>, flecsi::mpi>(fn, m, frs...);
 }
 
-int vectest() {
-	testmesh::slot msh;
+int vectest(flecsi::scheduler & s) {
+	testmesh::ptr mptr;
 
-	init_mesh(32, msh);
+	auto & msh = init_mesh(s, 32, mptr);
 	execute<init_fields>(
 		msh, xd(msh), yd(msh), zd(msh), xd_c(msh), yd_c(msh), zd_c(msh));
 
 	UNIT () {
 		auto create = [&](auto &... defs) {
-			return std::tuple(vec::make(msh, defs(msh))...);
+			return std::tuple(vec::make(defs(msh))...);
 		};
 		auto [x, y, z, tmp] = create(xd, yd, zd, tmpd);
 		auto [x_c, y_c, z_c, tmp_c] = create(xd_c, yd_c, zd_c, tmpd_c);

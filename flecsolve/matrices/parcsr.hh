@@ -31,19 +31,18 @@ struct parcsr_data {
 	using config = Config;
 	using topo_t =
 		typename topo::csr<typename config::scalar, typename config::size>;
-	typename topo_t::slot & topo() {
-		if (!topo_slot)
-			topo_slot = std::make_unique<typename topo_t::slot>();
-		return *topo_slot;
-	}
-	typename topo_t::slot & topo() const { return *topo_slot; }
+	auto & topo() const { return *topo_ptr; }
 	typename topo_t::init coloring_input;
 
-	auto spmv_tmp() { return vec::make(topo(), spmv_tmp_def(topo())); }
+	auto spmv_tmp() { return vec::make(spmv_tmp_def(topo())); }
 	auto nrows() const { return coloring_input.nrows; }
 
+	void allocate(flecsi::scheduler & s) {
+		s.allocate(topo_ptr, typename topo_t::mpi_coloring(s, coloring_input), coloring_input);
+	}
+
 protected:
-	std::unique_ptr<typename topo_t::slot> topo_slot;
+	typename topo_t::ptr topo_ptr;
 	inline static typename flecsi::field<
 		typename Config::scalar>::template definition<topo_t, topo_t::cols>
 		spmv_tmp_def;
@@ -55,7 +54,7 @@ struct parcsr_ops {
 	using config = typename Data::config;
 	using scalar_t = typename config::scalar;
 	using topo_t = typename Data::topo_t;
-	template<flecsi::partition_privilege_t p>
+	template<flecsi::privilege p>
 	using topo_acc = typename topo_t::template accessor<p>;
 
 	template<class D, class R>
@@ -110,24 +109,24 @@ struct parcsr : flecsolve::mat::sparse<parcsr_data,
 	using scalar_type = scalar;
 	using size_type = size;
 
-	parcsr(MPI_Comm comm,
-	       const char * fname,
-	       flecsi::Color colors = flecsi::processes())
-		: comm_(comm), colors_(colors) {
+	parcsr(flecsi::scheduler & s,
+	       MPI_Comm comm,
+	       const char * fname)
+		: comm_(comm), colors_(s.runtime().processes()) {
 		flecsi::execute<read_mat, flecsi::mpi>(
-			comm, fname, colors, data.coloring_input);
-		data.topo().allocate(typename topo_t::mpi_coloring(data.coloring_input), data.coloring_input);
+			comm, fname, colors_, data.coloring_input);
+		data.allocate(s);
 	}
 
-	explicit parcsr(typename topo_t::init && init) {
+	parcsr(flecsi::scheduler & s, typename topo_t::init && init) {
 		data.coloring_input = std::move(init);
-		data.topo().allocate(typename topo_t::mpi_coloring(data.coloring_input), data.coloring_input);
+		data.allocate(s);
 	}
 
 	template<typename topo::csr<scalar, size>::index_space S>
 	auto vec(typename flecsi::field<
-			 scalar>::template definition<topo::csr<scalar, size>, S> & def) {
-		return vec::make(data.topo(), def(data.topo()));
+	         scalar>::template definition<topo::csr<scalar, size>,  S> & def) {
+		return vec::make(def(data.topo()));
 	}
 
 protected:

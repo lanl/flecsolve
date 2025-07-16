@@ -39,7 +39,7 @@ using csr = mat::csr<matpol::scalar_t>;
 
 csr_topo::vec_def<csr_topo::cols> ud, fd;
 
-auto create_amp_mat(csr_topo::init & init) {
+auto create_amp_mat(flecsi::exec::cpu s, csr_topo::init & init) {
 	std::string input_file{"amp-input"};
 	auto input_db = AMP::Database::parseInputFile(input_file);
 
@@ -116,7 +116,7 @@ auto create_amp_mat(csr_topo::init & init) {
     flecsi::util::offsets rowpart(std::move(store));
     init.row_part.set_offsets(rowpart);
     init.col_part.set_offsets(rowpart);
-    init.proc_part.set_block_map(flecsi::processes(), flecsi::processes());
+    init.proc_part.set_block_map(s.launch().size, s.launch().size);
 
     csr procmat(mdata.numLocalRows(), mdata.numLocalColumns());
     procmat.resize(mdata.numberOfNonZeros());
@@ -151,12 +151,12 @@ void stop_amp() {
     AMP::AMPManager::shutdown();
 }
 
-int amptest() {
+int amptest(flecsi::scheduler & s) {
 	UNIT(){
 		flecsi::execute<start_amp, flecsi::mpi>();
 		csr_topo::init init;
-		flecsi::execute<create_amp_mat,flecsi::mpi>(init);
-		op::core<parcsr> A(std::move(init));
+		flecsi::execute<create_amp_mat,flecsi::mpi>(flecsi::exec::on, init);
+		op::core<parcsr> A(s, std::move(init));
 		auto & topo = A.data.topo();
 		auto [u, f] = vec::make(topo)(ud, fd);
 

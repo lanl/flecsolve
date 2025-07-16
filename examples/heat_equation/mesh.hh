@@ -23,10 +23,10 @@ to do so.
 
 namespace heat {
 
-static constexpr flecsi::partition_privilege_t na = flecsi::na;
-static constexpr flecsi::partition_privilege_t ro = flecsi::ro;
-static constexpr flecsi::partition_privilege_t wo = flecsi::wo;
-static constexpr flecsi::partition_privilege_t rw = flecsi::rw;
+static constexpr flecsi::privilege na = flecsi::na;
+static constexpr flecsi::privilege ro = flecsi::ro;
+static constexpr flecsi::privilege wo = flecsi::wo;
+static constexpr flecsi::privilege rw = flecsi::rw;
 
 template<typename T, flecsi::data::layout L = flecsi::data::layout::dense>
 using field = flecsi::field<T, L>;
@@ -178,10 +178,11 @@ struct mesh : flecsi::topo::specialization<flecsi::topo::narray, mesh> {
 			std::abs(g[1][1] - g[1][0]) / (sm.get_axis<y_axis>().layout.extent() - 1));
 	}
 
-	static void initialize(flecsi::data::topology_slot<mesh> & s,
+	static void initialize(flecsi::scheduler & s,
+	                       mesh::topology & topo,
 	                       coloring const &,
 	                       grect const & geometry) {
-		flecsi::execute<set_geometry, flecsi::mpi>(s, geometry);
+		flecsi::execute<set_geometry, flecsi::mpi>(topo, geometry);
 	}
 };
 

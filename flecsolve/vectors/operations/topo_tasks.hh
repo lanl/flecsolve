@@ -41,21 +41,21 @@ struct topo_tasks {
 	static constexpr bool is_complex = num_traits<scalar>::is_complex;
 	using topo_acc = typename VecData::topo_acc;
 
-	template<flecsi::partition_privilege_t priv>
+	template<flecsi::privilege priv>
 	using acc = typename VecData::template acc<priv>;
 
-	template<flecsi::partition_privilege_t priv>
+	template<flecsi::privilege priv>
 	using acc_all = typename VecData::template acc_all<priv>;
 
 	using util = typename VecData::util;
 
-	static scalar scalar_prod(topo_acc m, acc<ro> x, acc<ro> y) {
-		scalar res = reduceall(dof,
-		                       up,
-		                       util::dofs(m),
-		                       flecsi::exec::fold::sum,
-		                       scalar,
-		                       "scalar_prod") {
+	static scalar scalar_prod(flecsi::exec::cpu s, topo_acc m, acc<ro> x, acc<ro> y) {
+		scalar res = s.executor().named("scalar_prod")
+			.reduceall(dof,
+			           up,
+			           util::dofs(m),
+			           flecsi::exec::fold::sum,
+			           scalar) {
 			if constexpr (is_complex)
 				up(std::conj(y[dof]) * x[dof]);
 			else
@@ -65,39 +65,39 @@ struct topo_tasks {
 		return res;
 	}
 
-	static void set_to_scalar(topo_acc m, acc<wo> x, scalar val) {
-		forall(dof, util::dofs(m), "set_scalar") { x[dof] = val; };
+	static void set_to_scalar(flecsi::exec::cpu s, topo_acc m, acc<wo> x, scalar val) {
+		s.executor().forall(dof, util::dofs(m)) { x[dof] = val; };
 	}
 
-	static void scale_self(topo_acc m, acc<rw> x, scalar val) {
-		forall(dof, util::dofs(m), "scale_self") { x[dof] *= val; };
+	static void scale_self(flecsi::exec::cpu s, topo_acc m, acc<rw> x, scalar val) {
+		s.executor().forall(dof, util::dofs(m)) { x[dof] *= val; };
 	}
 
-	static void scale(topo_acc m, acc<ro> x, acc<wo> y, scalar val) {
-		forall(dof, util::dofs(m), "scale") { y[dof] = x[dof] * val; };
+	static void scale(flecsi::exec::cpu s, topo_acc m, acc<ro> x, acc<wo> y, scalar val) {
+		s.executor().forall(dof, util::dofs(m)) { y[dof] = x[dof] * val; };
 	}
 
 	template<class OtherAcc>
-	static void copy(topo_acc, acc_all<wo> xa, OtherAcc ya) {
+	static void copy(flecsi::exec::cpu s, topo_acc, acc_all<wo> xa, OtherAcc ya) {
 		flecsi::util::iota_view<std::size_t> v(0, xa.span().size());
-		forall(i, v, "copy") { xa[i] = ya[i]; };
+		s.executor().forall(i, v) { xa[i] = ya[i]; };
 	}
 
-	static void add_self(topo_acc m, acc<wo> z, acc<ro> x) {
-		forall(dof, util::dofs(m), "add_self") { z[dof] = z[dof] + x[dof]; };
+	static void add_self(flecsi::exec::cpu s, topo_acc m, acc<wo> z, acc<ro> x) {
+		s.executor().forall(dof, util::dofs(m)) { z[dof] = z[dof] + x[dof]; };
 	}
 
-	static void add(topo_acc m, acc<wo> z, acc<ro> x, acc<ro> y) {
-		forall(dof, util::dofs(m), "add") { z[dof] = x[dof] + y[dof]; };
+	static void add(flecsi::exec::cpu s, topo_acc m, acc<wo> z, acc<ro> x, acc<ro> y) {
+		s.executor().forall(dof, util::dofs(m)) { z[dof] = x[dof] + y[dof]; };
 	}
 
-	static void subtract(topo_acc m, acc<wo> x, acc<ro> a, acc<ro> b) {
-		forall(dof, util::dofs(m), "subtract") { x[dof] = a[dof] - b[dof]; };
+	static void subtract(flecsi::exec::cpu s, topo_acc m, acc<wo> x, acc<ro> a, acc<ro> b) {
+		s.executor().forall(dof, util::dofs(m)) { x[dof] = a[dof] - b[dof]; };
 	}
 
 	template<bool inv>
-	static void subtract_self(topo_acc m, acc<wo> x, acc<ro> b) {
-		forall(dof, util::dofs(m), "subtract_self") {
+	static void subtract_self(flecsi::exec::cpu s, topo_acc m, acc<wo> x, acc<ro> b) {
+		s.executor().forall(dof, util::dofs(m)) {
 			if constexpr (inv) {
 				x[dof] = x[dof] - b[dof];
 			}
@@ -107,19 +107,19 @@ struct topo_tasks {
 		};
 	}
 
-	static void multiply(topo_acc m, acc<wo> z, acc<ro> x, acc<ro> y) {
-		forall(dof, util::dofs(m), "multiply") { z[dof] = x[dof] * y[dof]; };
+	static void multiply(flecsi::exec::cpu s, topo_acc m, acc<wo> z, acc<ro> x, acc<ro> y) {
+		s.executor().forall(dof, util::dofs(m)) { z[dof] = x[dof] * y[dof]; };
 	}
 
-	static void multiply_self(topo_acc m, acc<rw> x, acc<ro> y) {
-		forall(dof, util::dofs(m), "multiply_self") {
+	static void multiply_self(flecsi::exec::cpu s, topo_acc m, acc<rw> x, acc<ro> y) {
+		s.executor().forall(dof, util::dofs(m)) {
 			x[dof] = x[dof] * y[dof];
 		};
 	}
 
 	template<bool inv>
-	static void divide_self(topo_acc m, acc<rw> z, acc<ro> x) {
-		forall(dof, util::dofs(m), "divide_self") {
+	static void divide_self(flecsi::exec::cpu s, topo_acc m, acc<rw> z, acc<ro> x) {
+		s.executor().forall(dof, util::dofs(m)) {
 			if constexpr (inv) {
 				z[dof] = z[dof] / x[dof];
 			}
@@ -129,37 +129,39 @@ struct topo_tasks {
 		};
 	}
 
-	static void divide(topo_acc m, acc<wo> z, acc<ro> x, acc<ro> y) {
-		forall(dof, util::dofs(m), "divide") { z[dof] = x[dof] / y[dof]; };
+	static void divide(flecsi::exec::cpu s, topo_acc m, acc<wo> z, acc<ro> x, acc<ro> y) {
+		s.executor().forall(dof, util::dofs(m)) { z[dof] = x[dof] / y[dof]; };
 	}
 
-	static void reciprocal_self(topo_acc m, acc<rw> x) {
-		forall(dof, util::dofs(m), "reci_self") { x[dof] = 1.0 / x[dof]; };
+	static void reciprocal_self(flecsi::exec::cpu s, topo_acc m, acc<rw> x) {
+		s.executor().forall(dof, util::dofs(m)) { x[dof] = 1.0 / x[dof]; };
 	}
 
-	static void reciprocal(topo_acc m, acc<wo> x, acc<ro> y) {
-		forall(dof, util::dofs(m), "recip") { x[dof] = 1.0 / y[dof]; };
+	static void reciprocal(flecsi::exec::cpu s, topo_acc m, acc<wo> x, acc<ro> y) {
+		s.executor().forall(dof, util::dofs(m)) { x[dof] = 1.0 / y[dof]; };
 	}
 
-	static void linear_sum(topo_acc m,
+	static void linear_sum(flecsi::exec::cpu s,
+	                       topo_acc m,
 	                       acc<wo> z,
 	                       scalar alpha,
 	                       acc<ro> x,
 	                       scalar beta,
 	                       acc<ro> y) {
 
-		forall(dof, util::dofs(m), "linear_sum") {
+		s.executor().forall(dof, util::dofs(m)) {
 			z[dof] = alpha * x[dof] + beta * y[dof];
 		};
 	}
 
 	template<bool inv>
-	static void linear_sum_self(topo_acc m,
+	static void linear_sum_self(flecsi::exec::cpu s,
+	                            topo_acc m,
 	                            acc<rw> z,
 	                            acc<ro> x,
 	                            scalar alpha,
 	                            scalar beta) {
-		forall(dof, util::dofs(m), "linear_sum_self") {
+		s.executor().forall(dof, util::dofs(m)) {
 			if constexpr (inv) {
 				z[dof] = alpha * z[dof] + beta * x[dof];
 			}
@@ -170,15 +172,15 @@ struct topo_tasks {
 	}
 
 	static void
-	axpy(topo_acc m, acc<wo> z, scalar alpha, acc<ro> x, acc<ro> y) {
-		forall(dof, util::dofs(m), "axpy") {
+	axpy(flecsi::exec::cpu s, topo_acc m, acc<wo> z, scalar alpha, acc<ro> x, acc<ro> y) {
+		s.executor().forall(dof, util::dofs(m)) {
 			z[dof] = alpha * x[dof] + y[dof];
 		};
 	}
 
 	template<bool inv>
-	static void axpy_self(topo_acc m, acc<rw> z, acc<ro> x, scalar alpha) {
-		forall(dof, util::dofs(m), "axpy_self") {
+	static void axpy_self(flecsi::exec::cpu s, topo_acc m, acc<rw> z, acc<ro> x, scalar alpha) {
+		s.executor().forall(dof, util::dofs(m)) {
 			if constexpr (inv) {
 				z[dof] = alpha * z[dof] + x[dof];
 			}
@@ -189,111 +191,106 @@ struct topo_tasks {
 	}
 
 	static void
-	axpby(topo_acc m, acc<rw> y, acc<ro> x, scalar alpha, scalar beta) {
-		forall(dof, util::dofs(m), "axpby") {
+	axpby(flecsi::exec::cpu s, topo_acc m, acc<rw> y, acc<ro> x, scalar alpha, scalar beta) {
+		s.executor().forall(dof, util::dofs(m)) {
 			y[dof] = alpha * x[dof] + beta * y[dof];
 		};
 	}
 
-	static void abs_self(topo_acc m, acc<rw> x) {
-		forall(dof, util::dofs(m), "abs_self") { x[dof] = std::abs(x[dof]); };
+	static void abs_self(flecsi::exec::cpu s, topo_acc m, acc<rw> x) {
+		s.executor().forall(dof, util::dofs(m)) { x[dof] = std::abs(x[dof]); };
 	}
 
-	static void abs(topo_acc m, acc<wo> y, acc<ro> x) {
-		forall(dof, util::dofs(m), "abs") { y[dof] = std::abs(x[dof]); };
+	static void abs(flecsi::exec::cpu s, topo_acc m, acc<wo> y, acc<ro> x) {
+		s.executor().forall(dof, util::dofs(m)) { y[dof] = std::abs(x[dof]); };
 	}
 
-	static void add_scalar_self(topo_acc m, acc<rw> x, scalar alpha) {
-		forall(dof, util::dofs(m), "add_scalar_self") { x[dof] += alpha; };
+	static void add_scalar_self(flecsi::exec::cpu s, topo_acc m, acc<rw> x, scalar alpha) {
+		s.executor().forall(dof, util::dofs(m)) { x[dof] += alpha; };
 	}
 
-	static void add_scalar(topo_acc m, acc<wo> y, acc<ro> x, scalar alpha) {
-		forall(dof, util::dofs(m), "add_scalar") { y[dof] = x[dof] + alpha; };
+	static void add_scalar(flecsi::exec::cpu s, topo_acc m, acc<wo> y, acc<ro> x, scalar alpha) {
+		s.executor().forall(dof, util::dofs(m)) { y[dof] = x[dof] + alpha; };
 	}
 
-	static real lp_norm_local(topo_acc m, acc<ro> u, int p) {
-		real ret = reduceall(dof,
-		                     up,
-		                     util::dofs(m),
-		                     flecsi::exec::fold::sum,
-		                     real,
-		                     "lp_norm_local") {
+	static real lp_norm_local(flecsi::exec::cpu s, topo_acc m, acc<ro> u, int p) {
+		real ret = s.executor().reduceall(dof,
+		                                  up,
+		                                  util::dofs(m),
+		                                  flecsi::exec::fold::sum,
+		                                  real) {
 			up(std::pow(u[dof], p));
 		};
 
 		return ret;
 	}
 
-	static real l1_norm_local(topo_acc m, acc<ro> u) {
-		real ret = reduceall(
-			dof, up, util::dofs(m), flecsi::exec::fold::sum, real, "l1_norm") {
+	static real l1_norm_local(flecsi::exec::cpu s, topo_acc m, acc<ro> u) {
+		real ret = s.executor().reduceall(
+			dof, up, util::dofs(m), flecsi::exec::fold::sum, real) {
 			up(std::abs(u[dof]));
 		};
 
 		return ret;
 	}
 
-	static real l2_norm_local(topo_acc m, acc<ro> u) {
-		auto ret = scalar_prod(m, u, u);
+	static real l2_norm_local(flecsi::exec::cpu s, topo_acc m, acc<ro> u) {
+		auto ret = scalar_prod(s, m, u, u);
 		if constexpr (is_complex)
 			return ret.real();
 		else
 			return ret;
 	}
 
-	static real local_max(topo_acc m, acc<ro> u) {
+	static real local_max(flecsi::exec::cpu s, topo_acc m, acc<ro> u) {
 		if constexpr (is_complex) {
-			auto ret = reduceall(dof,
-			                     up,
-			                     util::dofs(m),
-			                     flecsi::exec::fold::max,
-			                     real,
-			                     "local_max") {
+			auto ret = s.executor().reduceall(dof,
+			                                  up,
+			                                  util::dofs(m),
+			                                  flecsi::exec::fold::max,
+			                                  real) {
 				up(u[dof].real());
 			};
 			return ret;
 		}
 		else {
-			auto ret = reduceall(dof,
-			                     up,
-			                     util::dofs(m),
-			                     flecsi::exec::fold::max,
-			                     real,
-			                     "local_max") {
+			auto ret = s.executor().reduceall(dof,
+			                                  up,
+			                                  util::dofs(m),
+			                                  flecsi::exec::fold::max,
+			                                  real) {
 				up(u[dof]);
 			};
 			return ret;
 		}
 	}
 
-	static real local_min(topo_acc m, acc<ro> u) {
+	static real local_min(flecsi::exec::cpu s, topo_acc m, acc<ro> u) {
 		if constexpr (is_complex) {
-			auto ret = reduceall(dof,
-			                     up,
-			                     util::dofs(m),
-			                     flecsi::exec::fold::min,
-			                     real,
-			                     "local-min") {
+			auto ret = s.executor().reduceall(dof,
+			                                  up,
+			                                  util::dofs(m),
+			                                  flecsi::exec::fold::min,
+			                                  real) {
 				up(u[dof].real());
 			};
 			return ret;
 		}
 		else {
-			auto ret = reduceall(dof,
-			                     up,
-			                     util::dofs(m),
-			                     flecsi::exec::fold::min,
-			                     real,
-			                     "local-min") {
+			auto ret = s.executor().reduceall(dof,
+			                                  up,
+			                                  util::dofs(m),
+			                                  flecsi::exec::fold::min,
+			                                  real) {
 				up(u[dof]);
 			};
 			return ret;
 		}
 	}
 
-	static real inf_norm_local(topo_acc m, acc<ro> x) {
-		auto ret = reduceall(
-			dof, up, util::dofs(m), flecsi::exec::fold::max, real, "inf_norm") {
+	static real inf_norm_local(flecsi::exec::cpu s, topo_acc m, acc<ro> x) {
+		auto ret = s.executor().reduceall(
+			dof, up, util::dofs(m), flecsi::exec::fold::max, real) {
 			up(std::abs(x[dof]));
 		};
 		return ret;
@@ -316,9 +313,9 @@ struct topo_tasks {
 		};
 	}
 
-	static void dump(std::string_view pre, topo_acc m, acc<ro> x) {
+	static void dump(flecsi::exec::cpu s, std::string_view pre, topo_acc m, acc<ro> x) {
 		std::string fname{pre};
-		fname += "-" + std::to_string(flecsi::color());
+		fname += "-" + std::to_string(s.launch().index);
 		std::ofstream ofile(fname);
 		for (auto dof : util::dofs(m)) {
 			ofile << x(dof) << '\n';

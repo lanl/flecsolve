@@ -52,15 +52,15 @@ constexpr auto make_bcs(const Vec &) {
 	return std::make_tuple(bndry_xlo, bndry_xhi, bndry_ylo, bndry_yhi);
 }
 
-int boundary_test() {
-	msh::slot m;
+int boundary_test(flecsi::scheduler & s) {
+	msh::ptr mptr;
 
-	init_mesh(m, {NX, NY, 1});
+	auto & m = init_mesh(s, mptr, {NX, NY, 1});
 	execute<fill_field<msh::faces>>(m, bd[msh::x_axis](m), 1.0);
 	execute<fill_field<msh::faces>>(m, bd[msh::y_axis](m), 1.0);
 	execute<fill_field<msh::faces>>(m, bd[msh::z_axis](m), 1.0);
 	UNIT () {
-		auto x = vec::make(m, xd(m));
+		auto x = vec::make(xd(m));
 
 		auto [bndry_xlo, bndry_xhi, bndry_ylo, bndry_yhi] = make_bcs(x);
 		x.set_scalar(1.0);

@@ -18,10 +18,10 @@ csr_topo::vec_def<csr_topo::cols> ud, fd;
 
 namespace {
 
-int jacobitest() {
+int jacobitest(flecsi::scheduler & s) {
 
 	UNIT () {
-		op::core<parcsr> A(MPI_COMM_WORLD, "nos7.mtx");
+		op::core<parcsr> A(s, MPI_COMM_WORLD, "nos7.mtx");
 		auto Ah = op::ref(A);
 		auto & topo = A.data.topo();
 		auto [u, f] = vec::make(topo)(ud, fd);
