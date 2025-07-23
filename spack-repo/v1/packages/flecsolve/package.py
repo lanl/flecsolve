@@ -19,7 +19,7 @@ class Flecsolve(CMakePackage):
     depends_on("fortran", type="build")
 
     depends_on('flecsi@2.4:')
-    depends_on('amp+hypre')
+    depends_on('amp+hypre+shared')
     depends_on('stacktrace+shared')
     depends_on('eigen')
 
