@@ -3,7 +3,7 @@
 #include "AMP/matrices/CSRMatrix.h"
 #include "AMP/matrices/data/CSRMatrixData.h"
 #include "AMP/matrices/RawCSRMatrixParameters.h"
-#include "AMP/matrices/data/hypre/HypreCSRPolicy.h"
+#include "AMP/matrices/CSRConfig.h"
 #include "AMP/mesh/Mesh.h"
 #include "AMP/mesh/MeshFactory.h"
 #include "AMP/mesh/MeshParameters.h"
@@ -31,7 +31,7 @@
 
 using namespace flecsolve;
 
-using matpol = AMP::LinearAlgebra::HypreCSRPolicy;
+using matpol = AMP::LinearAlgebra::DefaultHostCSRConfig;
 
 using parcsr = mat::parcsr<matpol::scalar_t>;
 using csr_topo = parcsr::topo_t;
@@ -56,9 +56,8 @@ auto create_amp_mat(flecsi::exec::cpu s, csr_topo::init & init) {
     auto nodalDofMap         = AMP::Discretization::simpleDOFManager::create(
         meshAdapter, AMP::Mesh::GeomType::Vertex, nodalGhostWidth, DOFsPerNode, split );
 
-    std::shared_ptr<AMP::Operator::ElementPhysicsModel> transportModel;
     auto linearOperator = AMP::Operator::OperatorBuilder::createOperator(
-        meshAdapter, "DiffusionBVPOperator", input_db, transportModel );
+        meshAdapter, "DiffusionBVPOperator", input_db );
     auto diffusionOperator =
         std::dynamic_pointer_cast<AMP::Operator::LinearBVPOperator>( linearOperator );
 
@@ -68,7 +67,7 @@ auto create_amp_mat(flecsi::exec::cpu s, csr_topo::init & init) {
     auto boundaryOp = diffusionOperator->getBoundaryOperator();
     boundaryOp->addRHScorrection( boundaryOpCorrectionVec );
 
-    using Policy   = AMP::LinearAlgebra::HypreCSRPolicy;
+    using Policy   = AMP::LinearAlgebra::DefaultHostCSRConfig;
     using gidx_t   = typename Policy::gidx_t;
     using lidx_t   = typename Policy::lidx_t;
     using scalar_t = typename Policy::scalar_t;

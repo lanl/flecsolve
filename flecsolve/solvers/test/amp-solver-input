@@ -11,10 +11,18 @@ Mesh{
 
 DiffusionBVPOperator {
    name="LinearBVPOperator"
-   print_info_level = 1
    VolumeOperator = "DiffusionLinearFEOperator1"
    BoundaryOperator = "ColumnBoundaryOperator1"
 }
+
+DiffusionTransportModel1 {
+     name="DiffusionTransportModel"
+     Material = "Independent"
+     Property = "ThermalConductivity"
+        Default_Concentration = .1
+     Default_Temperature   = 300.
+     Default_Burnup   = 0.0
+   }
 
 DiffusionLinearFEOperator1{
    name="DiffusionLinearFEOperator"
@@ -31,7 +39,7 @@ DiffusionLinearFEOperator1{
      QRULE_TYPE = "QGAUSS"
      QRULE_ORDER = "DEFAULT"
    }
-   LocalModel = "DiffusionTransportModel1"
+   LocalModel = DiffusionTransportModel1
 }
 
 ColumnBoundaryOperator1 {
