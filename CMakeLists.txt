@@ -19,6 +19,8 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 endif()
 
 find_package(FleCSI REQUIRED)
+find_package(Eigen3 REQUIRED NO_MODULE)
+
 option(FLECSOLVE_ENABLE_AMP "Enable AMP wrapper in flecsolve" ON)
 if(FLECSOLVE_ENABLE_AMP)
   set(VARS_TO_CHECK CMAKE_C_FLAGS CMAKE_CXX_FLAGS CMAKE_Fortran_FLAGS)
@@ -31,7 +33,6 @@ if(FLECSOLVE_ENABLE_AMP)
 
   find_package(AMP REQUIRED)
   find_package(TPLs REQUIRED)
-  find_package(LapackWrappers REQUIRED)
 
   foreach(VAR ${VARS_TO_UNSET})
 	unset(${VAR})
@@ -133,11 +134,11 @@ target_include_directories(flecsolve
 )
 
 target_link_libraries(flecsolve PUBLIC
-  FleCSI::FleCSI MPI::MPI_CXX)
+  FleCSI::FleCSI MPI::MPI_CXX Eigen3::Eigen)
 
 if(FLECSOLVE_ENABLE_AMP)
   target_link_libraries(flecsolve PUBLIC
-	${AMP_LIBRARIES} ${TPL_LIBRARIES} LapackWrappers::LapackWrappers)
+	${AMP_LIBRARIES} ${TPL_LIBRARIES})
 endif()
 add_subdirectory(flecsolve)
 

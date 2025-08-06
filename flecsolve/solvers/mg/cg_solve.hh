@@ -1,7 +1,7 @@
 #ifndef FLECSOLVE_SOLVERS_MG_CG_SOLVE_HH
 #define FLECSOLVE_SOLVERS_MG_CG_SOLVE_HH
 
-#include <LapackWrappers.h>
+#include <Eigen/Dense>
 
 #include "flecsolve/matrices/parcsr.hh"
 #include "flecsolve/operators/handle.hh"
@@ -38,33 +38,33 @@ struct lapack_solver : op::base<>
 		auto diag = mat.diag();
 		auto [rowptr, colind, values] = diag.rep();
 		int N = rowptr.size() - 1;
-		auto copyvec = [=](auto spn) {
-			std::vector<double> vec;
-			vec.reserve(N);
-			std::copy(spn.begin(), spn.begin() + N,
-			          std::back_inserter(vec));
-			return vec;
-		};
-		auto bvec = copyvec(b.span());
 
-		std::vector<int> ipiv(N);
-		std::vector<double> A(N*N);
+		using dense_mat = Eigen::Matrix<scalar, Eigen::Dynamic, Eigen::Dynamic>;
+		using dense_vec = Eigen::Matrix<scalar, Eigen::Dynamic, 1>;
+		dense_mat A(N, N);
+
+		auto bvec = [=](auto spn) {
+			dense_vec bvec(N);
+			for (std::size_t i = 0; i < N; ++i) {
+				bvec(i) = spn[i];
+			}
+			return bvec;
+		}(b.span());
 
 		for (size r = 0; r < rowptr.size() - 1; ++r) {
 			auto rid = mat.global_id(flecsi::topo::id<topo_type::rows>(r));
 			for (size off = rowptr[r]; off < rowptr[r+1]; ++off) {
 				auto cid = mat.global_id(flecsi::topo::id<topo_type::cols>(colind[off]));
-				A[rid * N + cid] = values[off];
+				A(rid, cid) = values[off];
 			}
 		}
-		int err;
-		Lapack<scalar>::gesv(N, 1, A.data(), N, ipiv.data(), bvec.data(), N, err);
-		flog_assert(err == 0, "LU factorization failed");
-		{
-			auto xsp = x.span();
-			int i{0};
-			for (auto v : bvec) xsp[i++] = v;
-		}
+
+		Eigen::PartialPivLU<dense_mat> lu(A);
+		auto xvec = lu.solve(b);
+
+		auto xspn = x.span();
+		for (size_t i = 0; i < N; ++i)
+			xspn[i] = xvec(i);
 	}
 
 	op_handle A;
