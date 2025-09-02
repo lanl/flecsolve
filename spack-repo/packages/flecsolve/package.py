@@ -17,7 +17,7 @@ class Flecsolve(CMakePackage):
     depends_on('flecsi@2.4:')
     depends_on('amp+hypre')
     depends_on('stacktrace+shared')
-    depends_on('lapackwrappers@main')
+    depends_on('eigen')
 
     def cmake_args(self):
         args = [

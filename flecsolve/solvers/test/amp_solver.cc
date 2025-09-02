@@ -1,7 +1,7 @@
 #include "AMP/matrices/CSRMatrix.h"
 #include "AMP/matrices/data/CSRMatrixData.h"
 #include "AMP/matrices/RawCSRMatrixParameters.h"
-#include "AMP/matrices/data/hypre/HypreCSRPolicy.h"
+#include "AMP/matrices/CSRConfig.h"
 #include "AMP/discretization/simpleDOF_Manager.h"
 #include "AMP/discretization/DOF_Manager.h"
 #include "AMP/matrices/testHelpers/MatrixDataTransforms.h"
@@ -29,7 +29,7 @@
 
 using namespace flecsolve;
 
-using matpol = AMP::LinearAlgebra::HypreCSRPolicy;
+using matpol = AMP::LinearAlgebra::DefaultHostCSRConfig;
 
 using parcsr = mat::parcsr<matpol::scalar_t>;
 using csr_topo = parcsr::topo_t;
@@ -58,9 +58,8 @@ auto create_amp_mat(flecsi::exec::cpu s,
 	int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     int size; MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-    std::shared_ptr<AMP::Operator::ElementPhysicsModel> transportModel;
     linearOperator = AMP::Operator::OperatorBuilder::createOperator(
-	    meshAdapter, "DiffusionBVPOperator", input_db, transportModel );
+	    meshAdapter, "DiffusionBVPOperator", input_db );
     auto diffusionOperator =
         std::dynamic_pointer_cast<AMP::Operator::LinearBVPOperator>( linearOperator );
 
@@ -79,7 +78,7 @@ auto create_amp_mat(flecsi::exec::cpu s,
                                            true,
                                            diffusionOperator->getMemoryLocation());
 
-    using Policy   = AMP::LinearAlgebra::HypreCSRPolicy;
+    using Policy   = AMP::LinearAlgebra::DefaultHostCSRConfig;
     using gidx_t   = typename Policy::gidx_t;
     using lidx_t   = typename Policy::lidx_t;
     using scalar_t = typename Policy::scalar_t;

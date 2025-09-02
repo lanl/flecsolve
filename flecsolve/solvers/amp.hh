@@ -22,7 +22,7 @@ to do so.
 
 #include <AMP/solvers/SolverFactory.h>
 #include <AMP/solvers/hypre/BoomerAMGSolver.h>
-#include <AMP/matrices/data/hypre/HypreCSRPolicy.h>
+#include <AMP/matrices/CSRConfig.h>
 #include <AMP/matrices/CSRMatrix.h>
 #include <AMP/matrices/RawCSRMatrixParameters.h>
 #include <AMP/operators/LinearOperator.h>
@@ -46,8 +46,8 @@ to do so.
 namespace flecsolve::amp {
 
 using amp_mat =
-	AMP::LinearAlgebra::CSRMatrix<AMP::LinearAlgebra::HypreCSRPolicy>;
-using amp_policy = AMP::LinearAlgebra::HypreCSRPolicy;
+	AMP::LinearAlgebra::CSRMatrix<AMP::LinearAlgebra::DefaultHostCSRConfig>;
+using amp_policy = AMP::LinearAlgebra::DefaultHostCSRConfig;
 struct seq_csr_storage {
 	std::vector<amp_policy::lidx_t>   rowptr;
 	std::vector<amp_policy::gidx_t>   colind;
