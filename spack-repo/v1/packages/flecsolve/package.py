@@ -14,10 +14,6 @@ class Flecsolve(CMakePackage):
 
     variant("tests", default=False, description="Enable unit tests")
 
-    depends_on("c", type="build")
-    depends_on("cxx", type="build")
-    depends_on("fortran", type="build")
-
     depends_on('flecsi@2.4:')
     depends_on('amp+hypre+shared')
     depends_on('stacktrace+shared')
