@@ -48,18 +48,32 @@ int multicg(flecsi::scheduler & s) {
 		auto op1 = make_test_op(variable<vars::var1>, mtx);
 		auto op2 = make_test_op(variable<vars::var2>, mtx);
 
+		auto run_single = [&](auto var) {
+			auto [x, b] = vec::make(msh)(xd, bd);
+			x.copy(xm.subset(var));
+			b.copy(bm.subset(var));
+
+			op::core<csr_op> A(mtx);
+
+			auto slv = cg::solver(settings,
+								  cg::make_work(b))(op::ref(A));
+			return slv(b, x);
+		};
+
+		auto info1_single = run_single(variable<vars::var1>);
 		auto slv1 = cg::solver(
 			settings,
 			cg::make_work(bm.subset(variable<vars::var1>)))(op::ref(op1));
 		auto info1 = slv1(bm, xm);
 
+		auto info2_single = run_single(variable<vars::var2>);
 		auto slv2 = cg::solver(
 			settings,
 			cg::make_work(bm.subset(variable<vars::var2>)))(op::ref(op2));
 		auto info2 = slv2(bm, xm);
 
-		EXPECT_EQ(info1.iters, 161);
-		EXPECT_EQ(info2.iters, 143);
+		EXPECT_EQ(info1.iters, info1_single.iters);
+		EXPECT_EQ(info2.iters, info2_single.iters);
 	};
 
 	return 0;

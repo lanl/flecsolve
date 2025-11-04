@@ -40,14 +40,14 @@ constexpr std::array<std::size_t, 3> idx{0, 1, 2};
 constexpr std::array<std::size_t, 3> idy{2, 0, 1};
 constexpr std::array<std::size_t, 3> idz{1, 2, 0};
 
-inline static std::size_t digit(flecsi::util::id & x, std::size_t d) {
+FLECSI_INLINE_TARGET static std::size_t digit(flecsi::util::id & x, std::size_t d) {
 	std::size_t ret = x % d;
 	x /= d;
 	return ret;
 }
 
 template<class V>
-inline flecsi::util::id
+FLECSI_INLINE_TARGET flecsi::util::id
 translate(flecsi::util::id & x, std::size_t stride, const V & sub) {
 	flecsi::util::id ret;
 
@@ -58,13 +58,13 @@ translate(flecsi::util::id & x, std::size_t stride, const V & sub) {
 	return ret;
 }
 template<class... Vs, std::size_t... Index>
-std::size_t subranges_size(std::tuple<Vs...> & subranges,
+FLECSI_INLINE_TARGET std::size_t subranges_size(std::tuple<Vs...> & subranges,
                            std::index_sequence<Index...>) {
 	return (std::get<Index>(subranges).size() * ...);
 }
 
 template<class... Vs, std::size_t... Index>
-flecsi::util::id
+FLECSI_INLINE_TARGET flecsi::util::id
 translate_index(flecsi::util::id x,
                 const std::tuple<Vs...> & subranges,
                 const std::array<std::size_t, sizeof...(Vs)> & strides,
