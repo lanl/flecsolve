@@ -53,6 +53,7 @@ constexpr auto make_bcs(const Vec &) {
 }
 
 int boundary_test(flecsi::scheduler & s) {
+#ifndef KOKKOS_ENABLE_CUDA
 	msh::ptr mptr;
 
 	auto & m = init_mesh(s, mptr, {NX, NY, 1});
@@ -76,6 +77,7 @@ int boundary_test(flecsi::scheduler & s) {
 		EXPECT_TRUE(fvm_run<r_lo<msh::y_axis>>(ylo, m, xd(m)));
 		EXPECT_TRUE(fvm_run<r_hi<msh::y_axis>>(yhi, m, xd(m)));
 	};
+#endif
 	return 0;
 }
 

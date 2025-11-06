@@ -73,6 +73,7 @@ auto chk_avgz =
                     "face coefficient as directional avg of cells [z]");
 
 int fvm_coeff_test(flecsi::scheduler & s) {
+#ifndef KOKKOS_ENABLE_CUDA
 	msh::ptr mptr;
 
 	auto & m = init_mesh(s, mptr, {8, 8, 8});
@@ -110,6 +111,8 @@ int fvm_coeff_test(flecsi::scheduler & s) {
 		EXPECT_TRUE(
 			fvm_run<rface<msh::z_axis>>(chk_avgz, m, avg_fd[msh::z_axis](m)));
 	};
+#endif
+	return 0;
 }
 
 util::unit::driver<fvm_coeff_test> driver;

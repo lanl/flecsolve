@@ -48,7 +48,7 @@ struct testmesh : flecsi::topo::specialization<flecsi::topo::narray, testmesh> {
 	struct interface : B {
 
 		template<index_space Space, axis A>
-		auto axis() const {
+		FLECSI_INLINE_TARGET auto axis() const {
 			return B::template axis<Space, A>();
 		}
 
