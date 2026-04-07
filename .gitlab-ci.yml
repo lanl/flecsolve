@@ -1,29 +1,53 @@
 stages:
+  - prereq
   - mpi
   - legion
 
 variables:
   PROJECT_NAME: flecsolve
+  PROJECT_GROUP: oss
   ENABLE_CDASH: true
-  # use this variable if there is a xcap/deployment MR you want to use instead
-  # PROJECT_SPACK_ENV_VERSION: "mr/75/2024-10-15"
-  PROJECT_SPACK_ENV_VERSION: "2025-01-18"
 
 include:
  - .gitlab/common.yml
 
+
+# Spack environments are defined in
+# https://re-git.lanl.gov/xcap/deployment/-/tree/develop/environments
+# for each system and for each XCAP project.
+#
+# Each environment is uniquely identified by
+# ${SYSTEM_NAME}/${PROJECT_GROUP}/${PROJECT_NAME}/${SPACK_ENV_NAME}
+#
+
+prereq_offline_deps:
+  stage: prereq
+  extends: [.ascgit_job, .darwin_job]
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: $CI_PIPELINE_SOURCE == "web"
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  needs: []
+  script:
+   - source .gitlab/download_prereqs.sh
+  artifacts:
+    expire_in: 2 days
+    paths:
+      - extern
+
 darwin_mpi_serial_mpich_debug:
   stage: mpi
   extends: [.ascgit_job, .darwin_job, .darwin_regular_job, .build_and_test]
-  needs: []
+  needs: [prereq_offline_deps]
   variables:
     SPACK_ENV_NAME: mpi/serial/mpich-debug
     SUBMIT_TO_CDASH: "${ENABLE_CDASH}"
 
 darwin_legion_serial_mpich_debug:
-  stage: mpi
+  stage: legion
   extends: [.ascgit_job, .darwin_job, .darwin_regular_job, .build_and_test]
-  needs: []
+  needs: [prereq_offline_deps]
   variables:
     SPACK_ENV_NAME: legion/serial/mpich-debug
     SUBMIT_TO_CDASH: "${ENABLE_CDASH}"
