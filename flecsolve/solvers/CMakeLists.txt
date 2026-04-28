@@ -67,14 +67,13 @@ flecsi_add_test(nka
   LIBRARIES flecsolve
   PROCS 1)
 
-if(FLECSOLVE_ENABLE_AMP AND AMP_DATA)
+if(FLECSOLVE_ENABLE_AMP)
   flecsi_add_test(amp-amg
 	SOURCES
 	test/amp_boomeramg.cc
 	INPUTS
-	${AMP_DATA}/meshes/CubeMeshes/cube64.with.boundary.labels.e
 	test/amp-amg.cfg
-	test/amp-input
+	test/amp-diffusion-2d
 	LIBRARIES flecsolve
 	PROCS 3)
 
@@ -82,7 +81,6 @@ if(FLECSOLVE_ENABLE_AMP AND AMP_DATA)
 	SOURCES
 	test/amp_solver.cc
 	INPUTS
-	${AMP_DATA}/meshes/CubeMeshes/cube64.with.boundary.labels.e
 	test/amp-solver.cfg
 	test/amp-solver-pcg.cfg
 	test/amp-solver-gmres.cfg

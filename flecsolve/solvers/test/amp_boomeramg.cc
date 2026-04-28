@@ -12,10 +12,9 @@
 #include "AMP/solvers/SolverFactory.h"
 #include "AMP/solvers/SolverStrategy.h"
 #include "AMP/solvers/SolverStrategyParameters.h"
-#include "AMP/operators/LinearBVPOperator.h"
-#include "AMP/operators/OperatorBuilder.h"
-#include "AMP/discretization/simpleDOF_Manager.h"
-#include "AMP/discretization/DOF_Manager.h"
+#include "AMP/operators/diffusionFD/DiffusionFD.h"
+#include "AMP/operators/diffusionFD/DiffusionRotatedAnisotropicModel.h"
+#include "AMP/operators/testHelpers/FDHelper.h"
 #include "AMP/vectors/Variable.h"
 #include "AMP/vectors/Vector.h"
 #include "AMP/vectors/VectorBuilder.h"
@@ -40,32 +39,44 @@ using csr = mat::csr<matpol::scalar_t>;
 csr_topo::vec_def<csr_topo::cols> ud, fd;
 
 auto create_amp_mat(flecsi::exec::cpu s, csr_topo::init & init) {
-	std::string input_file{"amp-input"};
+	std::string input_file{"amp-diffusion-2d"};
 	auto input_db = AMP::Database::parseInputFile(input_file);
 
-	AMP_INSIST( input_db->keyExists( "Mesh" ), "Key ''Mesh'' is missing!" );
-    auto mesh_db   = input_db->getDatabase( "Mesh" );
-    auto mgrParams = std::make_shared<AMP::Mesh::MeshParameters>( mesh_db );
+	AMP_INSIST(input_db->keyExists("Mesh"), "Key ''Mesh'' is missing!");
+	auto mesh_db = input_db->getDatabase("Mesh");
+	auto racoeff_db = input_db->getDatabase("RACoefficients");
 
-    mgrParams->setComm( AMP::AMP_MPI( AMP_COMM_WORLD ) );
-    auto meshAdapter = AMP::Mesh::MeshFactory::create( mgrParams );
+	auto mesh_params = std::make_shared<AMP::Mesh::MeshParameters>(mesh_db);
+	mesh_params->setComm(AMP_COMM_WORLD);
 
-    int DOFsPerNode          = 1;
-    int nodalGhostWidth      = 1;
-    bool split               = true;
-    auto nodalDofMap         = AMP::Discretization::simpleDOFManager::create(
-        meshAdapter, AMP::Mesh::GeomType::Vertex, nodalGhostWidth, DOFsPerNode, split );
+	std::shared_ptr<AMP::Mesh::BoxMesh> mesh =
+		AMP::Mesh::BoxMesh::generate(mesh_params);
 
-    auto linearOperator = AMP::Operator::OperatorBuilder::createOperator(
-        meshAdapter, "DiffusionBVPOperator", input_db );
-    auto diffusionOperator =
-        std::dynamic_pointer_cast<AMP::Operator::LinearBVPOperator>( linearOperator );
+	auto radiff_model = std::make_shared<
+		AMP::Operator::ManufacturedRotatedAnisotropicDiffusionModel>(
+		racoeff_db);
 
-    auto boundaryOpCorrectionVec = AMP::LinearAlgebra::createVector(nodalDofMap,
-                                                                    diffusionOperator->getOutputVariable());
+	auto PDESourceFun =
+		std::bind(&AMP::Operator::RotatedAnisotropicDiffusionModel::sourceTerm,
+	              &(*radiff_model),
+	              std::placeholders::_1);
+	auto uexactFun = std::bind(
+		&AMP::Operator::RotatedAnisotropicDiffusionModel::exactSolution,
+		&(*radiff_model),
+		std::placeholders::_1);
 
-    auto boundaryOp = diffusionOperator->getBoundaryOperator();
-    boundaryOp->addRHScorrection( boundaryOpCorrectionVec );
+	const auto opdb = std::make_shared<AMP::Database>("linearOperatorDB");
+	opdb->putScalar<int>("print_info_level", 0);
+	opdb->putScalar<std::string>("name", "DiffusionFDOperator");
+	opdb->putDatabase("DiffusionCoefficients",
+	                  radiff_model->d_c_db->cloneDatabase());
+
+	auto op_params = std::make_shared<AMP::Operator::OperatorParameters>(opdb);
+	op_params->d_name = "DiffusionFDOperator";
+	op_params->d_Mesh = mesh;
+
+	auto diffop =
+		std::make_shared<AMP::Operator::DiffusionFDOperator>(op_params);
 
     using Policy   = AMP::LinearAlgebra::DefaultHostCSRConfig;
     using gidx_t   = typename Policy::gidx_t;
@@ -82,7 +93,7 @@ auto create_amp_mat(flecsi::exec::cpu s, csr_topo::init & init) {
 	    split_params diag, offd;
     } param_input;
     [&](split_params & diag, split_params & offd) {
-	    AMP::LinearAlgebra::transformDofToCSR<Policy>(diffusionOperator->getMatrix(),
+	    AMP::LinearAlgebra::transformDofToCSR<Policy>(diffop->getMatrix(),
 	                                                  row_rng[0], row_rng[1],
 	                                                  col_rng[0], col_rng[1],
 	                                                  diag.rowptr,
@@ -100,7 +111,7 @@ auto create_amp_mat(flecsi::exec::cpu s, csr_topo::init & init) {
     }(param_input.diag, param_input.offd);
 
     auto csr_params = std::make_shared<AMP::LinearAlgebra::RawCSRMatrixParameters<Policy>>(
-	    row_rng[0], row_rng[1], col_rng[0], col_rng[1], params_diag, params_offd, meshAdapter->getComm());
+	    row_rng[0], row_rng[1], col_rng[0], col_rng[1], params_diag, params_offd, AMP_COMM_WORLD);
     auto csrMatrix = std::make_shared<AMP::LinearAlgebra::CSRMatrix<Policy>>(csr_params);
 
 

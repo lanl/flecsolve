@@ -14,11 +14,9 @@
 #include "AMP/solvers/SolverFactory.h"
 #include "AMP/solvers/SolverStrategy.h"
 #include "AMP/solvers/SolverStrategyParameters.h"
-#include "AMP/operators/LinearBVPOperator.h"
-#include "AMP/operators/OperatorBuilder.h"
-#include "AMP/vectors/Variable.h"
-#include "AMP/vectors/Vector.h"
-#include "AMP/vectors/VectorBuilder.h"
+#include "AMP/operators/diffusionFD/DiffusionFD.h"
+#include "AMP/operators/diffusionFD/DiffusionRotatedAnisotropicModel.h"
+#include "AMP/operators/testHelpers/FDHelper.h"
 
 #include "flecsi/flog.hh"
 #include "flecsi/util/unit.hh"
@@ -38,127 +36,141 @@ using csr = mat::csr<matpol::scalar_t>;
 csr_topo::vec_def<csr_topo::cols> ud, fd;
 
 auto create_amp_mat(flecsi::exec::cpu s,
-                    csr_topo::init & init, std::shared_ptr<AMP::Database> input_db,
+                    csr_topo::init & init,
+                    std::shared_ptr<AMP::Database> input_db,
                     std::shared_ptr<AMP::LinearAlgebra::Vector> & rhs,
                     std::shared_ptr<AMP::LinearAlgebra::Vector> & sol,
                     std::shared_ptr<AMP::Operator::Operator> & linearOperator) {
-	AMP_INSIST( input_db->keyExists( "Mesh" ), "Key ''Mesh'' is missing!" );
-    auto mesh_db   = input_db->getDatabase( "Mesh" );
-    auto mgrParams = std::make_shared<AMP::Mesh::MeshParameters>( mesh_db );
+	AMP_INSIST(input_db->keyExists("Mesh"), "Key ''Mesh'' is missing!");
+	auto mesh_db = input_db->getDatabase("Mesh");
+	auto racoeff_db = input_db->getDatabase("RACoefficients");
 
-    mgrParams->setComm( AMP::AMP_MPI( AMP_COMM_WORLD ) );
-    auto meshAdapter = AMP::Mesh::MeshFactory::create( mgrParams );
+	auto mesh_params = std::make_shared<AMP::Mesh::MeshParameters>(mesh_db);
+	mesh_params->setComm(AMP_COMM_WORLD);
 
-    int DOFsPerNode          = 1;
-    int nodalGhostWidth      = 1;
-    bool split               = true;
-    auto nodalDofMap         = AMP::Discretization::simpleDOFManager::create(
-        meshAdapter, AMP::Mesh::GeomType::Vertex, nodalGhostWidth, DOFsPerNode, split );
+	std::shared_ptr<AMP::Mesh::BoxMesh> mesh =
+		AMP::Mesh::BoxMesh::generate(mesh_params);
 
-	int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    int size; MPI_Comm_size(MPI_COMM_WORLD, &size);
+	auto radiff_model = std::make_shared<
+		AMP::Operator::ManufacturedRotatedAnisotropicDiffusionModel>(
+		racoeff_db);
 
-    linearOperator = AMP::Operator::OperatorBuilder::createOperator(
-	    meshAdapter, "DiffusionBVPOperator", input_db );
-    auto diffusionOperator =
-        std::dynamic_pointer_cast<AMP::Operator::LinearBVPOperator>( linearOperator );
+	auto PDESourceFun =
+		std::bind(&AMP::Operator::RotatedAnisotropicDiffusionModel::sourceTerm,
+	              &(*radiff_model),
+	              std::placeholders::_1);
+	auto uexactFun = std::bind(
+		&AMP::Operator::RotatedAnisotropicDiffusionModel::exactSolution,
+		&(*radiff_model),
+		std::placeholders::_1);
 
-    auto boundaryOpCorrectionVec = AMP::LinearAlgebra::createVector(nodalDofMap,
-                                                                    diffusionOperator->getOutputVariable());
+	const auto opdb = std::make_shared<AMP::Database>("linearOperatorDB");
+	opdb->putScalar<int>("print_info_level", 0);
+	opdb->putScalar<std::string>("name", "DiffusionFDOperator");
+	opdb->putDatabase("DiffusionCoefficients",
+	                  radiff_model->d_c_db->cloneDatabase());
 
-    auto boundaryOp = diffusionOperator->getBoundaryOperator();
-    boundaryOp->addRHScorrection( boundaryOpCorrectionVec );
+	auto op_params = std::make_shared<AMP::Operator::OperatorParameters>(opdb);
+	op_params->d_name = "DiffusionFDOperator";
+	op_params->d_Mesh = mesh;
 
-    rhs = AMP::LinearAlgebra::createVector(nodalDofMap,
-                                           diffusionOperator->getOutputVariable(),
-                                           true,
-                                           diffusionOperator->getMemoryLocation());
-    sol = AMP::LinearAlgebra::createVector(nodalDofMap,
-                                           diffusionOperator->getInputVariable(),
-                                           true,
-                                           diffusionOperator->getMemoryLocation());
+	auto diffop =
+		std::make_shared<AMP::Operator::DiffusionFDOperator>(op_params);
+	linearOperator = diffop;
 
-    using Policy   = AMP::LinearAlgebra::DefaultHostCSRConfig;
-    using gidx_t   = typename Policy::gidx_t;
-    using lidx_t   = typename Policy::lidx_t;
-    using scalar_t = typename Policy::scalar_t;
+	rhs = diffop->createRHSVector(
+		PDESourceFun,
+		[&](const AMP::Mesh::Point & p, int) { return uexactFun(p); });
 
-    std::array<gidx_t, 2> row_rng, col_rng;
-    struct split_params {
-	    std::vector<lidx_t> rowptr;
-	    std::vector<gidx_t> cols;
-	    std::vector<scalar_t> coeffs;
-    };
-    struct split {
-	    split_params diag, offd;
-    } param_input;
-    [&](split_params & diag, split_params & offd) {
-	    AMP::LinearAlgebra::transformDofToCSR<Policy>(diffusionOperator->getMatrix(),
-	                                                  row_rng[0], row_rng[1],
-	                                                  col_rng[0], col_rng[1],
-	                                                  diag.rowptr,
-	                                                  diag.cols,
-	                                                  diag.coeffs,
-	                                                  offd.rowptr,
-	                                                  offd.cols,
-	                                                  offd.coeffs);
-    }(param_input.diag, param_input.offd);
+	sol = diffop->createInputVector();
 
-    auto [params_diag, params_offd] = [](auto & ... in) {
-	    return std::make_pair(
-		    AMP::LinearAlgebra::RawCSRMatrixParameters<Policy>::RawCSRLocalMatrixParameters{
-			    in.rowptr.data(), in.cols.data(), in.coeffs.data()}...);
-    }(param_input.diag, param_input.offd);
+	using Policy = AMP::LinearAlgebra::DefaultHostCSRConfig;
+	using gidx_t = typename Policy::gidx_t;
+	using lidx_t = typename Policy::lidx_t;
+	using scalar_t = typename Policy::scalar_t;
 
-    auto csr_params = std::make_shared<AMP::LinearAlgebra::RawCSRMatrixParameters<Policy>>(
-	    row_rng[0], row_rng[1], col_rng[0], col_rng[1], params_diag, params_offd, meshAdapter->getComm());
-    auto csrMatrix = std::make_shared<AMP::LinearAlgebra::CSRMatrix<Policy>>(csr_params);
+	std::array<gidx_t, 2> row_rng, col_rng;
+	struct split_params {
+		std::vector<lidx_t> rowptr;
+		std::vector<gidx_t> cols;
+		std::vector<scalar_t> coeffs;
+	};
+	struct split {
+		split_params diag, offd;
+	} param_input;
+	[&](split_params & diag, split_params & offd) {
+		AMP::LinearAlgebra::transformDofToCSR<Policy>(diffop->getMatrix(),
+		                                              row_rng[0],
+		                                              row_rng[1],
+		                                              col_rng[0],
+		                                              col_rng[1],
+		                                              diag.rowptr,
+		                                              diag.cols,
+		                                              diag.coeffs,
+		                                              offd.rowptr,
+		                                              offd.cols,
+		                                              offd.coeffs);
+	}(param_input.diag, param_input.offd);
 
+	auto [params_diag, params_offd] = [](auto &... in) {
+		return std::make_pair(AMP::LinearAlgebra::RawCSRMatrixParameters<
+							  Policy>::RawCSRLocalMatrixParameters{
+			in.rowptr.data(), in.cols.data(), in.coeffs.data()}...);
+	}(param_input.diag, param_input.offd);
 
-    using csr_data = AMP::LinearAlgebra::CSRMatrixData<Policy>;
-    auto & mdata = dynamic_cast<csr_data&>(*csrMatrix->getMatrixData());
+	auto csr_params =
+		std::make_shared<AMP::LinearAlgebra::RawCSRMatrixParameters<Policy>>(
+			row_rng[0],
+			row_rng[1],
+			col_rng[0],
+			col_rng[1],
+			params_diag,
+			params_offd,
+			AMP_COMM_WORLD);
+	auto csrMatrix =
+		std::make_shared<AMP::LinearAlgebra::CSRMatrix<Policy>>(csr_params);
 
-    init.comm = MPI_COMM_WORLD;
-    init.ncols = init.nrows = mdata.numGlobalRows();
-    auto lastrow = flecsi::util::mpi::all_gatherv(row_rng[1]);
-    flecsi::util::offsets::storage store;
-    std::copy(lastrow.begin(), lastrow.end(), std::back_inserter(store));
-    flecsi::util::offsets rowpart(std::move(store));
-    init.row_part.set_offsets(rowpart);
-    init.col_part.set_offsets(rowpart);
-    init.proc_part.set_block_map(s.launch().size, s.launch().size);
+	using csr_data = AMP::LinearAlgebra::CSRMatrixData<Policy>;
+	auto & mdata = dynamic_cast<csr_data &>(*csrMatrix->getMatrixData());
 
-    csr procmat(mdata.numLocalRows(), mdata.numLocalColumns());
-    procmat.resize(mdata.numberOfNonZeros());
+	init.comm = MPI_COMM_WORLD;
+	init.ncols = init.nrows = mdata.numGlobalRows();
+	auto lastrow = flecsi::util::mpi::all_gatherv(row_rng[1]);
+	flecsi::util::offsets::storage store;
+	std::copy(lastrow.begin(), lastrow.end(), std::back_inserter(store));
+	flecsi::util::offsets rowpart(std::move(store));
+	init.row_part.set_offsets(rowpart);
+	init.col_part.set_offsets(rowpart);
+	init.proc_part.set_block_map(s.launch().size, s.launch().size);
 
-    auto [rowptr, colind, values] = procmat.rep();
-    std::size_t nnz_count = 0;
-    for (std::size_t i = 0; i < mdata.numLocalRows(); ++i) {
-	    std::vector<double> coeffs;
-	    std::vector<std::size_t> cols;
-	    mdata.getRowByGlobalID(i + mdata.beginRow(), cols, coeffs);
-	    std::copy(cols.begin(), cols.end(), colind.begin() + nnz_count);
-	    std::copy(coeffs.begin(), coeffs.end(), values.begin() + nnz_count);
-	    nnz_count += cols.size();
-	    rowptr[i+1] = nnz_count;
-    }
+	csr procmat(mdata.numLocalRows(), mdata.numLocalColumns());
+	procmat.resize(mdata.numberOfNonZeros());
 
-    init.proc_mats.push_back(std::move(procmat));
+	auto [rowptr, colind, values] = procmat.rep();
+	std::size_t nnz_count = 0;
+	for (std::size_t i = 0; i < mdata.numLocalRows(); ++i) {
+		std::vector<double> coeffs;
+		std::vector<std::size_t> cols;
+		mdata.getRowByGlobalID(i + mdata.beginRow(), cols, coeffs);
+		std::copy(cols.begin(), cols.end(), colind.begin() + nnz_count);
+		std::copy(coeffs.begin(), coeffs.end(), values.begin() + nnz_count);
+		nnz_count += cols.size();
+		rowptr[i + 1] = nnz_count;
+	}
+
+	init.proc_mats.push_back(std::move(procmat));
 }
-
 
 void start_amp() {
 	int argc = 1;
-	char *argv[] = {(char*)""};
+	char * argv[] = {(char *)""};
 	AMP::AMPManagerProperties props;
 	props.stack_trace_type = 2;
 	props.COMM_WORLD = MPI_COMM_WORLD;
 	AMP::AMPManager::startup(argc, argv, props);
 }
 
-
 void stop_amp() { AMP::AMPManager::shutdown(); }
-
 
 int finalize_amp() {
 	flecsi::execute<stop_amp, flecsi::mpi>();
@@ -174,17 +186,21 @@ int amptest(flecsi::scheduler & s) {
 	csr_topo::init init;
 	std::shared_ptr<AMP::LinearAlgebra::Vector> rhs, sol;
 	std::shared_ptr<AMP::Operator::Operator> linop;
-	flecsi::execute<create_amp_mat, flecsi::mpi>(flecsi::exec::on, init, input_db, rhs, sol, linop);
+	flecsi::execute<create_amp_mat, flecsi::mpi>(
+		flecsi::exec::on, init, input_db, rhs, sol, linop);
 	auto A = op::make_shared<parcsr>(s, std::move(init));
 	auto & topo = A.get().data.topo();
 
-	UNIT(){
+	UNIT () {
 		auto [u, f] = vec::make(topo)(ud, fd);
 
 		auto run_directly = [&](const std::string & solver_name) {
 			auto amp_solver =
-				AMP::Solver::Test::buildSolver(solver_name, input_db,
-				                               AMP::AMP_MPI(AMP_COMM_WORLD), nullptr, linop);
+				AMP::Solver::Test::buildSolver(solver_name,
+			                                   input_db,
+			                                   AMP::AMP_MPI(AMP_COMM_WORLD),
+			                                   nullptr,
+			                                   linop);
 			sol->setToScalar(1.);
 			linop->apply(sol, rhs);
 			sol->setToScalar(0.);
@@ -197,9 +213,9 @@ int amptest(flecsi::scheduler & s) {
 			u.set_scalar(1.);
 			A(u, f);
 			u.zero();
-			auto settings = read_config("amp-solver.cfg", amp::solver::options("solver"));
-			amp::solver slv{settings,
-			                input_db};
+			auto settings =
+				read_config("amp-solver.cfg", amp::solver::options("solver"));
+			amp::solver slv{settings, input_db};
 			auto info = slv(A)(f, u);
 
 			EXPECT_EQ(info.iters, run_directly(settings.solver_name));
@@ -211,7 +227,8 @@ int amptest(flecsi::scheduler & s) {
 			A(u, f);
 			u.zero();
 
-			auto settings = read_config("amp-solver-pcg.cfg", amp::solver::options("solver"));
+			auto settings = read_config("amp-solver-pcg.cfg",
+			                            amp::solver::options("solver"));
 			amp::solver slv{settings, input_db};
 			auto info = slv(A)(f, u);
 
@@ -225,7 +242,8 @@ int amptest(flecsi::scheduler & s) {
 			A(u, f);
 			u.zero();
 
-			auto settings = read_config("amp-solver-gmres.cfg", amp::solver::options("solver"));
+			auto settings = read_config("amp-solver-gmres.cfg",
+			                            amp::solver::options("solver"));
 			amp::solver slv{settings, input_db};
 			auto info = slv(A)(f, u);
 

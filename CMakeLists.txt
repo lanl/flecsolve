@@ -38,37 +38,6 @@ if(FLECSOLVE_ENABLE_AMP)
 	unset(${VAR})
   endforeach()
 
-  # amp data
-  if( AMP_DATA OR AMP_DATA_URL )
-	if( AMP_DATA_URL )
-      message( STATUS "Downloading AMP Data - ${AMP_DATA_URL}" )
-      get_filename_component( AMP_DATA "${AMP_DATA_URL}" NAME)
-      setT( AMP_DATA "${CMAKE_CURRENT_BINARY_DIR}/${AMP_DATA}" )
-      file( DOWNLOAD "${AMP_DATA_URL}" "${AMP_DATA}" )
-	endif()
-	if( "${AMP_DATA}" STREQUAL "" )
-      unset( AMP_DATA )
-	endif()
-	if ( IS_DIRECTORY "${AMP_DATA}" )
-      # AMP_DATA is a directory
-	elseif( EXISTS "${AMP_DATA}" )
-      # AMP_DATA is a file, try to unpack it
-      execute_process(
-		COMMAND ${CMAKE_COMMAND} -E tar xzf "${AMP_DATA}"
-		WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
-      )
-      if( EXISTS "${CMAKE_BINARY_DIR}/AMP-Data" )
-		set( AMP_DATA "${CMAKE_BINARY_DIR}/AMP-Data" )
-      else()
-		message(FATAL_ERROR "Error unpacking tar file ${AMP_DATA}")
-      endif()
-	endif()
-  endif()
-  if( AMP_DATA )
-	add_definitions( -DUSE_AMP_DATA )
-  elseif( NOT TPLs_LIBMESH_FOUND AND NOT AMP_DATA )
-	message(WARNING "LIBMESH not found or AMP_DATA is not set, some tests will be disabled" )
-  endif()
 endif()
 
 option(FLECSOLVE_ENABLE_UNIT_TESTS "Enable the Unit tests" On)
@@ -211,6 +180,5 @@ flecsi_summary_option("FLECSI_ENABLE_FLOG" ${FleCSI_ENABLE_FLOG} "")
 flecsi_summary_option("FLECSOLVE_ENABLE_UNIT_TESTS" ${FLECSOLVE_ENABLE_UNIT_TESTS} "")
 flecsi_summary_option("FLECSOLVE_ENABLE_AMP" "${FLECSOLVE_ENABLE_AMP}" "")
 flecsi_summary_option("FLECSOLVE_BUILD_EXAMPLES" ${FLECSOLVE_BUILD_EXAMPLES} "")
-flecsi_summary_info("AMP_DATA" "${AMP_DATA}" TRUE)
 
 message(STATUS ${_summary})
