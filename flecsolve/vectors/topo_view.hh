@@ -48,7 +48,6 @@ template<auto V,
          typename Topo::index_space Space>
 auto make(variable_t<V>,
           flecsi::data::field_reference<T, L, Topo, Space> ref) {
-	using Ref = flecsi::data::field_reference<T, L, Topo, Space>;
 	using vec_t = topo_view<V, T, L, Topo, Space>;
 	using config_t = typename vec_t::config;
 

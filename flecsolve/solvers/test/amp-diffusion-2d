@@ -1,0 +1,17 @@
+Mesh {
+    MeshName = "mesh"
+    MeshType = "AMP"
+    Generator = "cube"
+    dim = 2
+    Size = 128, 128
+    Range = 0, 1, 0, 1
+    surfaceIds = 1, 2, 3, 4
+    static = TRUE
+}
+
+# Rotation and anisotropy coefficients
+RACoefficients{
+    dim   = 2
+    eps   = 1
+    theta = 0
+}

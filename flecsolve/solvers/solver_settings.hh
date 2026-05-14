@@ -59,7 +59,7 @@ protected:
 struct solve_stats {};
 
 struct solve_info {
-	solve_info() : iters(0), restarts(0), status(stop_reason::unknown) {}
+	solve_info() : status(stop_reason::unknown), iters(0), restarts(0)  {}
 
 	enum class stop_reason {
 		converged_atol,
