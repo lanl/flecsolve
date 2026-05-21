@@ -363,8 +363,7 @@ struct topology<P, flecsolve::topo::csr_base>::access {
 	void send(F && f) {
 		send_csr<csr_category::diag>(f, diag_);
 		send_csr<csr_category::offd>(f, offd_);
-		const auto meta = [](auto & n) -> auto & { return n.meta; };
-		meta_.topology_send(f, meta);
+		std::forward<F>(f)(meta_, [](auto & n) { return csr_category::metadata_field(n.meta); });
 		f(colmap_, [](auto & t) { return csr_category::colmap_field(t); });
 	}
 
@@ -384,22 +383,19 @@ struct topology<P, flecsolve::topo::csr_base>::access {
 	FLECSI_INLINE_TARGET const flecsolve::topo::csr_impl::metadata & meta() const { return *meta_; }
 
 private:
-	flecsi::data::scalar_access<csr_category::metadata_field, Priv> meta_;
+	flecsi::data::scalar_access<flecsolve::topo::csr_impl::metadata, flecsi::privilege_merge(Priv)> meta_;
 
-	template<const auto & Field>
-	using accessor = flecsi::data::accessor_member<
-		Field,
-		flecsi::privilege_pack<flecsi::privilege_merge(Priv)>>;
-	template<class C>
+	template<class T>
+	using field_acc = typename flecsi::field<T>::template accessor<flecsi::privilege_merge(Priv)>;
 	struct csr_acc {
-		accessor<C::offsets> offsets;
-		accessor<C::indices> indices;
-		accessor<C::values> values;
+		field_acc<typename P::size_type> offsets;
+		field_acc<typename P::size_type> indices;
+		field_acc<typename P::scalar_type> values;
 	};
 
-	csr_acc<csr_category::diag> diag_;
-	csr_acc<csr_category::offd> offd_;
-	accessor<csr_category::colmap_field> colmap_;
+	csr_acc diag_;
+	csr_acc offd_;
+	field_acc<flecsi::util::gid> colmap_;
 };
 
 template<>
