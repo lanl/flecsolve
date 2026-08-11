@@ -23,6 +23,7 @@ to do so.
 #include <flecsi/execution.hh>
 #include <flecsi/data.hh>
 
+#include "flecsolve/util/future.hh"
 #include "flecsolve/util/traits.hh"
 #include "flecsolve/vectors/data/topo_view.hh"
 
@@ -74,11 +75,30 @@ struct topo_tasks {
 		s.executor().forall(dof, util::dofs(m)) { x[dof] = val; };
 	}
 
+	template<class F, class T>
+	static void set_to_scalar_future(flecsi::exec::accelerator s,
+	                                 topo_acc m,
+	                                 acc<wo> x,
+	                                 future<T> fut,
+	                                 F f) noexcept {
+		scalar val = f(fut.get());
+		set_to_scalar(s, m, x, val);
+	}
+
 	static void scale_self(flecsi::exec::accelerator s,
 	                       topo_acc m,
 	                       acc<rw> x,
 	                       scalar val) noexcept {
 		s.executor().forall(dof, util::dofs(m)) { x[dof] *= val; };
+	}
+
+	template<class F, class T>
+	static void scale_self_future(flecsi::exec::accelerator s,
+	                              topo_acc m,
+	                              acc<rw> x,
+	                              future<T> fut,
+	                              F f) noexcept {
+		scale_self(s, m, x, f(fut.get()));
 	}
 
 	static void scale(flecsi::exec::accelerator s,
@@ -87,6 +107,16 @@ struct topo_tasks {
 	                  acc<wo> y,
 	                  scalar val) noexcept {
 		s.executor().forall(dof, util::dofs(m)) { y[dof] = x[dof] * val; };
+	}
+
+	template<class F, class T>
+	static void scale_future(flecsi::exec::accelerator s,
+	                         topo_acc m,
+	                         acc<ro> x,
+	                         acc<wo> y,
+	                         future<T> fut,
+	                         F f) noexcept {
+		scale(s, m, x, y, f(fut.get()));
 	}
 
 	template<class OtherAcc>
@@ -200,6 +230,44 @@ struct topo_tasks {
 		};
 	}
 
+	template<class F, class T>
+	static void linear_sum_alpha_future(flecsi::exec::accelerator s,
+	                                    topo_acc m,
+	                                    acc<wo> z,
+	                                    future<T> alpha_fut,
+	                                    F alpha_f,
+	                                    acc<ro> x,
+	                                    scalar beta,
+	                                    acc<ro> y) noexcept {
+		linear_sum(s, m, z, alpha_f(alpha_fut.get()), x, beta, y);
+	}
+
+	template<class F, class T>
+	static void linear_sum_beta_future(flecsi::exec::accelerator s,
+	                                   topo_acc m,
+	                                   acc<wo> z,
+	                                   scalar alpha,
+	                                   acc<ro> x,
+	                                   future<T> beta_fut,
+	                                   F beta_f,
+	                                   acc<ro> y) noexcept {
+		linear_sum(s, m, z, alpha, x, beta_f(beta_fut.get()), y);
+	}
+
+	template<class AlphaF, class AlphaT, class BetaF, class BetaT>
+	static void linear_sum_future(flecsi::exec::accelerator s,
+	                              topo_acc m,
+	                              acc<wo> z,
+	                              future<AlphaT> alpha_fut,
+	                              AlphaF alpha_f,
+	                              acc<ro> x,
+	                              future<BetaT> beta_fut,
+	                              BetaF beta_f,
+	                              acc<ro> y) noexcept {
+		linear_sum(
+			s, m, z, alpha_f(alpha_fut.get()), x, beta_f(beta_fut.get()), y);
+	}
+
 	template<bool inv>
 	static void linear_sum_self(flecsi::exec::accelerator s,
 	                            topo_acc m,
@@ -215,6 +283,41 @@ struct topo_tasks {
 				z[dof] = alpha * x[dof] + beta * z[dof];
 			}
 		};
+	}
+
+	template<bool inv, class F, class T>
+	static void linear_sum_self_alpha_future(flecsi::exec::accelerator s,
+	                                         topo_acc m,
+	                                         acc<rw> z,
+	                                         acc<ro> x,
+	                                         future<T> alpha_fut,
+	                                         F alpha_f,
+	                                         scalar beta) noexcept {
+		linear_sum_self<inv>(s, m, z, x, alpha_f(alpha_fut.get()), beta);
+	}
+
+	template<bool inv, class F, class T>
+	static void linear_sum_self_beta_future(flecsi::exec::accelerator s,
+	                                        topo_acc m,
+	                                        acc<rw> z,
+	                                        acc<ro> x,
+	                                        scalar alpha,
+	                                        future<T> beta_fut,
+	                                        F beta_f) noexcept {
+		linear_sum_self<inv>(s, m, z, x, alpha, beta_f(beta_fut.get()));
+	}
+
+	template<bool inv, class AlphaF, class AlphaT, class BetaF, class BetaT>
+	static void linear_sum_self_future(flecsi::exec::accelerator s,
+	                                   topo_acc m,
+	                                   acc<rw> z,
+	                                   acc<ro> x,
+	                                   future<AlphaT> alpha_fut,
+	                                   AlphaF alpha_f,
+	                                   future<BetaT> beta_fut,
+	                                   BetaF beta_f) noexcept {
+		linear_sum_self<inv>(
+			s, m, z, x, alpha_f(alpha_fut.get()), beta_f(beta_fut.get()));
 	}
 
 	static void axpy(flecsi::exec::accelerator s,
@@ -278,6 +381,40 @@ struct topo_tasks {
 		};
 	}
 
+	template<class F, class T>
+	static void axpby_alpha_future(flecsi::exec::accelerator s,
+	                               topo_acc m,
+	                               acc<rw> y,
+	                               acc<ro> x,
+	                               future<T> alpha_fut,
+	                               F alpha_f,
+	                               scalar beta) noexcept {
+		axpby(s, m, y, x, alpha_f(alpha_fut.get()), beta);
+	}
+
+	template<class F, class T>
+	static void axpby_beta_future(flecsi::exec::accelerator s,
+	                              topo_acc m,
+	                              acc<rw> y,
+	                              acc<ro> x,
+	                              scalar alpha,
+	                              future<T> beta_fut,
+	                              F beta_f) noexcept {
+		axpby(s, m, y, x, alpha, beta_f(beta_fut.get()));
+	}
+
+	template<class AlphaF, class AlphaT, class BetaF, class BetaT>
+	static void axpby_future(flecsi::exec::accelerator s,
+	                         topo_acc m,
+	                         acc<rw> y,
+	                         acc<ro> x,
+	                         future<AlphaT> alpha_fut,
+	                         AlphaF alpha_f,
+	                         future<BetaT> beta_fut,
+	                         BetaF beta_f) noexcept {
+		axpby(s, m, y, x, alpha_f(alpha_fut.get()), beta_f(beta_fut.get()));
+	}
+
 	static void
 	abs_self(flecsi::exec::accelerator s, topo_acc m, acc<rw> x) noexcept {
 		s.executor().forall(dof, util::dofs(m)) { x[dof] = std::abs(x[dof]); };
@@ -297,12 +434,31 @@ struct topo_tasks {
 		s.executor().forall(dof, util::dofs(m)) { x[dof] += alpha; };
 	}
 
+	template<class F, class T>
+	static void add_scalar_self_future(flecsi::exec::accelerator s,
+	                                   topo_acc m,
+	                                   acc<rw> x,
+	                                   future<T> alpha_fut,
+	                                   F alpha_f) noexcept {
+		add_scalar_self(s, m, x, alpha_f(alpha_fut.get()));
+	}
+
 	static void add_scalar(flecsi::exec::accelerator s,
 	                       topo_acc m,
 	                       acc<wo> y,
 	                       acc<ro> x,
 	                       scalar alpha) noexcept {
 		s.executor().forall(dof, util::dofs(m)) { y[dof] = x[dof] + alpha; };
+	}
+
+	template<class F, class T>
+	static void add_scalar_future(flecsi::exec::accelerator s,
+	                              topo_acc m,
+	                              acc<wo> y,
+	                              acc<ro> x,
+	                              future<T> alpha_fut,
+	                              F alpha_f) noexcept {
+		add_scalar(s, m, y, x, alpha_f(alpha_fut.get()));
 	}
 
 	static real lp_norm_local(flecsi::exec::accelerator s,

@@ -75,7 +75,12 @@ struct core : Config {
 	 * \f$\mathit{this}_i = val\f$
 	 * \param[in] val scalar
 	 */
-	void set_scalar(scalar val) { ops::set_to_scalar(val, data); }
+	template<class T,
+	         std::enable_if_t<is_scalar_or_future_v<std::decay_t<T>, scalar>,
+	                          bool> = true>
+	void set_scalar(T val) {
+		ops::set_to_scalar(defer(val), data);
+	}
 
 	/**
 	 * Scale vector components.
@@ -84,9 +89,14 @@ struct core : Config {
 	 * \param[in] alpha scalar
 	 * \param[in] x vector
 	 */
-	template<class V, std::enable_if_t<is_vector_v<V>, bool> = true>
-	void scale(scalar alpha, const V & x) {
-		ops::scale(alpha, x.data, data);
+	template<
+		class Alpha,
+		class V,
+		std::enable_if_t<is_scalar_or_future_v<std::decay_t<Alpha>, scalar>,
+	                     bool> = true,
+		std::enable_if_t<is_vector_v<V>, bool> = true>
+	void scale(Alpha alpha, const V & x) {
+		ops::scale(defer(alpha), x.data, data);
 	}
 
 	/**
@@ -95,7 +105,13 @@ struct core : Config {
 	 * \f$\mathit{this}_i = alpha * \mathit{this}_i\f$
 	 * \param[in] alpha scalar
 	 */
-	void scale(scalar alpha) { ops::scale(alpha, data); }
+	template<
+		class Alpha,
+		std::enable_if_t<is_scalar_or_future_v<std::decay_t<Alpha>, scalar>,
+	                     bool> = true>
+	void scale(Alpha alpha) {
+		ops::scale(defer(alpha), data);
+	}
 
 	/**
 	 * Component-wise addition of two vectors.
@@ -172,12 +188,19 @@ struct core : Config {
 	 *
 	 * \f$\mathit{this}_i = alpha * x_i + beta * y_i\f$
 	 */
-	template<class V1,
-	         class V2,
-	         std::enable_if_t<is_vector_v<V1>, bool> = true,
-	         std::enable_if_t<is_vector_v<V2>, bool> = true>
-	void linear_sum(scalar alpha, const V1 & x, scalar beta, const V2 & y) {
-		ops::linear_sum(alpha, x.data, beta, y.data, data);
+	template<
+		class Alpha,
+		class Beta,
+		class V1,
+		class V2,
+		std::enable_if_t<is_scalar_or_future_v<std::decay_t<Alpha>, scalar>,
+	                     bool> = true,
+		std::enable_if_t<is_scalar_or_future_v<std::decay_t<Beta>, scalar>,
+	                     bool> = true,
+		std::enable_if_t<is_vector_v<V1>, bool> = true,
+		std::enable_if_t<is_vector_v<V2>, bool> = true>
+	void linear_sum(Alpha alpha, const V1 & x, Beta beta, const V2 & y) {
+		ops::linear_sum(defer(alpha), x.data, defer(beta), y.data, data);
 	}
 
 	/**
@@ -185,14 +208,15 @@ struct core : Config {
 	 *
 	 * \f$\mathit{this}_i = alpha x_i + y_i\f$
 	 */
-	template<class Alpha,
-	         class V1,
-	         class V2,
-	         std::enable_if_t<is_vector_v<V1>, bool> = true,
-	         std::enable_if_t<is_vector_v<V2>, bool> = true>
+	template<
+		class Alpha,
+		class V1,
+		class V2,
+		std::enable_if_t<is_scalar_or_future_v<std::decay_t<Alpha>, scalar>,
+	                     bool> = true,
+		std::enable_if_t<is_vector_v<V1>, bool> = true,
+		std::enable_if_t<is_vector_v<V2>, bool> = true>
 	void axpy(Alpha alpha, const V1 & x, const V2 & y) {
-		static_assert(is_scalar_or_future_v<Alpha, scalar>,
-		              "axpy: alpha must be scalar or future");
 		ops::axpy(defer(alpha), x.data, y.data, data);
 	}
 
@@ -201,9 +225,17 @@ struct core : Config {
 	 *
 	 * \f$\mathit{this}_i = alpha * x_i + beta * \mathit{this}_i\f$
 	 */
-	template<class V, std::enable_if_t<is_vector_v<V>, bool> = true>
-	void axpby(scalar alpha, scalar beta, const V & x) {
-		ops::axpby(alpha, beta, x.data, data);
+	template<
+		class Alpha,
+		class Beta,
+		class V,
+		std::enable_if_t<is_scalar_or_future_v<std::decay_t<Alpha>, scalar>,
+	                     bool> = true,
+		std::enable_if_t<is_scalar_or_future_v<std::decay_t<Beta>, scalar>,
+	                     bool> = true,
+		std::enable_if_t<is_vector_v<V>, bool> = true>
+	void axpby(Alpha alpha, Beta beta, const V & x) {
+		ops::axpby(defer(alpha), defer(beta), x.data, data);
 	}
 
 	/**
@@ -221,9 +253,14 @@ struct core : Config {
 	 *
 	 * \f$\mathit{this}_i = alpha x_i\f$
 	 */
-	template<class V, std::enable_if_t<is_vector_v<V>, bool> = true>
-	void add_scalar(const V & x, scalar alpha) {
-		ops::add_scalar(x.data, alpha, data);
+	template<
+		class V,
+		class Alpha,
+		std::enable_if_t<is_vector_v<V>, bool> = true,
+		std::enable_if_t<is_scalar_or_future_v<std::decay_t<Alpha>, scalar>,
+	                     bool> = true>
+	void add_scalar(const V & x, Alpha alpha) {
+		ops::add_scalar(x.data, defer(alpha), data);
 	}
 
 	/**
