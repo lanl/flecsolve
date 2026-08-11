@@ -19,6 +19,9 @@ to do so.
 #include <random>
 
 #include "flecsolve/util/traits.hh"
+#include "flecsolve/util/future.hh"
+#include "flecsolve/util/scalar_ops.hh"
+
 #include "variable.hh"
 
 namespace flecsolve::vec {
@@ -182,12 +185,15 @@ struct core : Config {
 	 *
 	 * \f$\mathit{this}_i = alpha x_i + y_i\f$
 	 */
-	template<class V1,
+	template<class Alpha,
+	         class V1,
 	         class V2,
 	         std::enable_if_t<is_vector_v<V1>, bool> = true,
 	         std::enable_if_t<is_vector_v<V2>, bool> = true>
-	void axpy(scalar alpha, const V1 & x, const V2 & y) {
-		ops::axpy(alpha, x.data, y.data, data);
+	void axpy(Alpha alpha, const V1 & x, const V2 & y) {
+		static_assert(is_scalar_or_future_v<Alpha, scalar>,
+		              "axpy: alpha must be scalar or future");
+		ops::axpy(defer(alpha), x.data, y.data, data);
 	}
 
 	/**
@@ -350,6 +356,17 @@ struct core : Config {
 	}
 
 	data_t data;
+
+private:
+	scalar defer(scalar v) { return v; }
+	template<class T>
+	auto defer(future<T> f) {
+		return future_transform{std::move(f), scalar_ops::identity<T>{}};
+	}
+	template<class T, class F>
+	auto defer(future_transform<future<T>, F> f) {
+		return f;
+	}
 };
 
 template<template<class> class Data, template<class> class Ops, class Config>

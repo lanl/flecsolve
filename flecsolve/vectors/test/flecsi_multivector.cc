@@ -173,6 +173,9 @@ int vectest(flecsi::scheduler & s) {
 
 		tmp.axpy(7, x, y);
 		EXPECT_TRUE(run(tmp, msh, axpy));
+		tmp.zero();
+		tmp.axpy(flecsi::make_future(7), x, y);
+		EXPECT_TRUE(run(tmp, msh, axpy));
 
 		tmp.copy(y);
 		tmp.axpby(4, 11, z);

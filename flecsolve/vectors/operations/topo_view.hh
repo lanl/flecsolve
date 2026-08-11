@@ -44,8 +44,9 @@ struct topo_view {
 		static_assert(
 			std::is_same_v<typename Other::topo_t, typename vec_data::topo_t>);
 		static_assert(Other::space == vec_data::space);
-		scheduler().execute<
-			tasks::template copy<typename Other::template acc_all<flecsi::ro>>>(
+		scheduler()
+			.execute<tasks::template copy<
+				typename Other::template acc_all<flecsi::ro>>>(
 				flecsi::exec::on, x.topo(), z.ref(), x.ref());
 	}
 
@@ -160,8 +161,13 @@ struct topo_view {
 				flecsi::exec::on, z.topo(), x.ref(), z.ref(), alpha, beta);
 		}
 		else {
-			scheduler().execute<tasks::linear_sum>(
-				flecsi::exec::on, z.topo(), z.ref(), alpha, x.ref(), beta, y.ref());
+			scheduler().execute<tasks::linear_sum>(flecsi::exec::on,
+			                                       z.topo(),
+			                                       z.ref(),
+			                                       alpha,
+			                                       x.ref(),
+			                                       beta,
+			                                       y.ref());
 		}
 	}
 
@@ -169,15 +175,52 @@ struct topo_view {
 	axpy(scalar alpha, const vec_data & x, const vec_data & y, vec_data & z) {
 		if (z.fid() == x.fid()) {
 			scheduler().execute<tasks::template axpy_self<true>>(
-				                flecsi::exec::on, z.topo(), z.ref(), y.ref(), alpha);
+				flecsi::exec::on, z.topo(), z.ref(), y.ref(), alpha);
 		}
 		else if (z.fid() == y.fid()) {
 			scheduler().execute<tasks::template axpy_self<false>>(
-				                flecsi::exec::on, z.topo(), z.ref(), x.ref(), alpha);
+				flecsi::exec::on, z.topo(), z.ref(), x.ref(), alpha);
 		}
 		else {
 			scheduler().execute<tasks::axpy>(
 				flecsi::exec::on, z.topo(), z.ref(), alpha, x.ref(), y.ref());
+		}
+	}
+
+	template<class F, class T>
+	static void axpy(future_transform<future<T>, F> alpha,
+	                 const vec_data & x,
+	                 const vec_data & y,
+	                 vec_data & z) {
+		static_assert(std::is_convertible_v<T, scalar>,
+		              "axpy: future type must be convertible to scalar");
+		if (z.fid() == x.fid()) {
+			scheduler().execute<tasks::template axpy_self_future<true, F, T>>(
+				flecsi::exec::on,
+				z.topo(),
+				z.ref(),
+				y.ref(),
+				alpha.fut,
+				alpha.f);
+		}
+		else if (z.fid() == y.fid()) {
+			scheduler().execute<tasks::template axpy_self_future<false, F, T>>(
+				flecsi::exec::on,
+				z.topo(),
+				z.ref(),
+				x.ref(),
+				alpha.fut,
+				alpha.f);
+		}
+		else {
+			scheduler().execute<tasks::template axpy_future<F, T>>(
+				flecsi::exec::on,
+				z.topo(),
+				z.ref(),
+				alpha.fut,
+				alpha.f,
+				x.ref(),
+				y.ref());
 		}
 	}
 
@@ -210,33 +253,32 @@ struct topo_view {
 	}
 
 	static auto min(const vec_data & x) {
-		return scheduler().reduce<tasks::local_min,
-		                      flecsi::exec::fold::min>(
-			                      flecsi::exec::on, x.topo(), x.ref());
+		return scheduler().reduce<tasks::local_min, flecsi::exec::fold::min>(
+			flecsi::exec::on, x.topo(), x.ref());
 	}
 
 	static auto max(const vec_data & y) {
-		return scheduler().reduce<tasks::local_max,
-		                      flecsi::exec::fold::max>(
-			                      flecsi::exec::on, y.topo(), y.ref());
+		return scheduler().reduce<tasks::local_max, flecsi::exec::fold::max>(
+			flecsi::exec::on, y.topo(), y.ref());
 	}
 
 	template<unsigned short p>
 	static auto lp_norm_local(const vec_data & x) {
 		if constexpr (p == 1) {
-			return scheduler().reduce<tasks::l1_norm_local,
-			                      flecsi::exec::fold::sum>(
-				                      flecsi::exec::on, x.topo(), x.ref());
+			return scheduler()
+			    .reduce<tasks::l1_norm_local, flecsi::exec::fold::sum>(
+					flecsi::exec::on, x.topo(), x.ref());
 		}
 		else if constexpr (p == 2) {
-			return scheduler().reduce<tasks::l2_norm_local,
-			                      flecsi::exec::fold::sum>(flecsi::exec::on,
-			                                               x.topo(), x.ref());
+			return scheduler()
+			    .reduce<tasks::l2_norm_local, flecsi::exec::fold::sum>(
+					flecsi::exec::on, x.topo(), x.ref());
 		}
 		else {
-			return scheduler().reduce<tasks::lp_norm_local,
-			                      flecsi::exec::fold::sum>(
-				                      flecsi::exec::on, x.topo(), x.ref(), p).get();
+			return scheduler()
+			    .reduce<tasks::lp_norm_local, flecsi::exec::fold::sum>(
+					flecsi::exec::on, x.topo(), x.ref(), p)
+			    .get();
 		}
 	}
 
@@ -257,31 +299,32 @@ struct topo_view {
 	}
 
 	static auto inf_norm(const vec_data & x) {
-		return scheduler().reduce<tasks::inf_norm_local,
-		                      flecsi::exec::fold::max>(
-			                      flecsi::exec::on, x.topo(), x.ref());
+		return scheduler()
+		    .reduce<tasks::inf_norm_local, flecsi::exec::fold::max>(
+				flecsi::exec::on, x.topo(), x.ref());
 	}
 
 	static auto dot(const vec_data & x, const vec_data & y) {
-		return scheduler().reduce<tasks::scalar_prod,
-		                      flecsi::exec::fold::sum>(
-			                      flecsi::exec::on, x.topo(), x.ref(), y.ref());
+		return scheduler().reduce<tasks::scalar_prod, flecsi::exec::fold::sum>(
+			flecsi::exec::on, x.topo(), x.ref(), y.ref());
 	}
 
 	static auto global_size(const vec_data & x) {
-		return scheduler().reduce<tasks::local_size,
-		                      flecsi::exec::fold::sum>(x.topo());
+		return scheduler().reduce<tasks::local_size, flecsi::exec::fold::sum>(
+			x.topo());
 	}
 
 	static len_t local_size(const vec_data & x) {
 		len_t length;
-		scheduler().execute<tasks::get_local_size, flecsi::mpi>(x.topo(), &length);
+		scheduler().execute<tasks::get_local_size, flecsi::mpi>(x.topo(),
+		                                                        &length);
 		return length;
 	}
 
 	static void dump(std::string_view pre, const vec_data & x) {
 		// TODO: update for multiaccessor
-		scheduler().execute<tasks::dump>(flecsi::exec::on, pre, x.topo(), x.ref());
+		scheduler().execute<tasks::dump>(
+			flecsi::exec::on, pre, x.topo(), x.ref());
 	}
 
 	template<class F, class... Vecs>
