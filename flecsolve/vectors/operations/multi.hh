@@ -44,19 +44,31 @@ struct multi {
 		apply([](auto & x) { x.zero(); }, make_is(), x.components);
 	}
 
-	static void set_to_scalar(scalar alpha, vec_data & x) {
-		apply([alpha](auto & x) { x.set_scalar(alpha); },
+	template<
+		class Alpha,
+		std::enable_if_t<is_scalar_or_future_v<std::decay_t<Alpha>, scalar>,
+	                     bool> = true>
+	static void set_to_scalar(Alpha alpha, vec_data & x) {
+		apply([&alpha](auto & x) { x.set_scalar(alpha); },
 		      make_is(),
 		      x.components);
 	}
 
-	static void scale(scalar alpha, vec_data & x) {
-		apply([alpha](auto & x) { x.scale(alpha); }, make_is(), x.components);
+	template<
+		class Alpha,
+		std::enable_if_t<is_scalar_or_future_v<std::decay_t<Alpha>, scalar>,
+	                     bool> = true>
+	static void scale(Alpha alpha, vec_data & x) {
+		apply([&alpha](auto & x) { x.scale(alpha); }, make_is(), x.components);
 	}
 
-	template<class T>
-	static void scale(scalar alpha, const T & x, vec_data & y) {
-		apply([alpha](auto & v, const auto & y) { v.scale(alpha, y); },
+	template<
+		class Alpha,
+		class T,
+		std::enable_if_t<is_scalar_or_future_v<std::decay_t<Alpha>, scalar>,
+	                     bool> = true>
+	static void scale(Alpha alpha, const T & x, vec_data & y) {
+		apply([&alpha](auto & v, const auto & y) { v.scale(alpha, y); },
 		      make_is(),
 		      y.components,
 		      x.components);
@@ -108,14 +120,22 @@ struct multi {
 		      x.components);
 	}
 
-	template<class T0, class T1>
-	static void linear_sum(scalar alpha,
+	template<
+		class Alpha,
+		class Beta,
+		class T0,
+		class T1,
+		std::enable_if_t<is_scalar_or_future_v<std::decay_t<Alpha>, scalar>,
+	                     bool> = true,
+		std::enable_if_t<is_scalar_or_future_v<std::decay_t<Beta>, scalar>,
+	                     bool> = true>
+	static void linear_sum(Alpha alpha,
 	                       const T0 & x,
-	                       scalar beta,
+	                       Beta beta,
 	                       const T1 & y,
 	                       vec_data & z) {
 		apply(
-			[alpha, beta](auto & z, const auto & x, const auto & y) {
+			[&alpha, &beta](auto & z, const auto & x, const auto & y) {
 				z.linear_sum(alpha, x, beta, y);
 			},
 			make_is(),
@@ -124,24 +144,13 @@ struct multi {
 			y.components);
 	}
 
-	template<class T0, class T1>
-	static void axpy(scalar alpha, const T0 & x, const T1 & y, vec_data & z) {
-		apply([alpha](auto & z,
-		              const auto & x,
-		              const auto & y) { z.axpy(alpha, x, y); },
-		      make_is(),
-		      z.components,
-		      x.components,
-		      y.components);
-	}
-
-	template<class F, class T, class T0, class T1>
-	static void axpy(future_transform<future<T>, F> alpha,
-	                 const T0 & x,
-	                 const T1 & y,
-	                 vec_data & z) {
-		static_assert(std::is_convertible_v<T, scalar>,
-		              "axpy: future type must be convertible to scalar");
+	template<
+		class Alpha,
+		class T0,
+		class T1,
+		std::enable_if_t<is_scalar_or_future_v<std::decay_t<Alpha>, scalar>,
+	                     bool> = true>
+	static void axpy(Alpha alpha, const T0 & x, const T1 & y, vec_data & z) {
 		apply([&alpha](auto & z,
 		               const auto & x,
 		               const auto & y) { z.axpy(alpha, x, y); },
@@ -151,10 +160,17 @@ struct multi {
 		      y.components);
 	}
 
-	template<class T>
-	static void axpby(scalar alpha, scalar beta, const T & x, vec_data & z) {
-		apply([alpha, beta](auto & z,
-		                    const auto & x) { z.axpby(alpha, beta, x); },
+	template<
+		class Alpha,
+		class Beta,
+		class T,
+		std::enable_if_t<is_scalar_or_future_v<std::decay_t<Alpha>, scalar>,
+	                     bool> = true,
+		std::enable_if_t<is_scalar_or_future_v<std::decay_t<Beta>, scalar>,
+	                     bool> = true>
+	static void axpby(Alpha alpha, Beta beta, const T & x, vec_data & z) {
+		apply([&alpha, &beta](auto & z,
+		                      const auto & x) { z.axpby(alpha, beta, x); },
 		      make_is(),
 		      z.components,
 		      x.components);
@@ -168,9 +184,13 @@ struct multi {
 		      x.components);
 	}
 
-	template<class T>
-	static void add_scalar(const T & x, scalar alpha, vec_data & y) {
-		apply([alpha](auto & z, const auto & x) { z.add_scalar(x, alpha); },
+	template<
+		class T,
+		class Alpha,
+		std::enable_if_t<is_scalar_or_future_v<std::decay_t<Alpha>, scalar>,
+	                     bool> = true>
+	static void add_scalar(const T & x, Alpha alpha, vec_data & y) {
+		apply([&alpha](auto & z, const auto & x) { z.add_scalar(x, alpha); },
 		      make_is(),
 		      y.components,
 		      x.components);

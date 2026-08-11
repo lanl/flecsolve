@@ -64,9 +64,27 @@ struct topo_view {
 			flecsi::exec::on, x.topo(), x.ref(), alpha);
 	}
 
+	template<class F, class T>
+	static void set_to_scalar(future_transform<future<T>, F> alpha,
+	                          vec_data & x) {
+		static_assert(
+			std::is_convertible_v<T, scalar>,
+			"set_to_scalar: future type must be convertible to scalar");
+		scheduler().execute<tasks::template set_to_scalar_future<F, T>>(
+			flecsi::exec::on, x.topo(), x.ref(), alpha.fut, alpha.f);
+	}
+
 	static void scale(scalar alpha, vec_data & x) {
 		scheduler().execute<tasks::scale_self>(
 			flecsi::exec::on, x.topo(), x.ref(), alpha);
+	}
+
+	template<class F, class T>
+	static void scale(future_transform<future<T>, F> alpha, vec_data & x) {
+		static_assert(std::is_convertible_v<T, scalar>,
+		              "scale: future type must be convertible to scalar");
+		scheduler().execute<tasks::template scale_self_future<F, T>>(
+			flecsi::exec::on, x.topo(), x.ref(), alpha.fut, alpha.f);
 	}
 
 	static void scale(scalar alpha, const vec_data & x, vec_data & y) {
@@ -74,6 +92,18 @@ struct topo_view {
 		            "scale operation: vector data cannot be the same");
 		scheduler().execute<tasks::scale>(
 			flecsi::exec::on, x.topo(), x.ref(), y.ref(), alpha);
+	}
+
+	template<class F, class T>
+	static void scale(future_transform<future<T>, F> alpha,
+	                  const vec_data & x,
+	                  vec_data & y) {
+		static_assert(std::is_convertible_v<T, scalar>,
+		              "scale: future type must be convertible to scalar");
+		flog_assert(x.fid() != y.fid(),
+		            "scale operation: vector data cannot be the same");
+		scheduler().execute<tasks::template scale_future<F, T>>(
+			flecsi::exec::on, x.topo(), x.ref(), y.ref(), alpha.fut, alpha.f);
 	}
 
 	static void add(const vec_data & x, const vec_data & y, vec_data & z) {
@@ -171,6 +201,156 @@ struct topo_view {
 		}
 	}
 
+	template<class F, class T>
+	static void linear_sum(future_transform<future<T>, F> alpha,
+	                       const vec_data & x,
+	                       scalar beta,
+	                       const vec_data & y,
+	                       vec_data & z) {
+		static_assert(std::is_convertible_v<T, scalar>,
+		              "linear_sum: future type must be convertible to scalar");
+		if (z.fid() == x.fid()) {
+			scheduler()
+				.execute<
+					tasks::template linear_sum_self_alpha_future<true, F, T>>(
+					flecsi::exec::on,
+					z.topo(),
+					z.ref(),
+					y.ref(),
+					alpha.fut,
+					alpha.f,
+					beta);
+		}
+		else if (z.fid() == y.fid()) {
+			scheduler()
+				.execute<
+					tasks::template linear_sum_self_alpha_future<false, F, T>>(
+					flecsi::exec::on,
+					z.topo(),
+					x.ref(),
+					z.ref(),
+					alpha.fut,
+					alpha.f,
+					beta);
+		}
+		else {
+			scheduler().execute<tasks::template linear_sum_alpha_future<F, T>>(
+				flecsi::exec::on,
+				z.topo(),
+				z.ref(),
+				alpha.fut,
+				alpha.f,
+				x.ref(),
+				beta,
+				y.ref());
+		}
+	}
+
+	template<class F, class T>
+	static void linear_sum(scalar alpha,
+	                       const vec_data & x,
+	                       future_transform<future<T>, F> beta,
+	                       const vec_data & y,
+	                       vec_data & z) {
+		static_assert(std::is_convertible_v<T, scalar>,
+		              "linear_sum: future type must be convertible to scalar");
+		if (z.fid() == x.fid()) {
+			scheduler()
+				.execute<
+					tasks::template linear_sum_self_beta_future<true, F, T>>(
+					flecsi::exec::on,
+					z.topo(),
+					z.ref(),
+					y.ref(),
+					alpha,
+					beta.fut,
+					beta.f);
+		}
+		else if (z.fid() == y.fid()) {
+			scheduler()
+				.execute<
+					tasks::template linear_sum_self_beta_future<false, F, T>>(
+					flecsi::exec::on,
+					z.topo(),
+					x.ref(),
+					z.ref(),
+					alpha,
+					beta.fut,
+					beta.f);
+		}
+		else {
+			scheduler().execute<tasks::template linear_sum_beta_future<F, T>>(
+				flecsi::exec::on,
+				z.topo(),
+				z.ref(),
+				alpha,
+				x.ref(),
+				beta.fut,
+				beta.f,
+				y.ref());
+		}
+	}
+
+	template<class AlphaF, class AlphaT, class BetaF, class BetaT>
+	static void linear_sum(future_transform<future<AlphaT>, AlphaF> alpha,
+	                       const vec_data & x,
+	                       future_transform<future<BetaT>, BetaF> beta,
+	                       const vec_data & y,
+	                       vec_data & z) {
+		static_assert(std::is_convertible_v<AlphaT, scalar>,
+		              "linear_sum: future type must be convertible to scalar");
+		static_assert(std::is_convertible_v<BetaT, scalar>,
+		              "linear_sum: future type must be convertible to scalar");
+		if (z.fid() == x.fid()) {
+			scheduler()
+				.execute<tasks::template linear_sum_self_future<true,
+			                                                    AlphaF,
+			                                                    AlphaT,
+			                                                    BetaF,
+			                                                    BetaT>>(
+					flecsi::exec::on,
+					z.topo(),
+					z.ref(),
+					y.ref(),
+					alpha.fut,
+					alpha.f,
+					beta.fut,
+					beta.f);
+		}
+		else if (z.fid() == y.fid()) {
+			scheduler()
+				.execute<tasks::template linear_sum_self_future<false,
+			                                                    AlphaF,
+			                                                    AlphaT,
+			                                                    BetaF,
+			                                                    BetaT>>(
+					flecsi::exec::on,
+					z.topo(),
+					x.ref(),
+					z.ref(),
+					alpha.fut,
+					alpha.f,
+					beta.fut,
+					beta.f);
+		}
+		else {
+			scheduler()
+				.execute<tasks::template linear_sum_future<AlphaF,
+			                                               AlphaT,
+			                                               BetaF,
+			                                               BetaT>>(
+					flecsi::exec::on,
+					z.topo(),
+					z.ref(),
+					alpha.fut,
+					alpha.f,
+					x.ref(),
+					beta.fut,
+					beta.f,
+					y.ref());
+		}
+	}
+
 	static void
 	axpy(scalar alpha, const vec_data & x, const vec_data & y, vec_data & z) {
 		if (z.fid() == x.fid()) {
@@ -230,6 +410,62 @@ struct topo_view {
 			flecsi::exec::on, z.topo(), z.ref(), x.ref(), alpha, beta);
 	}
 
+	template<class F, class T>
+	static void axpby(future_transform<future<T>, F> alpha,
+	                  scalar beta,
+	                  const vec_data & x,
+	                  vec_data & z) {
+		static_assert(std::is_convertible_v<T, scalar>,
+		              "axpby: future type must be convertible to scalar");
+		scheduler().execute<tasks::template axpby_alpha_future<F, T>>(
+			flecsi::exec::on,
+			z.topo(),
+			z.ref(),
+			x.ref(),
+			alpha.fut,
+			alpha.f,
+			beta);
+	}
+
+	template<class F, class T>
+	static void axpby(scalar alpha,
+	                  future_transform<future<T>, F> beta,
+	                  const vec_data & x,
+	                  vec_data & z) {
+		static_assert(std::is_convertible_v<T, scalar>,
+		              "axpby: future type must be convertible to scalar");
+		scheduler().execute<tasks::template axpby_beta_future<F, T>>(
+			flecsi::exec::on,
+			z.topo(),
+			z.ref(),
+			x.ref(),
+			alpha,
+			beta.fut,
+			beta.f);
+	}
+
+	template<class AlphaF, class AlphaT, class BetaF, class BetaT>
+	static void axpby(future_transform<future<AlphaT>, AlphaF> alpha,
+	                  future_transform<future<BetaT>, BetaF> beta,
+	                  const vec_data & x,
+	                  vec_data & z) {
+		static_assert(std::is_convertible_v<AlphaT, scalar>,
+		              "axpby: future type must be convertible to scalar");
+		static_assert(std::is_convertible_v<BetaT, scalar>,
+		              "axpby: future type must be convertible to scalar");
+		scheduler()
+			.execute<
+				tasks::template axpby_future<AlphaF, AlphaT, BetaF, BetaT>>(
+				flecsi::exec::on,
+				z.topo(),
+				z.ref(),
+				x.ref(),
+				alpha.fut,
+				alpha.f,
+				beta.fut,
+				beta.f);
+	}
+
 	static void abs(const vec_data & x, vec_data & y) {
 		if (y.fid() == x.fid()) {
 			scheduler().execute<tasks::abs_self>(
@@ -249,6 +485,27 @@ struct topo_view {
 		else {
 			scheduler().execute<tasks::add_scalar>(
 				flecsi::exec::on, y.topo(), y.ref(), x.ref(), alpha);
+		}
+	}
+
+	template<class F, class T>
+	static void add_scalar(const vec_data & x,
+	                       future_transform<future<T>, F> alpha,
+	                       vec_data & y) {
+		static_assert(std::is_convertible_v<T, scalar>,
+		              "add_scalar: future type must be convertible to scalar");
+		if (x.fid() == y.fid()) {
+			scheduler().execute<tasks::template add_scalar_self_future<F, T>>(
+				flecsi::exec::on, y.topo(), y.ref(), alpha.fut, alpha.f);
+		}
+		else {
+			scheduler().execute<tasks::template add_scalar_future<F, T>>(
+				flecsi::exec::on,
+				y.topo(),
+				y.ref(),
+				x.ref(),
+				alpha.fut,
+				alpha.f);
 		}
 	}
 

@@ -152,7 +152,7 @@ int vectest(flecsi::scheduler & s) {
 		tmp.multiply(x, z);
 		EXPECT_TRUE(run(tmp, msh, mult));
 
-		x.add_scalar(x, 1);
+		x.add_scalar(x, flecsi::make_future(1));
 		EXPECT_TRUE(run(x, msh, scalar_add));
 
 		tmp.divide(y, x);
@@ -160,7 +160,10 @@ int vectest(flecsi::scheduler & s) {
 
 		x.add_scalar(x, -1);
 
-		tmp.scale(3.5, x);
+		tmp.scale(flecsi::make_future(3.5), x);
+		EXPECT_TRUE(run(tmp, msh, scale));
+		tmp.copy(x);
+		tmp.scale(flecsi::make_future(3.5));
 		EXPECT_TRUE(run(tmp, msh, scale));
 
 		y.add_scalar(y, 2);
@@ -168,7 +171,7 @@ int vectest(flecsi::scheduler & s) {
 		EXPECT_TRUE(run(tmp, msh, recip));
 		y.add_scalar(y, -2);
 
-		tmp.linear_sum(8, y, 9, z);
+		tmp.linear_sum(flecsi::make_future(8), y, flecsi::make_future(9), z);
 		EXPECT_TRUE(run(tmp, msh, linsum));
 
 		tmp.axpy(7, x, y);
@@ -178,7 +181,7 @@ int vectest(flecsi::scheduler & s) {
 		EXPECT_TRUE(run(tmp, msh, axpy));
 
 		tmp.copy(y);
-		tmp.axpby(4, 11, z);
+		tmp.axpby(flecsi::make_future(4), flecsi::make_future(11), z);
 		EXPECT_TRUE(run(tmp, msh, axpby));
 
 		tmp.add_scalar(y, -4.3);

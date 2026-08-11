@@ -372,6 +372,10 @@ int vectest(flecsi::scheduler & s) {
 			tmp.multiply(x, z);
 			check_answer(mult_check{}, tmp);
 
+			tmp.add_scalar(x,
+			               flecsi::make_future(
+							   scalar_add_check::scalar_value<is_complex>()));
+			check_answer(scalar_add_check{}, tmp);
 			x.add_scalar(x, scalar_add_check::scalar_value<is_complex>());
 			check_answer(scalar_add_check{}, x);
 
@@ -379,7 +383,12 @@ int vectest(flecsi::scheduler & s) {
 			check_answer(div_check{}, tmp);
 
 			x.add_scalar(x, scale_check::shift_value<is_complex>());
-			tmp.scale(scale_check::scale_value<is_complex>(), x);
+			tmp.scale(
+				flecsi::make_future(scale_check::scale_value<is_complex>()), x);
+			check_answer(scale_check{}, tmp);
+			tmp.copy(x);
+			tmp.scale(
+				flecsi::make_future(scale_check::scale_value<is_complex>()));
 			check_answer(scale_check{}, tmp);
 
 			y.add_scalar(y, recip_check::shift_value<is_complex>());
@@ -387,7 +396,10 @@ int vectest(flecsi::scheduler & s) {
 			check_answer(recip_check{}, tmp);
 
 			y.add_scalar(y, linsum_check::shift_value<is_complex>());
-			tmp.linear_sum(linsum_check::alpha, y, linsum_check::beta, z);
+			tmp.linear_sum(flecsi::make_future(linsum_check::alpha),
+			               y,
+			               flecsi::make_future(linsum_check::beta),
+			               z);
 			check_answer(linsum_check{}, tmp);
 
 			tmp.axpy(axpy_check::alpha<is_complex>(), x, y);
@@ -398,8 +410,8 @@ int vectest(flecsi::scheduler & s) {
 			check_answer(axpy_check{}, tmp);
 
 			tmp.copy(y);
-			tmp.axpby(axpby_check::alpha<is_complex>(),
-			          axpby_check::beta<is_complex>(),
+			tmp.axpby(flecsi::make_future(axpby_check::alpha<is_complex>()),
+			          flecsi::make_future(axpby_check::beta<is_complex>()),
 			          z);
 			check_answer(axpby_check{}, tmp);
 
@@ -416,8 +428,8 @@ int vectest(flecsi::scheduler & s) {
 
 			auto test_reductions = [&](auto & a, auto & b) {
 				auto [alpha, beta] = dot_check::scalars<is_complex>();
-				a.set_scalar(alpha);
-				b.set_scalar(beta);
+				a.set_scalar(flecsi::make_future(alpha));
+				b.set_scalar(flecsi::make_future(beta));
 				EXPECT_LT(dot_check::abs_error<is_complex>(a.dot(b).get()),
 				          dot_check::ftol);
 

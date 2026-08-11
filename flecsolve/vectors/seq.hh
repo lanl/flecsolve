@@ -114,19 +114,22 @@ struct seq_ops {
 			x);
 	}
 
-	template<class D>
-	static void set_to_scalar(scalar alpha, D & x) {
-		fordofs([&](len_t i) { x[i] = alpha; }, x);
+	template<class Alpha, class D>
+	static void set_to_scalar(Alpha alpha, D & x) {
+		const scalar value = scalar_value(std::move(alpha));
+		fordofs([&](len_t i) { x[i] = value; }, x);
 	}
 
-	template<class D>
-	static void scale(scalar alpha, D & x) {
-		fordofs([&](len_t i) { x[i] *= alpha; }, x);
+	template<class Alpha, class D>
+	static void scale(Alpha alpha, D & x) {
+		const scalar value = scalar_value(std::move(alpha));
+		fordofs([&](len_t i) { x[i] *= value; }, x);
 	}
 
-	template<class D0, class D1>
-	static void scale(scalar alpha, const D0 & x, D1 & y) {
-		fordofs([&](len_t i) { y[i] = alpha * x[i]; }, x, y);
+	template<class Alpha, class D0, class D1>
+	static void scale(Alpha alpha, const D0 & x, D1 & y) {
+		const scalar value = scalar_value(std::move(alpha));
+		fordofs([&](len_t i) { y[i] = value * x[i]; }, x, y);
 	}
 
 	template<class X, class Y, class Z>
@@ -157,25 +160,36 @@ struct seq_ops {
 	template<class X>
 	static void dump(std::string_view pre, const X & x) {
 		std::string fname{pre};
-		fname += "-" + std::to_string(flecsi::run::context::instance().process());
+		fname +=
+			"-" + std::to_string(flecsi::run::context::instance().process());
 		std::ofstream ofile{fname};
 		fordofs([&](len_t i) { ofile << x[i] << '\n'; }, x);
 	}
 
-	template<class X, class Y, class Z>
+	template<class Alpha, class Beta, class X, class Y, class Z>
 	static void
-	linear_sum(scalar alpha, const X & x, scalar beta, const Y & y, Z & z) {
-		fordofs([&](len_t i) { z[i] = alpha * x[i] + beta * y[i]; }, x, y, z);
+	linear_sum(Alpha alpha, const X & x, Beta beta, const Y & y, Z & z) {
+		const scalar alpha_value = scalar_value(std::move(alpha));
+		const scalar beta_value = scalar_value(std::move(beta));
+		fordofs([&](len_t i) { z[i] = alpha_value * x[i] + beta_value * y[i]; },
+		        x,
+		        y,
+		        z);
 	}
 
-	template<class X, class Y, class Z>
-	static void axpy(scalar alpha, const X & x, const Y & y, Z & z) {
-		fordofs([&](len_t i) { z[i] = alpha * x[i] + y[i]; }, x, y, z);
+	template<class Alpha, class X, class Y, class Z>
+	static void axpy(Alpha alpha, const X & x, const Y & y, Z & z) {
+		const scalar value = scalar_value(std::move(alpha));
+		fordofs([&](len_t i) { z[i] = value * x[i] + y[i]; }, x, y, z);
 	}
 
-	template<class X, class Z>
-	static void axpby(scalar alpha, scalar beta, const X & x, Z & z) {
-		fordofs([&](len_t i) { z[i] = alpha * x[i] + beta * z[i]; }, x, z);
+	template<class Alpha, class Beta, class X, class Z>
+	static void axpby(Alpha alpha, Beta beta, const X & x, Z & z) {
+		const scalar alpha_value = scalar_value(std::move(alpha));
+		const scalar beta_value = scalar_value(std::move(beta));
+		fordofs([&](len_t i) { z[i] = alpha_value * x[i] + beta_value * z[i]; },
+		        x,
+		        z);
 	}
 
 	template<class X, class Y>
@@ -183,9 +197,10 @@ struct seq_ops {
 		fordofs([&](len_t i) { y[i] = std::abs(x[i]); }, x, y);
 	}
 
-	template<class X, class Y>
-	static void add_scalar(const X & x, scalar alpha, Y & y) {
-		fordofs([&](len_t i) { y[i] = x[i] + alpha; }, x, y);
+	template<class X, class Alpha, class Y>
+	static void add_scalar(const X & x, Alpha alpha, Y & y) {
+		const scalar value = scalar_value(std::move(alpha));
+		fordofs([&](len_t i) { y[i] = x[i] + value; }, x, y);
 	}
 
 	template<class X>
@@ -279,6 +294,16 @@ struct seq_ops {
 	}
 
 protected:
+	template<class T>
+	static scalar scalar_value(T value) {
+		return value;
+	}
+
+	template<class F, class T>
+	static scalar scalar_value(future_transform<future<T>, F> value) {
+		return value.get();
+	}
+
 	template<class X, class Y>
 	static scalar scalar_prod(const X & x, const Y & y) {
 		scalar res = 0.0;
