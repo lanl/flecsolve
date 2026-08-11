@@ -15,10 +15,15 @@ to do so.
 */
 #pragma once
 
+#include <flecsi/execution.hh>
+
 #include <tuple>
 #include <functional>
-
 namespace flecsolve {
+
+// for now, only consider scalar futures
+template<class T>
+using future = flecsi::future<T, flecsi::exec::launch_type_t::single>;
 
 template<class... Futures>
 struct future_vector {
@@ -57,4 +62,24 @@ struct future_transform {
 template<class Future, class F>
 future_transform(Future, F)
 	-> future_transform<Future, F>; // automatic in C++20
+
+template<class T, class Scalar>
+struct is_scalar_or_future_impl : std::false_type {
+};
+
+template<class T, class Scalar>
+struct is_scalar_or_future_impl<future<T>, Scalar>
+	: std::bool_constant<std::is_convertible_v<T, Scalar>> {
+};
+
+template<class T, class F, class Scalar>
+struct is_scalar_or_future_impl<future_transform<future<T>, F>, Scalar>
+	: std::bool_constant<std::is_convertible_v<T, Scalar>> {
+};
+
+template<class T, class Scalar>
+inline constexpr bool is_scalar_or_future_v =
+	std::is_convertible_v<T, Scalar> ||
+	is_scalar_or_future_impl<T, Scalar>::value;
+
 }

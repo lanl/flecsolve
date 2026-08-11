@@ -135,6 +135,22 @@ struct multi {
 		      y.components);
 	}
 
+	template<class F, class T, class T0, class T1>
+	static void axpy(future_transform<future<T>, F> alpha,
+	                 const T0 & x,
+	                 const T1 & y,
+	                 vec_data & z) {
+		static_assert(std::is_convertible_v<T, scalar>,
+		              "axpy: future type must be convertible to scalar");
+		apply([&alpha](auto & z,
+		               const auto & x,
+		               const auto & y) { z.axpy(alpha, x, y); },
+		      make_is(),
+		      z.components,
+		      x.components,
+		      y.components);
+	}
+
 	template<class T>
 	static void axpby(scalar alpha, scalar beta, const T & x, vec_data & z) {
 		apply([alpha, beta](auto & z,
