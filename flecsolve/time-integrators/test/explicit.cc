@@ -13,7 +13,9 @@ namespace flecsolve {
 
 const flecsi::field<double>::definition<testmesh, testmesh::cells> xd, xnewd;
 
-struct parameters { double lambda; };
+struct parameters {
+	double lambda;
+};
 struct rate : op::base<parameters> {
 	using base = op::base<parameters>;
 	explicit rate(double l) : base{l} {}
@@ -40,8 +42,8 @@ int extest(flecsi::scheduler & s) {
 
 		auto [ti23_var, ti23_fixed] = std::apply(
 			[&](auto &&... s) {
-				return std::make_tuple(rk23::integrator(rk23::parameters(
-					                                        s, op::ref(F), rk23::make_work(x)))...);
+				return std::make_tuple(rk23::integrator(
+					rk23::parameters(s, op::ref(F), rk23::make_work(x)))...);
 			},
 			read_config("explicit.cfg",
 		                rk23::options("variable"),
@@ -49,8 +51,8 @@ int extest(flecsi::scheduler & s) {
 
 		auto [ti45_var, ti45_fixed] = std::apply(
 			[&](auto &&... s) {
-				return std::make_tuple(rk45::integrator(rk45::parameters(
-					                                        s, op::ref(F), rk45::make_work(x)))...);
+				return std::make_tuple(rk45::integrator(
+					rk45::parameters(s, op::ref(F), rk45::make_work(x)))...);
 			},
 			read_config("explicit.cfg",
 		                rk45::options("variable"),
@@ -69,7 +71,8 @@ int extest(flecsi::scheduler & s) {
 				dt = ti.get_next_dt(good_solution);
 			}
 
-			auto sol = ic * std::exp(F.get_params().lambda * ti.get_final_time());
+			auto sol =
+				ic * std::exp(F.get_params().lambda * ti.get_final_time());
 			auto approx = x.max().get();
 			return std::tuple(ti.get_final_time(),
 			                  std::abs(sol - approx),
@@ -96,6 +99,33 @@ int extest(flecsi::scheduler & s) {
 			EXPECT_EQ(end, 1.0);
 			EXPECT_LT(err, 1e-6);
 			EXPECT_EQ(step, 6);
+		}
+		{
+			auto dt = 0.05;
+
+			rk23::stepper rk23_double(
+				rk23::parameters(op::ref(F), rk23::make_work(x)));
+			x.set_scalar(ic);
+			rk23_double.advance(dt, x, xnew);
+			auto rk23_double_ans = xnew.max().get();
+
+			rk23::stepper rk23_future(
+				rk23::parameters(op::ref(F), rk23::make_work(x)));
+			x.set_scalar(ic);
+			rk23_future.advance(flecsi::make_future(dt), x, xnew);
+			EXPECT_EQ(xnew.max().get(), rk23_double_ans);
+
+			rk45::stepper rk45_double(
+				rk45::parameters(op::ref(F), rk45::make_work(x)));
+			x.set_scalar(ic);
+			rk45_double.advance(dt, x, xnew);
+			auto rk45_double_ans = xnew.max().get();
+
+			rk45::stepper rk45_future(
+				rk45::parameters(op::ref(F), rk45::make_work(x)));
+			x.set_scalar(ic);
+			rk45_future.advance(flecsi::make_future(dt), x, xnew);
+			EXPECT_EQ(xnew.max().get(), rk45_double_ans);
 		}
 	};
 }

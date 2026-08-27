@@ -16,9 +16,14 @@ to do so.
 #ifndef FLECSI_LINALG_TIME_INTEGRATOR_RK23_H
 #define FLECSI_LINALG_TIME_INTEGRATOR_RK23_H
 
+#include <functional>
+#include <type_traits>
+#include <utility>
+
 #include "flecsolve/solvers/solver_settings.hh"
 #include "flecsolve/time-integrators/parameters.hh"
 #include "flecsolve/time-integrators/base.hh"
+#include "flecsolve/util/future.hh"
 
 namespace flecsolve::time_integrator::rk23 {
 
@@ -26,6 +31,9 @@ struct settings : base_settings {
 	float safety_factor;
 	float atol;
 	bool use_fixed_dt;
+};
+
+struct stepper_settings {
 };
 
 struct options : base_options {
@@ -45,22 +53,97 @@ struct options : base_options {
 		return desc;
 	}
 };
-template<class Op, class Work>
-struct parameters : time_integrator::parameters<settings, Op, Work> {
-	using base = time_integrator::parameters<settings, Op, Work>;
+template<class Op, class Work, class Settings = settings>
+struct parameters : time_integrator::parameters<Settings, Op, Work> {
+	using base = time_integrator::parameters<Settings, Op, Work>;
 
-	template<class W>
-	parameters(const settings & s, op::handle<Op> op, W && work)
+	template<
+		class W,
+		class S = Settings,
+		std::enable_if_t<!std::is_same_v<S, stepper_settings>, bool> = true>
+	parameters(const S & s, op::handle<Op> op, W && work)
 		: base(s, op, std::forward<W>(work)) {}
+
+	template<class W,
+	         class S = Settings,
+	         std::enable_if_t<std::is_same_v<S, stepper_settings>, bool> = true>
+	parameters(op::handle<Op> op, W && work)
+		: base(stepper_settings{}, op, std::forward<W>(work)) {}
+
+	auto & get_work() { return unwrap_work(this->work); }
+
+private:
+	template<class T>
+	static T & unwrap_work(T & w) {
+		return w;
+	}
+
+	template<class T>
+	static T & unwrap_work(std::reference_wrapper<T> w) {
+		return w.get();
+	}
 };
 template<class O, class W>
 parameters(const settings &, op::handle<O>, W &&) -> parameters<O, W>;
+template<class O, class W>
+parameters(op::handle<O>, W &&) -> parameters<O, W, stepper_settings>;
 
 enum workvecs : std::size_t { k1, k2, k3, k4, z, next, nvecs };
 
 static inline work_factory<workvecs::nvecs> make_work;
 template<std::size_t Version = 0>
 using topo_work = topo_work_base<workvecs::nvecs, Version>;
+
+template<class O, class W>
+struct stepper {
+	using P = parameters<O, W, stepper_settings>;
+
+	stepper(P p) : params(std::move(p)) {}
+
+	template<class DeltaT,
+	         class Curr,
+	         class Out,
+	         std::enable_if_t<is_scalar_or_future_v<std::decay_t<DeltaT>,
+	                                                typename Curr::scalar>,
+	                          bool> = true>
+	void advance(DeltaT dt, Curr & curr, Out & out) {
+		auto & F = params.get_operator();
+		auto & [k1, k2, k3, k4, z, next] = params.get_work();
+
+		auto dt_1_2 = 0.5 * dt;
+		auto dt_3_4 = 0.75 * dt;
+		auto dt_1_9 = (1. / 9.) * dt;
+		auto dt_1_72 = (1. / 72.) * dt;
+
+		// k1 = f(tn, un)
+		F.apply(curr, k1);
+		// u* = un + k1 * dt/2
+		next.axpy(std::move(dt_1_2), k1, curr);
+		// k2 = f(t+dt/2, u*)
+		F.apply(next, k2);
+		// u* = un + 0.75 *k2 * dt
+		next.axpy(std::move(dt_3_4), k2, curr);
+		// k3 = f(t + 0.75dt, u*)
+		F.apply(next, k3);
+
+		next.linear_sum(2.0, k1, 3.0, k2);
+		next.axpy(4.0, k3, next);
+		next.axpy(std::move(dt_1_9), next, curr);
+
+		F.apply(next, k4);
+
+		z.linear_sum(-5., k1, 6., k2);
+		z.axpy(8., k3, z);
+		z.axpy(-9., k4, z);
+		z.scale(std::move(dt_1_72));
+		out.copy(next);
+	}
+
+protected:
+	P params;
+};
+template<class O, class W>
+stepper(parameters<O, W, stepper_settings>) -> stepper<O, W>;
 
 template<class O, class W>
 struct integrator : base<parameters<O, W>> {
@@ -76,31 +159,8 @@ struct integrator : base<parameters<O, W>> {
 	void advance(double dt, Curr & curr, Out & out) {
 		assert_can_advance();
 		current_dt = dt;
-		auto & F = params.get_operator();
-		auto & [k1, k2, k3, k4, z, next] = params.work;
-
-		// k1 = f(tn, un)
-		F.apply(curr, k1);
-		// u* = un + k1 * dt/2
-		next.axpy(0.5 * dt, k1, curr);
-		// k2 = f(t+dt/2, u*)
-		F.apply(next, k2);
-		// u* = un + 0.75 *k2 * dt
-		next.axpy(0.75 * dt, k2, curr);
-		// k3 = f(t + 0.75dt, u*)
-		F.apply(next, k3);
-
-		next.linear_sum(2.0, k1, 3.0, k2);
-		next.axpy(4.0, k3, next);
-		next.axpy(dt / 9.0, next, curr);
-
-		F.apply(next, k4);
-
-		z.linear_sum(-5., k1, 6., k2);
-		z.axpy(8., k3, z);
-		z.axpy(-9., k4, z);
-		z.scale(dt / 72.);
-		out.copy(next);
+		stepper(parameters{params.op, std::ref(params.work)})
+			.advance(dt, curr, out);
 	}
 
 	bool check_solution() {
