@@ -50,18 +50,12 @@ static inline work_factory<work_size> make_work;
 
 short order(method meth);
 
-template<class O, class W, class S>
-struct integrator : base<parameters<O, W, S>> {
-	using P = parameters<O, W, S>;
-	using base<P>::params;
-	using base<P>::current_dt;
-	using base<P>::old_dt;
-	using base<P>::current_time;
-	using base<P>::assert_can_advance;
-	using base<P>::integrator_step;
+template<class O, class W, class S, class Settings = stepper_settings>
+struct stepper {
+	using P = parameters<O, W, S, Settings>;
 
-	integrator(P p)
-		: base<P>(std::move(p)),
+	stepper(P p)
+		: params(std::move(p)), current_dt{0}, old_dt{0}, integrator_step{0},
 		  prev(memory_size(params.integrator), std::ref(params.work)),
 		  solver_success{false}, total_steprejects{0} {
 		params.validate();
@@ -74,14 +68,13 @@ struct integrator : base<parameters<O, W, S>> {
 	void advance(double dt, bool first_step, Curr & curr, Out & out) {
 		flog_assert(curr != out,
 		            "BDF integrator: curr cannot be the same as out");
-		assert_can_advance();
 
 		prev.seat(std::ref(params.work));
 
 		prev[0].solution.copy(curr);
 		current_dt = dt;
 
-		set_initial_guess(first_step, current_time, current_dt, old_dt);
+		set_initial_guess(first_step, current_dt, old_dt);
 
 		auto & rhs = getvec<workvec::rhs>();
 		auto & source = getvec<workvec::source>();
@@ -128,8 +121,6 @@ struct integrator : base<parameters<O, W, S>> {
 	}
 
 	void update() {
-		current_time += current_dt;
-		this->new_time = current_time;
 		if (params.use_predictor) {
 			if (params.predictor == predictor::ab2) {
 				auto & old_td = getvec<workvec::old_td>();
@@ -145,75 +136,9 @@ struct integrator : base<parameters<O, W, S>> {
 		++integrator_step;
 	}
 
-	double get_next_dt(bool good_solution) {
-		double tmp_dt = current_dt;
-		if (params.timestep_strategy == strategy::truncation_error) {
-			if (good_solution) {
-				current_dt = estimate_dt_with_truncation_error_estimates(
-					current_dt, good_solution);
-
-				if (params.max_dt < current_dt)
-					current_dt = params.max_dt;
-			}
-			else {
-				if (solver_success) {
-					current_dt = estimate_dt_with_truncation_error_estimates(
-						current_dt, good_solution);
-				}
-				else {
-					current_dt = params.dt_cut_lower_bound * current_dt;
-				}
-			}
-			evaluate_predictor();
-			auto & predict = getvec<workvec::predict>();
-			auto & op = params.get_operator();
-			bool valid_vector = op.is_valid(predict);
-			if (!valid_vector) {
-				int number_of_predictor_precheck_events = 10;
-				for (int i = 0; i < number_of_predictor_precheck_events; ++i) {
-					current_dt = 0.5 * current_dt;
-					evaluate_predictor();
-					valid_vector = op.is_valid(predict);
-				}
-			}
-		}
-		else {
-			if (good_solution) {
-				if (params.timestep_strategy == strategy::constant)
-					current_dt = params.initial_dt;
-				else if (params.timestep_strategy == strategy::final_constant) {
-					static int i = 1;
-					if (i < params.number_of_time_intervals) {
-						current_dt =
-							params.initial_dt +
-							((double)i) /
-								((double)params.number_of_time_intervals) *
-								(params.max_dt - params.initial_dt);
-						++i;
-					}
-					else {
-						current_dt = params.max_dt;
-					}
-				}
-				else if (params.timestep_strategy ==
-				         strategy::limit_relative_change) {
-					current_dt = estimate_dynamical_time_scale(current_dt);
-				}
-			}
-			else
-				current_dt = 0.;
-		}
-
-		// now set old dt once it has been used
-		if (good_solution)
-			old_dt = tmp_dt;
-
-		current_dt = std::min(std::min(current_dt, params.max_dt),
-		                      params.final_time - current_time);
-		return current_dt;
-	}
-
 	int num_step_rejects() const { return total_steprejects; }
+
+	int get_current_step() const { return integrator_step; }
 
 protected:
 	method get_current_integrator() const {
@@ -229,10 +154,8 @@ protected:
 	}
 
 	void set_initial_guess(bool first_step,
-	                       double current_time,
 	                       double current_dt,
 	                       double old_dt) {
-		(void)current_time;
 		(void)current_dt;
 		(void)old_dt;
 
@@ -860,6 +783,11 @@ protected:
 
 	struct history;
 
+	P params;
+	double current_dt;
+	double old_dt;
+	int integrator_step;
+
 	bool prev_successive_rejects;
 	int current_steprejects;
 	double new_time;
@@ -878,10 +806,134 @@ protected:
 	int total_steprejects;
 };
 template<class O, class W, class S>
-integrator(parameters<O, W, S>) -> integrator<O, W, S>;
+stepper(parameters<O, W, S, stepper_settings>) -> stepper<O, W, S>;
 
 template<class O, class W, class S>
-struct integrator<O, W, S>::history {
+struct integrator : stepper<O, W, S, settings> {
+	using P = parameters<O, W, S>;
+	using base = stepper<O, W, S, settings>;
+
+	integrator(P p)
+		: base(std::move(p)), current_time(this->params.initial_time),
+		  max_integrator_steps(this->params.max_steps) {
+		this->current_dt = this->params.initial_dt;
+		this->old_dt = this->params.initial_dt;
+	}
+
+	double get_current_time() const { return current_time; }
+
+	double get_final_time() const { return this->params.final_time; }
+
+	int get_current_step() const { return this->integrator_step; }
+
+	double get_current_dt() const { return this->current_dt; }
+
+	bool fixed_dt() const { return false; }
+
+	bool steps_remaining() const {
+		return this->integrator_step < max_integrator_steps;
+	}
+
+	template<class Curr, class Out>
+	void advance(double dt, bool first_step, Curr & curr, Out & out) {
+		assert_can_advance();
+		base::advance(dt, first_step, curr, out);
+	}
+
+	void update() {
+		current_time += this->current_dt;
+		this->new_time = current_time;
+		base::update();
+	}
+
+	double get_next_dt(bool good_solution) {
+		double tmp_dt = this->current_dt;
+		if (this->params.timestep_strategy == strategy::truncation_error) {
+			if (good_solution) {
+				this->current_dt =
+					this->estimate_dt_with_truncation_error_estimates(
+						this->current_dt, good_solution);
+
+				if (this->params.max_dt < this->current_dt)
+					this->current_dt = this->params.max_dt;
+			}
+			else {
+				if (this->solver_success) {
+					this->current_dt =
+						this->estimate_dt_with_truncation_error_estimates(
+							this->current_dt, good_solution);
+				}
+				else {
+					this->current_dt =
+						this->params.dt_cut_lower_bound * this->current_dt;
+				}
+			}
+			this->evaluate_predictor();
+			auto & predict = this->template getvec<workvec::predict>();
+			auto & op = this->params.get_operator();
+			bool valid_vector = op.is_valid(predict);
+			if (!valid_vector) {
+				int number_of_predictor_precheck_events = 10;
+				for (int i = 0; i < number_of_predictor_precheck_events; ++i) {
+					this->current_dt = 0.5 * this->current_dt;
+					this->evaluate_predictor();
+					valid_vector = op.is_valid(predict);
+				}
+			}
+		}
+		else {
+			if (good_solution) {
+				if (this->params.timestep_strategy == strategy::constant)
+					this->current_dt = this->params.initial_dt;
+				else if (this->params.timestep_strategy == strategy::final_constant) {
+					static int i = 1;
+					if (i < this->params.number_of_time_intervals) {
+						this->current_dt =
+							this->params.initial_dt +
+							((double)i) /
+								((double)this->params.number_of_time_intervals) *
+								(this->params.max_dt - this->params.initial_dt);
+						++i;
+					}
+					else {
+						this->current_dt = this->params.max_dt;
+					}
+				}
+				else if (this->params.timestep_strategy ==
+				         strategy::limit_relative_change) {
+					this->current_dt =
+						this->estimate_dynamical_time_scale(this->current_dt);
+				}
+			}
+			else
+				this->current_dt = 0.;
+		}
+
+		// now set old dt once it has been used
+		if (good_solution)
+			this->old_dt = tmp_dt;
+
+		this->current_dt =
+			std::min(std::min(this->current_dt, this->params.max_dt),
+		             this->params.final_time - current_time);
+		return this->current_dt;
+	}
+
+protected:
+	void assert_can_advance() {
+		flog_assert(steps_remaining() &&
+		                (current_time < this->params.final_time),
+		            "Time integrator: already finished integrating");
+	}
+
+	double current_time;
+	int max_integrator_steps;
+};
+template<class O, class W, class S>
+integrator(parameters<O, W, S>) -> integrator<O, W, S>;
+
+template<class O, class W, class S, class Settings>
+struct stepper<O, W, S, Settings>::history {
 	struct vec_arr {
 		using size_type = std::size_t;
 		using vec_t = typename std::remove_reference_t<W>::value_type;
