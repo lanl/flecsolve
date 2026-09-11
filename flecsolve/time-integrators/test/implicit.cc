@@ -86,13 +86,17 @@ int bdftest(flecsi::scheduler & s) {
 		auto xnew = vec::make(msh)(xnewd);
 
 		auto solver = op::make_shared<rate_solver>(F);
+		auto [bdf2_settings, bdf5_settings, stepper_settings] = read_config(
+			"implicit.cfg",
+			bdf::options("bdf-2"),
+			bdf::options("bdf-5"),
+			bdf::stepper_options("bdf-stepper"));
 		auto [ti2, ti5] = std::apply(
 			[&](auto &&... s) {
 				return std::make_tuple(bdf::integrator(bdf::parameters(
 					                                       s, F, bdf::make_work(x), solver))...);
 			},
-			read_config(
-				"implicit.cfg", bdf::options("bdf-2"), bdf::options("bdf-5")));
+			std::tie(bdf2_settings, bdf5_settings));
 
 		auto run = [&](auto & ti) {
 			x.set_scalar(ic);
@@ -131,6 +135,17 @@ int bdftest(flecsi::scheduler & s) {
 			EXPECT_LT(std::get<1>(info), 1e-7);
 			EXPECT_EQ(std::get<2>(info), 48);
 			EXPECT_EQ(std::get<3>(info), 14);
+		}
+		{
+			bdf::stepper ti(
+				bdf::parameters(stepper_settings, F, bdf::make_work(x), solver));
+			x.set_scalar(ic);
+			ti.advance(0.5, true, x, xnew);
+			ti.update();
+
+			EXPECT_EQ(ti.get_current_step(), 1);
+			EXPECT_EQ(ti.num_step_rejects(), 0);
+			EXPECT_LT(std::abs(xnew.max().get() - 2.), 1e-12);
 		}
 	};
 }
