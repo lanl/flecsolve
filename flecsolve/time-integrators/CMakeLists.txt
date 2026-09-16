@@ -1,5 +1,8 @@
 flecsolve_headers(
   base.hh
+  butcher_tableau.hh
+  bdf_coefficients.hh
+  explicit_rk.hh
   bdf_parameters.hh
   bdf.hh
   parameters.hh

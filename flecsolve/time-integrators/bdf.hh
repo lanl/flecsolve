@@ -23,6 +23,7 @@ to do so.
 #include "flecsi/util/array_ref.hh"
 
 #include "flecsolve/time-integrators/base.hh"
+#include "flecsolve/time-integrators/bdf_coefficients.hh"
 #include "flecsolve/time-integrators/bdf_parameters.hh"
 
 namespace flecsolve::time_integrator::bdf {
@@ -208,9 +209,26 @@ protected:
 			h[i] = h[i - 1] + prev[i - 1].dt;
 		}
 
+		bool constant_step = current_integrator != method::cn;
+		for (std::size_t i = 1; i < h.size() && constant_step; ++i)
+			constant_step = (h[i] - h[i - 1]) == h.front();
+		if (constant_step) {
+			const auto method_index = static_cast<std::size_t>(current_integrator);
+			const auto & coefficients = constant_step_coefficients;
+			const auto order = memory_size(current_integrator);
+
+			f.scale(coefficients.source[method_index][0], prev[0].solution);
+			for (int i = 1; i < order; ++i)
+				f.axpy(coefficients.source[method_index][i],
+				       prev[i].solution,
+				       f);
+			gamma = coefficients.gamma[method_index] * current_dt;
+		}
+
 		double h1, h2, h3, h4, h5, h6;
 		double n1, n2, n3, n4, n5, n6;
 		double a0, a1, a2, a3, a4, a5, a6;
+		if (!constant_step)
 		switch (current_integrator) {
 			case method::be: {
 				f.scale(-1., prev[0].solution);

@@ -23,6 +23,8 @@ to do so.
 #include "flecsolve/solvers/solver_settings.hh"
 #include "flecsolve/time-integrators/parameters.hh"
 #include "flecsolve/time-integrators/base.hh"
+#include "flecsolve/time-integrators/butcher_tableau.hh"
+#include "flecsolve/time-integrators/explicit_rk.hh"
 #include "flecsolve/util/future.hh"
 
 namespace flecsolve::time_integrator::rk23 {
@@ -90,6 +92,25 @@ parameters(op::handle<O>, W &&) -> parameters<O, W, stepper_settings>;
 
 enum workvecs : std::size_t { k1, k2, k3, k4, z, next, nvecs };
 
+inline constexpr butcher_tableau<4> tableau{
+	// c
+	{0., 0.5, 0.75, 1.},
+
+	// A
+	{{
+		{0., 0., 0., 0.},
+		{0.5, 0., 0., 0.},
+		{0., 0.75, 0., 0.},
+		{2. / 9., 1. / 3., 4. / 9., 0.},
+	}},
+
+	// b (third-order solution)
+	{2. / 9., 1. / 3., 4. / 9., 0.},
+
+	// b_embedded (second-order solution)
+	{7. / 24., 1. / 4., 1. / 3., 1. / 8.},
+};
+
 static inline work_factory<workvecs::nvecs> make_work;
 template<std::size_t Version = 0>
 using topo_work = topo_work_base<workvecs::nvecs, Version>;
@@ -108,35 +129,7 @@ struct stepper {
 	                          bool> = true>
 	void advance(DeltaT dt, Curr & curr, Out & out) {
 		auto & F = params.get_operator();
-		auto & [k1, k2, k3, k4, z, next] = params.get_work();
-
-		auto dt_1_2 = 0.5 * dt;
-		auto dt_3_4 = 0.75 * dt;
-		auto dt_1_9 = (1. / 9.) * dt;
-		auto dt_1_72 = (1. / 72.) * dt;
-
-		// k1 = f(tn, un)
-		F.apply(curr, k1);
-		// u* = un + k1 * dt/2
-		next.axpy(std::move(dt_1_2), k1, curr);
-		// k2 = f(t+dt/2, u*)
-		F.apply(next, k2);
-		// u* = un + 0.75 *k2 * dt
-		next.axpy(std::move(dt_3_4), k2, curr);
-		// k3 = f(t + 0.75dt, u*)
-		F.apply(next, k3);
-
-		next.linear_sum(2.0, k1, 3.0, k2);
-		next.axpy(4.0, k3, next);
-		next.axpy(std::move(dt_1_9), next, curr);
-
-		F.apply(next, k4);
-
-		z.linear_sum(-5., k1, 6., k2);
-		z.axpy(8., k3, z);
-		z.axpy(-9., k4, z);
-		z.scale(std::move(dt_1_72));
-		out.copy(next);
+		detail::advance<tableau>(F, dt, curr, out, params.get_work());
 	}
 
 protected:
