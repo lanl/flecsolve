@@ -1,3 +1,5 @@
+![flecsolve logo](doc/sphinx/_static/flecsolve.svg)
+
 The flecsolve package is a parallel computational framework for
 multi-physics application development using the open source [FleCSI](https://flecsi.github.io/flecsi/)
 programming system.  Flecsolve employs design principles from the [AMP](https://github.com/AdvancedMultiPhysics/AMP)

@@ -1,0 +1,88 @@
+<svg width="340" height="180" viewBox="0 0 340 180" xmlns="http://www.w3.org/2000/svg">
+
+  <defs>
+    <marker id="arrow" markerUnits="userSpaceOnUse" viewBox="0 0 10 10"
+            markerWidth="8" markerHeight="8" refX="8.5" refY="5" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#f4a259"/>
+    </marker>
+    <marker id="arrowLoop" markerUnits="userSpaceOnUse" viewBox="0 0 10 10"
+            markerWidth="7" markerHeight="7" refX="8.5" refY="5" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#8fa3bf"/>
+    </marker>
+
+    <linearGradient id="lGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#f4a259"/>
+      <stop offset="100%" stop-color="#c77dff"/>
+    </linearGradient>
+
+    <style>
+      .edge {
+        stroke: #60758f;
+      }
+      .loop {
+        stroke: #21a67a;
+      }
+      .label-dark {
+        fill: #172033;
+      }
+      .word-main {
+        fill: #172033;
+      }
+      .caption {
+        fill: #60758f;
+      }
+      @media (prefers-color-scheme: dark) {
+        .edge {
+          stroke: #9fb0c6;
+        }
+        .label-dark {
+          fill: #0d1b2a;
+        }
+        .word-main {
+          fill: #eef2f7;
+        }
+        .caption {
+          fill: #9fb0c6;
+        }
+      }
+    </style>
+  </defs>
+
+  <!-- ===== DAG edges: endpoints trimmed to stop outside each node's radius ===== -->
+  <g class="edge" stroke-width="2" fill="none" opacity="0.9" marker-end="url(#arrow)">
+    <path d="M 49.15,68.52 L 65.03,52.17"/>
+    <path d="M 54,80 L 62,80"/>
+    <path d="M 49.15,91.48 L 65.03,107.83"/>
+    <path d="M 81.30,48.67 L 100.70,56.33"/>
+    <path d="M 80.85,75.34 L 101.15,64.66"/>
+    <path d="M 80.85,84.66 L 101.15,95.34"/>
+    <path d="M 81.30,111.33 L 100.70,103.67"/>
+    <path d="M 119.17,63.99 L 141.33,73.62"/>
+    <path d="M 119.17,96.01 L 141.33,86.38"/>
+  </g>
+
+  <!-- feedback loop, endpoint pulled further from f's boundary too -->
+  <path d="M 156,94 C 156,140 50,140 42.95,97.31"
+        class="loop" stroke-width="2" fill="none" stroke-dasharray="4 4"
+        marker-end="url(#arrowLoop)" opacity="0.85"/>
+
+  <circle cx="38" cy="80" r="14" fill="#ffd166"/>
+  <text x="38" y="85" font-family="Georgia, serif" font-style="italic" font-size="15" class="label-dark" text-anchor="middle">f</text>
+
+  <circle cx="72" cy="45"  r="8" fill="#f4a259"/>
+  <circle cx="72" cy="80"  r="8" fill="#f4a259"/>
+  <circle cx="72" cy="115" r="8" fill="#f4a259"/>
+  <circle cx="110" cy="60"  r="8" fill="#c77dff"/>
+  <circle cx="110" cy="100" r="8" fill="#c77dff"/>
+
+  <circle cx="156" cy="80" r="14" fill="#4ecdc4"/>
+  <text x="156" y="85" font-family="Georgia, serif" font-style="italic" font-size="15" class="label-dark" text-anchor="middle">v</text>
+
+  <!-- ===== wordmark + caption, centered together as one block ===== -->
+  <text x="255" y="90" font-family="Helvetica, Arial, sans-serif" font-weight="700" font-size="36" text-anchor="middle">
+    <tspan fill="#ffd166">f</tspan><tspan fill="url(#lGrad)">l</tspan><tspan class="word-main">ec</tspan><tspan fill="#4ecdc4">solve</tspan>
+  </text>
+
+  <text x="255" y="114" font-family="Georgia, serif" font-style="italic" font-size="15" class="caption" text-anchor="middle">L(v) = f</text>
+
+</svg>
