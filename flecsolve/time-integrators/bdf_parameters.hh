@@ -46,7 +46,7 @@ std::istream & operator>>(std::istream &, method &);
 std::istream & operator>>(std::istream &, controller &);
 std::istream & operator>>(std::istream &, error_scaling &);
 
-struct settings : base_settings {
+struct stepper_settings {
 	bool use_predictor;
 	bool use_initial_predictor;
 	bool has_source_term;
@@ -112,50 +112,77 @@ struct settings : base_settings {
 	}
 };
 
+struct settings : base_settings, stepper_settings {};
+
+template<class Options>
+auto add_stepper_options(Options & opts, stepper_settings & s) {
+	po::options_description desc;
+	// clang-format off
+	desc.add_options()
+		(opts.option_label("use-predictor").c_str(), po::value<bool>(&s.use_predictor)->default_value(true), "use a predictor")
+		(opts.option_label("has-source-term").c_str(), po::value<bool>(&s.has_source_term)->default_value(false), "has source term")
+		(opts.option_label("use-initial-predictor").c_str(), po::value<bool>(&s.use_initial_predictor)->default_value(true), "use an initial predictor")
+		(opts.option_label("predictor").c_str(), po::value<bdf::predictor>(&s.predictor)->required(), "Predictor type (AB2 or Leapfrog)")
+		(opts.option_label("timestep-selection-strategy").c_str(), po::value<strategy>(&s.timestep_strategy)->required(),
+		 "Timestep selection strategy (truncation error or constant or final constant or limit relative change)")
+		// these bounds are based on the paper by Emmrich, 2008 for nonlinear evolution
+		(opts.option_label("dt-cut-lower-bound").c_str(), po::value<double>(&s.dt_cut_lower_bound)->default_value(0.58754407), "dt-cut-lower-bound")
+		(opts.option_label("dt-growth-upper-bound").c_str(), po::value<double>(&s.dt_growth_upper_bound)->default_value(1.702), "dt-growth-upper-bound")
+		(opts.option_label("number-of-time-intervals").c_str(), po::value<int>(&s.number_of_time_intervals)->default_value(100), "Number of time intervals (final constant strategy)")
+		(opts.option_label("integrator").c_str(), po::value<bdf::method>(&s.integrator)->required(), "Implicit integrator (BE or CN or BDF{2-6}")
+		(opts.option_label("starting-integrator").c_str(), po::value<bdf::method>(&s.starting_integrator)->required()->notifier([](const bdf::method & m) {
+			flog_assert(memory_size(m) == 1, "BE or CN must be used for starting integrator");}), "one step integrator (BE or CN)")
+		(opts.option_label("calculate-time-trunc-error").c_str(), po::value<bool>(&s.calculate_time_trunc_error), "Whether to calculate the time truncation error")
+		(opts.option_label("time-trunc-error-norm").c_str(), po::value<vec::norm_type>(&s.time_trunc_err_norm), "Norm time used for time truncation error")
+		(opts.option_label("target-relative-change").c_str(), po::value<double>(&s.target_relative_change), "Relative change to target in time scale")
+		(opts.option_label("use-pi-controller").c_str(), po::value<bool>(&s.use_pi_controller)->default_value(true), "Whether to use the PI controller")
+		(opts.option_label("pi-controller-type").c_str(), po::value<bdf::controller>(&s.pi_controller_type)->default_value(bdf::controller::pc4_7, "PC.4.7"), "Type of PI controller")
+		(opts.option_label("control-timestep-variation").c_str(), po::value<bool>(&s.control_timestep_variation)->default_value(false), "Control timestep variation")
+		(opts.option_label("time-error-scaling").c_str(), po::value<bdf::error_scaling>(&s.time_error_scaling)->default_value(error_scaling::fixed_scaling, "fixed-scaling"), "Time error scaling")
+		(opts.option_label("trunc-error-rtol").c_str(), po::value<double>(&s.time_rtol)->default_value(1e-9), "Relative tolerance for truncation error")
+		(opts.option_label("trunc-error-atol").c_str(), po::value<double>(&s.time_atol)->default_value(1e-15), "Absolute tolerance for truncation error")
+		(opts.option_label("combine-timestep-estimators").c_str(), po::value<bool>(&s.combine_timestep_estimators)->default_value(false), "Combine timestep estimators")
+		(opts.option_label("problem-scales").c_str(), po::value<std::vector<double>>(&s.problem_scales)->multitoken(), "Fixed scaling for problem");
+	// clang-format on
+
+	return desc;
+}
+
+struct stepper_options : with_label {
+	using settings_type = stepper_settings;
+	explicit stepper_options(const char * pre) : with_label(pre) {}
+
+	std::string option_label(const char * suffix) {
+		return label(suffix);
+	}
+
+	auto operator()(stepper_settings & s) {
+		return add_stepper_options(*this, s);
+	}
+};
+
 struct options : base_options {
 	using settings_type = settings;
 	explicit options(const char * pre) : base_options(pre) {}
 
+	std::string option_label(const char * suffix) {
+		return label(suffix);
+	}
+
 	auto operator()(settings & s) {
 		auto desc = base_options::operator()(s);
-		// clang-format off
-		desc.add_options()
-			(label("use-predictor").c_str(), po::value<bool>(&s.use_predictor)->default_value(true), "use a predictor")
-			(label("has-source-term").c_str(), po::value<bool>(&s.has_source_term)->default_value(false), "has source term")
-			(label("use-initial-predictor").c_str(), po::value<bool>(&s.use_initial_predictor)->default_value(true), "use an initial predictor")
-			(label("predictor").c_str(), po::value<bdf::predictor>(&s.predictor)->required(), "Predictor type (AB2 or Leapfrog)")
-			(label("timestep-selection-strategy").c_str(), po::value<strategy>(&s.timestep_strategy)->required(),
-			 "Timestep selection strategy (truncation error or constant or final constant or limit relative change)")
-			// these bounds are based on the paper by Emmrich, 2008 for nonlinear evolution
-			(label("dt-cut-lower-bound").c_str(), po::value<double>(&s.dt_cut_lower_bound)->default_value(0.58754407), "dt-cut-lower-bound")
-			(label("dt-growth-upper-bound").c_str(), po::value<double>(&s.dt_growth_upper_bound)->default_value(1.702), "dt-growth-upper-bound")
-			(label("number-of-time-intervals").c_str(), po::value<int>(&s.number_of_time_intervals)->default_value(100), "Number of time intervals (final constant strategy)")
-			(label("integrator").c_str(), po::value<bdf::method>(&s.integrator)->required(), "Implicit integrator (BE or CN or BDF{2-6}")
-			(label("starting-integrator").c_str(), po::value<bdf::method>(&s.starting_integrator)->required()->notifier([](const bdf::method & m) {
-				flog_assert(memory_size(m) == 1, "BE or CN must be used for starting integrator");}), "one step integrator (BE or CN)")
-			(label("calculate-time-trunc-error").c_str(), po::value<bool>(&s.calculate_time_trunc_error), "Whether to calculate the time truncation error")
-			(label("time-trunc-error-norm").c_str(), po::value<vec::norm_type>(&s.time_trunc_err_norm), "Norm time used for time truncation error")
-			(label("target-relative-change").c_str(), po::value<double>(&s.target_relative_change), "Relative change to target in time scale")
-			(label("use-pi-controller").c_str(), po::value<bool>(&s.use_pi_controller)->default_value(true), "Whether to use the PI controller")
-			(label("pi-controller-type").c_str(), po::value<bdf::controller>(&s.pi_controller_type)->default_value(bdf::controller::pc4_7, "PC.4.7"), "Type of PI controller")
-			(label("control-timestep-variation").c_str(), po::value<bool>(&s.control_timestep_variation)->default_value(false), "Control timestep variation")
-			(label("time-error-scaling").c_str(), po::value<bdf::error_scaling>(&s.time_error_scaling)->default_value(error_scaling::fixed_scaling, "fixed-scaling"), "Time error scaling")
-			(label("trunc-error-rtol").c_str(), po::value<double>(&s.time_rtol)->default_value(1e-9), "Relative tolerance for truncation error")
-			(label("trunc-error-atol").c_str(), po::value<double>(&s.time_atol)->default_value(1e-15), "Absolute tolerance for truncation error")
-			(label("combine-timestep-estimators").c_str(), po::value<bool>(&s.combine_timestep_estimators)->default_value(false), "Combine timestep estimators")
-			(label("problem-scales").c_str(), po::value<std::vector<double>>(&s.problem_scales)->multitoken(), "Fixed scaling for problem");
-		// clang-format on
+		desc.add(add_stepper_options(*this, s));
 
 		return desc;
 	}
 };
 
-template<class Op, class Work, class Solver>
-struct parameters : time_integrator::parameters<settings, Op, Work> {
-	using base = time_integrator::parameters<settings, Op, Work>;
+template<class Op, class Work, class Solver, class Settings = settings>
+struct parameters : time_integrator::parameters<Settings, Op, Work> {
+	using base = time_integrator::parameters<Settings, Op, Work>;
 
 	template<class O, class W, class S>
-	parameters(const settings & s, op::handle<O> op, W && work, op::handle<S> solver)
+	parameters(const Settings & s, op::handle<O> op, W && work, op::handle<S> solver)
 		: base(s, op, std::forward<W>(work)),
 		  solver(solver) {}
 
@@ -169,5 +196,8 @@ protected:
 
 template<class O, class W, class S>
 parameters(const settings &, op::handle<O>, W &&, op::handle<S>) -> parameters<O, W, S>;
+template<class O, class W, class S>
+parameters(const stepper_settings &, op::handle<O>, W &&, op::handle<S>)
+	-> parameters<O, W, S, stepper_settings>;
 }
 #endif
