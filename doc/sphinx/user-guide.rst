@@ -24,6 +24,20 @@ This is useful when different operators own different physics variables
 but a solver or time integrator needs to carry the coupled state as one
 object.
 
+Scalar coefficients can also be FleCSI futures or deferred scalar transforms.
+Pass reduction results directly to vector operations when the caller does
+not need their values. See :ref:`future-scalars` for supported operations
+and examples.
+
+Time Stepping
+-------------
+
+Use ``rk23::stepper``, ``rk45::stepper``, or ``bdf::stepper`` when the
+application supplies each time step. RK steppers also accept future-valued
+time steps. Use the corresponding ``integrator`` for built-in time
+bookkeeping and step-size selection. The :ref:`time-integrators` section
+explains construction, acceptance, and BDF history updates.
+
 Operator Interface
 ------------------
 

@@ -15,10 +15,11 @@ Solvers and time integrators are consumers of these shared interfaces. A
 solver uses an operator to compute residuals and iteratively improve a
 solution to a linear or nonlinear problem. A time integrator uses an
 operator as the right-hand side of an evolution equation and manages the
-work vectors, time-step selection, and (for implicit methods) the linear
-solve required at each step. This separation lets one operator be reused in
-different algorithms and lets the same algorithm work with different vector
-backends.
+work vectors and (for implicit methods) the linear solve required at each
+step. Standalone steppers let the application supply each time step, while
+controlled integrators also manage time-step selection. This separation lets
+one operator be reused in different algorithms and lets the same algorithm
+work with different vector backends.
 
 The sections below are organized from lower-level data representation to
 higher-level algorithms. Read the vector and operator sections first when
@@ -52,6 +53,50 @@ The common implementation is ``flecsolve::vec::core`` in
 ``copy``, ``zero``, ``set_scalar``, ``scale``, ``axpy``, ``linear_sum``,
 ``dot``, ``l2norm``, ``inf_norm``, and ``global_size``. Algorithms use these
 operations instead of assuming a particular storage type.
+
+.. _future-scalars:
+
+Future-valued scalars
+~~~~~~~~~~~~~~~~~~~~~
+
+Scalar arguments to ``set_scalar``, ``scale`` (both forms), ``axpy``,
+``axpby``, ``linear_sum``, and ``add_scalar`` can be ordinary values,
+``flecsolve::future<T>`` values, or
+``flecsolve::future_transform<flecsolve::future<T>, F>`` values. The scalar
+or underlying future value must be convertible to the vector's ``scalar``
+type. ``flecsolve::future<T>`` names a FleCSI single-launch future; it is
+not ``std::future``. For operations with two coefficients, either or both
+can be futures.
+
+For topology-backed vectors, the operation passes the future and its
+scalar transform to the consuming FleCSI task. The task evaluates the
+transform when it executes, after the future's value is available. This
+allows a reduction result to feed a vector operation without an explicit
+``get()`` in application code:
+
+.. code-block:: cpp
+
+   auto alpha = x.dot(x);
+   out.axpy(alpha, x, y);       // out = alpha * x + y
+   out.scale(x.l2norm());      // the norm's transform runs in the task
+
+``flecsolve/util/future.hh`` defines ``future_transform``, which pairs a
+future with a callable. ``flecsolve/util/scalar_ops.hh`` supplies scalar
+transforms and multiplication of a FleCSI future by a scalar of the same
+type. Bring the multiplication overload into scope outside the
+``flecsolve`` namespace:
+
+.. code-block:: cpp
+
+   using flecsolve::operator*;
+   auto dt = flecsi::make_future(0.01);
+   out.axpy(0.5 * dt, x, y);   // multiply dt by 0.5 in the vector task
+
+These overloads do not provide arbitrary arithmetic on future expressions.
+Calling ``get()`` explicitly resolves a future (and applies its transform)
+in the caller; reserve that for code that needs the value, such as a host
+convergence decision. Custom vector backends must implement the corresponding
+future-transform operations to support these scalar arguments.
 
 FleCSI topology views
 ~~~~~~~~~~~~~~~~~~~~~
@@ -322,6 +367,8 @@ AMP-backed solvers live in ``solvers/amp.hh`` and ``solvers/amp.cc`` and are
 enabled by the project's AMP configuration. They are optional; applications
 that do not need them can disable AMP as described in the build guide.
 
+.. _time-integrators:
+
 Time integrators
 ----------------
 
@@ -332,14 +379,46 @@ Time integrators solve an evolution equation of the form
    \frac{d u}{d t} = F(u,t)
 
 by repeatedly calling an operator ``F``. They own their algorithmic work
-vectors but operate on the caller's vector type.
+vectors but operate on the caller's vector type. Each method exposes a
+``stepper`` for application-managed stepping and an ``integrator`` with time
+bookkeeping and step-size selection. The controlled interface remains
+available; the standalone interface does not require a time-step controller.
+
+Standalone Runge--Kutta steppers
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``rk23::stepper`` and ``rk45::stepper`` expose
+``advance(dt, current, next)``. Construct their parameters with an operator
+handle and work vectors, without integrator settings:
+
+.. code-block:: cpp
+
+   namespace rk = flecsolve::time_integrator::rk23;
+   rk::stepper step(rk::parameters(flecsolve::op::ref(F),
+                                   rk::make_work(current)));
+
+   auto dt = flecsi::make_future(0.01);
+   step.advance(dt, current, next);
+   std::swap(current, next);
+
+Use the ``rk45`` namespace for the higher-order method. Both steppers accept
+an ordinary scalar or a compatible FleCSI scalar future for ``dt``. Stage
+coefficients derived from a future time step are evaluated inside vector
+tasks. There is no need to resolve ``dt`` with ``get()`` before advancing.
+
+The caller chooses each step size, manages time and stopping conditions, and
+decides when to accept and swap the solution. These RK steppers have no
+``check_solution()``, ``update()``, or ``get_next_dt()`` methods. They still
+compute an embedded error vector in the ``workvecs::z`` workspace. Work can
+be owned by the parameters or supplied with ``std::ref(work)``; borrowed
+work and non-owning operator handles must outlive the stepper.
 
 Explicit Runge--Kutta
 ~~~~~~~~~~~~~~~~~~~~~
 
 ``flecsolve/time-integrators/rk23.hh`` implements an adaptive explicit
 Runge--Kutta method with an error estimate. ``rk45.hh`` provides a higher
-order alternative. The normal loop is:
+order alternative. The controlled ``integrator`` loop is:
 
 .. code-block:: cpp
 
@@ -372,6 +451,44 @@ right-hand-side operator ``F`` and exposes the scaled implicit operator
 The BDF integrator updates ``gamma`` as the time step changes. This lets the
 same physics operator be reused while the linear solver sees the system
 appropriate for the current step.
+
+Standalone BDF stepper
+~~~~~~~~~~~~~~~~~~~~~~
+
+``bdf::stepper`` separates the implicit step and solution history from the
+controlled integrator's clock and next-step selection. Read method settings
+with ``bdf::stepper_options`` and construct it with the RHS operator handle,
+work vectors, and a solver handle configured for the implicit operator:
+
+.. code-block:: cpp
+
+   namespace bdf = flecsolve::time_integrator::bdf;
+   auto settings = flecsolve::read_config(
+       "stepper.cfg", bdf::stepper_options("time-integrator"));
+   bdf::stepper step(bdf::parameters(settings, F,
+                                     bdf::make_work(current), solver));
+
+   bool first_step = step.get_current_step() == 0;
+   step.advance(dt, first_step, current, next);
+   if (step.check_solution()) {
+     step.update();
+     std::swap(current, next);
+   }
+
+Here ``F`` and ``solver`` are operator handles. Unlike the RK steppers,
+BDF's ``advance`` takes a ``double`` time step and a ``first_step`` flag;
+``current`` and ``next`` must be distinct vectors. Call ``update()`` only
+for accepted steps to commit the multistep history. After rejection, retain
+``current`` and choose a retry step size in the application.
+
+The BDF stepper retains solver-success and optional truncation-error checks,
+predictor settings, and history; it does not expose ``get_next_dt()`` or
+maintain the application's current/final time. ``stepper_options`` omits
+the base time-range and step-limit options, but still includes BDF method,
+predictor, and error-estimation settings. Use ``bdf::integrator`` and
+``bdf::options`` when built-in time bookkeeping and step selection are
+wanted. See ``flecsolve/time-integrators/test/implicit.cc`` and its
+``implicit.cfg`` for a complete setup.
 
 Configuration
 ~~~~~~~~~~~~~
