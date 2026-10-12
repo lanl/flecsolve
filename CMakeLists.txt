@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.23)
 
-project(flecsolve VERSION 0.0.1 LANGUAGES CXX C)
+project(flecsolve VERSION 1.0.1 LANGUAGES CXX C)
 
 set(PROJ flecsolve)
 if(NOT CMAKE_BUILD_TYPE)
