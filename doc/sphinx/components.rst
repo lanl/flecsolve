@@ -430,8 +430,14 @@ order alternative. The controlled ``integrator`` loop is:
    }
    dt = integrator.get_next_dt(accepted);
 
-The integrator may reject a step. Do not swap the solution vectors or advance
-application state until ``check_solution`` returns true.
+``advance(dt, current, next)`` writes a candidate solution into ``next``;
+it does not accept the step or advance the integrator's clock.
+``check_solution()`` checks whether the candidate is acceptable. On acceptance,
+call ``update()`` to commit time and integrator state, then swap the vectors
+so that the candidate becomes ``current``.
+
+On rejection, obtain a retry timestep with ``get_next_dt(false)``, and
+call ``advance`` again.
 
 Implicit BDF
 ~~~~~~~~~~~~

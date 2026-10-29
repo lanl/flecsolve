@@ -1,5 +1,5 @@
 #include "flecsolve/util/config.hh"
-#include "flecsolve/time-integrators/rk23.hh"
+#include "flecsolve/time-integrators/factory.hh"
 
 #include "heat.hh"
 
@@ -16,10 +16,10 @@ void time_integration(control_policy & cp) {
 	using namespace flecsolve::time_integrator;
 
 	op::core<heat_op> F(cp.diffusivity);
-	rk23::integrator ti(rk23::parameters(
-		read_config("explicit.cfg", rk23::options("time-integrator")),
-		op::ref(F),
-		rk23::make_work(u)));
+	auto ti = explicit_factory::make(
+		read_config("explicit.cfg", explicit_factory::options("time-integrator")),
+		u,
+		op::ref(F));
 
 	auto output = [&]() {
 		if (output_steps.value()) {

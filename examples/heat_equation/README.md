@@ -90,20 +90,20 @@ about the mesh and initialize the vectors.
 
 **Time Integration** The explicit time integration can be found in
 [explicit.cc](./explicit.cc).  First the time integrator is created from
-its parameters:
+its configuration:
 
-    rk23::integrator ti(rk23::parameters(
-	    read_config("explicit.cfg", rk23::options("time-integrator")),
-		op::ref(F),
-		rk23::make_work(u)));
+    auto ti = explicit_factory::make(
+        read_config("explicit.cfg", explicit_factory::options("time-integrator")),
+        u,
+        op::ref(F));
 
-The first parameter to `rk23::parameters` is the runtime settings for the integrator.
-These are given by reading a configuration file.  In this example, `explicit.cfg` is the
-filename of the configuration file and `"time-integrator"` is the named section of the
-configuration file specifying the options for the integrator.  The second parameter to
-`rk23::parameters` is a handle to the operator used for the time integrator.  The last
-parameter is an array of work vectors needed by `rk23`.  `rk23::make_work` is a helper
-for automatically creating this workspace array given a template vector.
+The factory selects `rk23` or `rk45` using `type` in the `[time-integrator]`
+section of `explicit.cfg`. Method settings such as `initial-time`, `final-time`,
+and `atol` belong in `[time-integrator.options]`. Changing `type` selects the
+method at runtime.  The prototype vector `u` supplies the
+layout for the method's workspace, which the factory allocates automatically.
+The final argument is a handle to the RHS operator; here `op::ref(F)` borrows
+`F`, which must outlive the integrator.
 
 Finally, the time integration loop uses $`u^k`$ and $`u^{k+1}`$ (called `u` and
 `unew`) to integrate the solution in time:
@@ -118,6 +118,33 @@ Finally, the time integration loop uses $`u^k`$ and $`u^{k+1}`$ (called `u` and
         }
         dt = ti.get_next_dt(good_solution);
     }
+
+
+Applications that manage time and timestep selection can use
+`time_integrator::stepper_factory` instead. It selects `rk23` or `rk45` and
+allocates workspace, while exposing only `advance(dt, current, next)`.
+The timestep can be a scalar or a FleCSI future. For example:
+
+```cpp
+using flecsolve::time_integrator::stepper_factory;
+auto stepper = stepper_factory::make(
+    read_config("stepper.cfg", stepper_factory::options("stepper")),
+    u,
+    op::ref(F));
+stepper.advance(dt, u, unew);
+std::swap(u, unew);
+```
+
+The configuration needs only the method selection:
+
+```ini
+[stepper]
+type = rk45
+```
+
+For selection in code, use
+`stepper_factory::make(stepper_factory::target::rk45, u, op::ref(F))`.
+The application advances its own clock and chooses each timestep.
 
 
 ---

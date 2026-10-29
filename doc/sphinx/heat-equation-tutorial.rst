@@ -123,17 +123,39 @@ field references obtained from the input and output vectors:
 Explicit integration
 --------------------
 
-The explicit driver constructs an RK23 integrator using the heat operator,
-the settings read from ``explicit.cfg``, and work vectors created from the
-solution vector:
+The explicit driver uses ``explicit_factory`` to select RK23 or RK45 from
+the ``type`` setting in ``explicit.cfg``. Method settings belong in the
+``[time-integrator.options]`` section. The factory uses the heat operator
+and allocates work vectors from the solution vector:
 
 .. literalinclude:: ../../examples/heat_equation/explicit.cc
    :language: cpp
    :lines: 8-51
 
-At each iteration, ``advance`` proposes a new solution. The driver checks
-the result, updates the integrator state, swaps the current and next vectors,
-and asks the integrator for the next time step.
+At each iteration, ``advance(dt, u, unew)`` writes a candidate solution into
+``unew`` without advancing the integrator's clock. If ``check_solution()``
+accepts the candidate, the driver calls ``update()`` to commit time and
+integrator state, then swaps ``u`` and ``unew`` to accept the solution.
+
+If the candidate is rejected, it obtains a retry timestep from
+``get_next_dt(false)`` and calls ``advance`` again from the same
+solution and time. After an accepted step, ``get_next_dt(true)``
+supplies the next timestep.
+
+Applications that manage their own clock and timesteps can use
+``time_integrator::stepper_factory``. Its configuration requires only
+``type = rk23`` or ``type = rk45`` in the selected section. Construction
+uses the same prototype vector and RHS handle as ``explicit_factory``::
+
+   auto stepper = stepper_factory::make(
+       read_config("stepper.cfg", stepper_factory::options("stepper")),
+       u, op::ref(F));
+   stepper.advance(dt, u, unew);
+   std::swap(u, unew);
+
+``dt`` may be a scalar or a FleCSI future. The application chooses each
+step and advances its own clock. To select the method in code, use
+``stepper_factory::make(stepper_factory::target::rk45, u, op::ref(F))``.
 
 Implicit integration
 --------------------

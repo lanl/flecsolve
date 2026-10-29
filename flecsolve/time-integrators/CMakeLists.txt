@@ -2,6 +2,7 @@ flecsolve_headers(
   base.hh
   bdf_parameters.hh
   bdf.hh
+  factory.hh
   parameters.hh
   rk23.hh
   rk45.hh)
@@ -15,6 +16,7 @@ flecsi_add_test(explicit
   test/explicit.cc
   INPUTS
   test/explicit.cfg
+  test/explicit-factory.cfg
   LIBRARIES flecsolve
   PROCS 1)
 
@@ -23,5 +25,13 @@ flecsi_add_test(implicit
   test/implicit.cc
   INPUTS
   test/implicit.cfg
+  LIBRARIES flecsolve
+  PROCS 1)
+
+flecsi_add_test(stepper_factory
+  SOURCES
+  test/stepper_factory.cc
+  INPUTS
+  test/stepper-factory.cfg
   LIBRARIES flecsolve
   PROCS 1)
