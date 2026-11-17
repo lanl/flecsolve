@@ -16,7 +16,7 @@ flecsi_add_test(explicit
   test/explicit.cc
   INPUTS
   test/explicit.cfg
-  test/explicit-factory.cfg
+  test/integrator-factory.cfg
   LIBRARIES flecsolve
   PROCS 1)
 
@@ -25,6 +25,7 @@ flecsi_add_test(implicit
   test/implicit.cc
   INPUTS
   test/implicit.cfg
+  test/integrator-factory.cfg
   LIBRARIES flecsolve
   PROCS 1)
 

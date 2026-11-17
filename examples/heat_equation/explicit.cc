@@ -16,8 +16,9 @@ void time_integration(control_policy & cp) {
 	using namespace flecsolve::time_integrator;
 
 	op::core<heat_op> F(cp.diffusivity);
-	auto ti = explicit_factory::make(
-		read_config("explicit.cfg", explicit_factory::options("time-integrator")),
+	auto ti = integrator_factory::make(
+		read_config("explicit.cfg",
+	                integrator_factory::options("time-integrator")),
 		u,
 		op::ref(F));
 

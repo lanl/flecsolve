@@ -123,14 +123,14 @@ field references obtained from the input and output vectors:
 Explicit integration
 --------------------
 
-The explicit driver uses ``explicit_factory`` to select RK23 or RK45 from
+The explicit driver uses ``integrator_factory`` to select RK23 or RK45 from
 the ``type`` setting in ``explicit.cfg``. Method settings belong in the
 ``[time-integrator.options]`` section. The factory uses the heat operator
 and allocates work vectors from the solution vector:
 
 .. literalinclude:: ../../examples/heat_equation/explicit.cc
    :language: cpp
-   :lines: 8-51
+   :lines: 8-52
 
 At each iteration, ``advance(dt, u, unew)`` writes a candidate solution into
 ``unew`` without advancing the integrator's clock. If ``check_solution()``
@@ -142,10 +142,14 @@ If the candidate is rejected, it obtains a retry timestep from
 solution and time. After an accepted step, ``get_next_dt(true)``
 supplies the next timestep.
 
+Given only an RHS handle, ``integrator_factory`` builds RK methods; selecting
+``type = bdf`` this way throws ``std::invalid_argument``, because BDF also
+needs a time operator and a solver. The implicit driver below shows that form.
+
 Applications that manage their own clock and timesteps can use
 ``time_integrator::stepper_factory``. Its configuration requires only
-``type = rk23`` or ``type = rk45`` in the selected section. Construction
-uses the same prototype vector and RHS handle as ``explicit_factory``::
+``type = rk23`` or ``type = rk45`` in the selected section for RK methods. Construction
+uses the same prototype vector and RHS handle as ``integrator_factory``::
 
    auto stepper = stepper_factory::make(
        read_config("stepper.cfg", stepper_factory::options("stepper")),
@@ -153,21 +157,48 @@ uses the same prototype vector and RHS handle as ``explicit_factory``::
    stepper.advance(dt, u, unew);
    std::swap(u, unew);
 
-``dt`` may be a scalar or a FleCSI future. The application chooses each
+Here ``stepper.cfg`` contains a ``[stepper]`` section with ``type = rk45``;
+``flecsolve/time-integrators/test/stepper-factory.cfg`` has complete RK and
+BDF sections. ``dt`` may be a scalar or a FleCSI future. The application chooses each
 step and advances its own clock. To select the method in code, use
 ``stepper_factory::make(stepper_factory::target::rk45, u, op::ref(F))``.
+
+The same factory also selects BDF with ``type = bdf`` and method settings
+in ``[stepper.options]``. For that path, supply the implicit time operator
+and solver with ``stepper_factory::make(settings, u, F, solver)``. After
+``advance()``, call ``check_solution()`` and commit history with ``update()``
+only on acceptance, then swap vectors and advance the application clock.
+Retain the solution and time on rejection and choose a retry timestep.
+BDF requires a scalar timestep. The solver-taking overload can also select
+RK, in which case it uses ``F.apply_rhs()`` and does not invoke the solver.
 
 Implicit integration
 --------------------
 
-The implicit driver uses BDF and a Krylov solver. An ``operator_adapter``
-turns the heat operator ``F = alpha Laplacian`` into the operator required by
+The implicit driver uses ``integrator_factory`` with a time operator and a
+Krylov solver.
+An ``operator_adapter`` turns the heat operator ``F = alpha Laplacian`` into the operator required by
 the implicit method, such as ``I - gamma F``. The solver factory selects the
 linear solver from ``implicit.cfg``:
 
 .. literalinclude:: ../../examples/heat_equation/implicit.cc
    :language: cpp
-   :lines: 8-57
+   :lines: 8-53
+
+``[time-integrator]`` selects ``type = bdf``. The existing BDF options live
+in ``[time-integrator.options]``: ``integrator`` selects BE, CN, or BDF2--6,
+and ``starting-integrator`` selects BE or CN for startup. The application
+constructs the solver separately and passes it to ``integrator_factory::make``
+along with the prototype vector and time operator. The integrator and solver
+must share operator state so that BDF's scaling updates reach the solver.
+Because this overload accepts every method, setting ``type = rk45`` (with RK
+options) in ``implicit.cfg`` runs the same driver explicitly: RK reads the
+RHS through ``F.apply_rhs()`` and never calls the solver.
+
+The factory exposes ``advance(dt, current, next)`` and the same acceptance
+loop as the explicit driver. BDF stays in startup until a step is accepted,
+so a rejected first attempt is retried as a startup step.
+Call ``update()`` and swap solution vectors only after acceptance.
 
 Next steps
 ----------

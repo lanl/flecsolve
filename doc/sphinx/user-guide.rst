@@ -37,6 +37,12 @@ application supplies each time step. RK steppers also accept future-valued
 time steps. Use the corresponding ``integrator`` for built-in time
 bookkeeping and step-size selection. The :ref:`time-integrators` section
 explains construction, acceptance, and BDF history updates.
+``time_integrator::integrator_factory`` and ``time_integrator::stepper_factory``
+select RK23, RK45, or BDF at runtime. Given only an RHS handle they build RK
+methods; given an implicit time operator and a solver handle they build any
+method, so one application can switch between RK and BDF by configuration.
+The caller checks each candidate and calls ``update()`` only for accepted
+steps.
 
 Operator Interface
 ------------------

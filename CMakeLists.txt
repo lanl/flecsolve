@@ -82,6 +82,21 @@ if(FLECSOLVE_ENABLE_FORMAT)
   flecsi_add_format_target(${PROJECT_NAME} ${PROJECT_SOURCE_DIR} "${ClangFormat_VERSION}")
 endif()
 
+find_program(SPHINX_BUILD_EXECUTABLE NAMES sphinx-build)
+mark_as_advanced(SPHINX_BUILD_EXECUTABLE)
+
+if(SPHINX_BUILD_EXECUTABLE)
+  add_custom_target(${PROJECT_NAME}-doc
+    COMMAND ${CMAKE_COMMAND} -E env SOURCE_DATE_EPOCH=1767225600
+      ${SPHINX_BUILD_EXECUTABLE} -b html -W --keep-going
+      ${PROJECT_SOURCE_DIR}/doc/sphinx ${PROJECT_BINARY_DIR}/doc/html
+    BYPRODUCTS ${PROJECT_BINARY_DIR}/doc/html/index.html
+    COMMENT "Building Sphinx documentation"
+    VERBATIM)
+else()
+  message(STATUS "sphinx-build not found: ${PROJECT_NAME}-doc target disabled")
+endif()
+
 # option to build examples
 option(FLECSOLVE_BUILD_EXAMPLES "Build the examples" OFF)
 

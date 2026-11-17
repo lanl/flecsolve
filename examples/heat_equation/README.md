@@ -92,8 +92,8 @@ about the mesh and initialize the vectors.
 [explicit.cc](./explicit.cc).  First the time integrator is created from
 its configuration:
 
-    auto ti = explicit_factory::make(
-        read_config("explicit.cfg", explicit_factory::options("time-integrator")),
+    auto ti = integrator_factory::make(
+        read_config("explicit.cfg", integrator_factory::options("time-integrator")),
         u,
         op::ref(F));
 
@@ -103,7 +103,9 @@ and `atol` belong in `[time-integrator.options]`. Changing `type` selects the
 method at runtime.  The prototype vector `u` supplies the
 layout for the method's workspace, which the factory allocates automatically.
 The final argument is a handle to the RHS operator; here `op::ref(F)` borrows
-`F`, which must outlive the integrator.
+`F`, which must outlive the integrator. Given only an RHS handle, the factory
+can build `rk23` or `rk45`; selecting `bdf` this way throws
+`std::invalid_argument`, since BDF also needs a solver.
 
 Finally, the time integration loop uses $`u^k`$ and $`u^{k+1}`$ (called `u` and
 `unew`) to integrate the solution in time:
@@ -121,8 +123,9 @@ Finally, the time integration loop uses $`u^k`$ and $`u^{k+1}`$ (called `u` and
 
 
 Applications that manage time and timestep selection can use
-`time_integrator::stepper_factory` instead. It selects `rk23` or `rk45` and
-allocates workspace, while exposing only `advance(dt, current, next)`.
+`time_integrator::stepper_factory` instead. It selects `rk23`, `rk45`, or `bdf` and
+allocates workspace. For RK, `advance(dt, current, next)` followed by a
+vector swap remains sufficient.
 The timestep can be a scalar or a FleCSI future. For example:
 
 ```cpp
@@ -142,30 +145,55 @@ The configuration needs only the method selection:
 type = rk45
 ```
 
+See `flecsolve/time-integrators/test/stepper-factory.cfg` for complete RK and
+BDF configurations.
+
 For selection in code, use
 `stepper_factory::make(stepper_factory::target::rk45, u, op::ref(F))`.
 The application advances its own clock and chooses each timestep.
 
 
+For BDF, pass the implicit time operator and a solver handle:
+`stepper_factory::make(settings, u, F, solver)`. Select `type = bdf` and
+put BDF method, predictor, and error-check settings in `[stepper.options]`;
+no time bounds or initial timestep are required. After `advance()`, call
+`check_solution()`, then `update()` and swap vectors only on acceptance.
+On rejection, retain the current solution and time and choose a retry
+step size. The factory handles startup and history, while the application
+owns its clock. BDF requires a scalar timestep. This solver-taking overload
+also supports RK selections by calling `F.apply_rhs()` and leaving the
+solver unused; RK accepts scalar and future timesteps in either overload.
+
+
 ---
 The implicit time integration is implemented in
 [implicit.cc](./implicit.cc).  The majority of this resembles the
-explicit time integration.  One main difference is the parameters
-given to the `bdf` integrator:
+explicit time integration. The same factory is given the implicit time
+operator and a solver handle:
 
     auto F = op::make_shared<operator_adapter<heat_op>>(cp.diffusivity);
-    bdf::integrator ti(
-		bdf::parameters(ti_settings,
-		                F,
-		                bdf::make_work(u),
-	                    krylov_factory::make_shared(slv_settings, u, F)));
+    auto ti = integrator_factory::make(ti_settings, u, F,
+        krylov_factory::make_shared(slv_settings, u, F));
+
+Read `ti_settings` using `integrator_factory::options("time-integrator")`.
+The `[time-integrator]` section selects `type = bdf`, and
+`[time-integrator.options]` contains the existing BDF settings. In particular,
+`integrator = BE`, `CN`, or `BDF2` through `BDF6` chooses the method;
+`starting-integrator` chooses BE or CN for startup. The factory allocates
+BDF workspace from the prototype vector `u`. With a time operator and solver,
+every method is available: setting `type = rk45` (with the RK options) in
+`implicit.cfg` runs the same driver explicitly, reading the RHS through
+`F.apply_rhs()` and leaving the solver unused.
 
 Instead of giving the implicit integrator the `heat_op` operator
-directly, an `operator_adapter` is used to provide the operator that
-will be inverted during the time integration.  Specifically, the
-adapter takes the heat operator $`F = \alpha \Delta`$ and computes:
-$`(I - \gamma F)`$ where $`\gamma`$ is parameterized scaling from the
-time integrator (e.g., $`\Delta t`$ for backward Euler).  The
-`bdf::parameters` also takes a solver as its final parameter.  In this
-case, a factory is used to construct the specified solver based on the
-options specified in the input file.
+directly, an `operator_adapter` provides the implicit system. It wraps
+$`F = \alpha \Delta`$ as $`I - \gamma F`$, where the integrator updates
+$`\gamma`$ for each step. The integrator and solver must share this operator
+state so that the solver uses the current scaling. Solver construction stays
+in the application; the example uses `krylov_factory` and the independent
+`[linear-solver]` configuration section.
+
+The factory result uses the same `advance(dt, current, next)` acceptance
+loop as the explicit factory. It derives BDF's startup flag from the number
+of accepted steps, so rejected attempts remain in startup until `update()`
+commits the first accepted step. Only then swap the solution vectors.

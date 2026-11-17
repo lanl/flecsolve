@@ -109,16 +109,16 @@ int extest(flecsi::scheduler & s) {
 			EXPECT_GT(rejects, 0);
 		}
 		{
-			auto settings = read_config("explicit-factory.cfg",
-				explicit_factory::options("rk23-variable"),
-				explicit_factory::options("rk23-fixed"),
-				explicit_factory::options("rk45-variable"),
-				explicit_factory::options("rk45-fixed"));
+			auto settings = read_config("integrator-factory.cfg",
+				integrator_factory::options("rk23-variable"),
+				integrator_factory::options("rk23-fixed"),
+				integrator_factory::options("rk45-variable"),
+				integrator_factory::options("rk45-fixed"));
 
 			// Use the same fixed/adaptive decay cases as direct construction.
 			// Exact agreement checks both selection and rejected-step retries.
 			auto compare = [&](const auto & factory_settings, auto direct) {
-				auto ti = explicit_factory::make(factory_settings, x, op::ref(F));
+				auto ti = integrator_factory::make(factory_settings, x, op::ref(F));
 				const auto & view = ti;
 				EXPECT_EQ(view.get_current_time(), 0.);
 				EXPECT_EQ(view.get_final_time(), 1.);
@@ -132,6 +132,7 @@ int extest(flecsi::scheduler & s) {
 				EXPECT_EQ(std::get<1>(actual), std::get<1>(expected));
 				EXPECT_EQ(std::get<2>(actual), std::get<2>(expected));
 				EXPECT_EQ(std::get<3>(actual), std::get<3>(expected));
+				EXPECT_EQ(ti.num_step_rejects(), direct.num_step_rejects());
 			};
 			auto variable23 = read_config("explicit.cfg",
 				rk23::options("variable"), rk23::options("fixed"));
@@ -150,7 +151,7 @@ int extest(flecsi::scheduler & s) {
 			auto shared = op::make_shared<rate>(-1.);
 			auto limited = std::get<1>(settings);
 			std::get<rk23::settings>(limited.target_settings).max_steps = 1;
-			auto ti = explicit_factory::make(limited, x, shared);
+			auto ti = integrator_factory::make(limited, x, shared);
 			x.set_scalar(ic);
 			ti.advance(ti.get_current_dt(), x, xnew);
 			ti.update();
@@ -158,14 +159,18 @@ int extest(flecsi::scheduler & s) {
 			EXPECT_FALSE(ti.steps_remaining());
 		}
 		{
-			explicit_target target;
-			std::istringstream valid23("rk23"), valid45("rk45"), invalid("bdf");
+			method_target target;
+			std::istringstream valid23("rk23"), valid45("rk45"), validbdf("bdf"),
+				invalid("unknown");
 			valid23 >> target;
 			EXPECT_FALSE(valid23.fail());
-			EXPECT_TRUE(target == explicit_target::rk23);
+			EXPECT_TRUE(target == method_target::rk23);
 			valid45 >> target;
 			EXPECT_FALSE(valid45.fail());
-			EXPECT_TRUE(target == explicit_target::rk45);
+			EXPECT_TRUE(target == method_target::rk45);
+			validbdf >> target;
+			EXPECT_FALSE(validbdf.fail());
+			EXPECT_TRUE(target == method_target::bdf);
 			invalid >> target;
 			EXPECT_TRUE(invalid.fail());
 		}

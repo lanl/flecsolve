@@ -64,17 +64,27 @@ struct stepper {
 		scratch.zero();
 	}
 
+	// Startup continues until the first accepted step is committed by update(),
+	// so a rejected first attempt is retried as a startup step.
 	template<class Curr, class Out>
-	void advance(double dt, bool first_step, Curr & curr, Out & out) {
+	void advance(double dt, Curr & curr, Out & out) {
 		flog_assert(curr != out,
 		            "BDF integrator: curr cannot be the same as out");
 
-		prev.seat(std::ref(params.work));
+		// With no accepted step yet, there is no previous timestep: keep the
+		// startup ratio current_dt / old_dt at one, including on retries.
+		if constexpr (std::is_same_v<Settings, stepper_settings>) {
+			if (integrator_step == 0)
+				old_dt = dt;
+		}
+
+		seat_history();
 
 		prev[0].solution.copy(curr);
 		current_dt = dt;
 
-		set_initial_guess(first_step, current_dt, old_dt);
+		first_step = (integrator_step == 0);
+		set_initial_guess(current_dt, old_dt);
 
 		auto & rhs = getvec<workvec::rhs>();
 		auto & source = getvec<workvec::source>();
@@ -91,6 +101,8 @@ struct stepper {
 
 	bool check_solution() {
 		bool check_passed{false};
+
+		seat_history();
 
 		if (solver_success) {
 			if (params.calculate_time_trunc_error)
@@ -121,6 +133,7 @@ struct stepper {
 	}
 
 	void update() {
+		seat_history();
 		if (params.use_predictor) {
 			if (params.predictor == predictor::ab2) {
 				auto & old_td = getvec<workvec::old_td>();
@@ -133,6 +146,9 @@ struct stepper {
 		auto & curr_sol = getvec<workvec::current_sol>();
 		prev.push(curr_sol, current_dt);
 
+		if constexpr (std::is_same_v<Settings, stepper_settings>)
+			old_dt = current_dt;
+
 		++integrator_step;
 	}
 
@@ -141,6 +157,10 @@ struct stepper {
 	int get_current_step() const { return integrator_step; }
 
 protected:
+	// The history refers to params.work, which moves with the stepper.
+	// Re-seat it on entry to each operation that reads the history.
+	void seat_history() { prev.seat(std::ref(params.work)); }
+
 	method get_current_integrator() const {
 		if (integrator_step == 0) {
 			return params.starting_integrator;
@@ -153,13 +173,10 @@ protected:
 		}
 	}
 
-	void set_initial_guess(bool first_step,
-	                       double current_dt,
-	                       double old_dt) {
+	void set_initial_guess(double current_dt, double old_dt) {
 		(void)current_dt;
 		(void)old_dt;
 
-		this->first_step = first_step;
 		auto current_integrator = get_current_integrator();
 		// compute f(u_{n+1}) and store it for the timestep
 		if (current_integrator == method::cn) {
@@ -788,17 +805,17 @@ protected:
 	double old_dt;
 	int integrator_step;
 
-	bool prev_successive_rejects;
-	int current_steprejects;
-	double new_time;
+	bool prev_successive_rejects{false};
+	int current_steprejects{0};
+	double new_time{0.};
 
-	double time_trunc_err_est;
-	double prev_time_trunc_err_est;
-	double alpha;
-	double time_err_est_ratio;
+	double time_trunc_err_est{1.};
+	double prev_time_trunc_err_est{1.};
+	double alpha{1.};
+	double time_err_est_ratio{1.};
 
-	bool first_step;
-	double gamma;
+	bool first_step{true};
+	double gamma{0.};
 	history prev;
 
 	bool solver_success;
@@ -835,9 +852,9 @@ struct integrator : stepper<O, W, S, settings> {
 	}
 
 	template<class Curr, class Out>
-	void advance(double dt, bool first_step, Curr & curr, Out & out) {
+	void advance(double dt, Curr & curr, Out & out) {
 		assert_can_advance();
-		base::advance(dt, first_step, curr, out);
+		base::advance(dt, curr, out);
 	}
 
 	void update() {
@@ -847,6 +864,7 @@ struct integrator : stepper<O, W, S, settings> {
 	}
 
 	double get_next_dt(bool good_solution) {
+		this->seat_history();
 		double tmp_dt = this->current_dt;
 		if (this->params.timestep_strategy == strategy::truncation_error) {
 			if (good_solution) {

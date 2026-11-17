@@ -1,5 +1,5 @@
 #include "flecsolve/util/config.hh"
-#include "flecsolve/time-integrators/bdf.hh"
+#include "flecsolve/time-integrators/factory.hh"
 #include "flecsolve/time-integrators/operator_adapter.hh"
 #include "flecsolve/solvers/factory.hh"
 
@@ -18,14 +18,11 @@ void time_integration(control_policy & cp) {
 
 	auto [ti_settings, slv_settings] =
 		read_config("implicit.cfg",
-	                bdf::options("time-integrator"),
+	                integrator_factory::options("time-integrator"),
 	                krylov_factory::options("linear-solver"));
 	auto F = op::make_shared<operator_adapter<heat_op>>(cp.diffusivity);
-	bdf::integrator ti(
-		bdf::parameters(ti_settings,
-		                F,
-		                bdf::make_work(u),
-	                    krylov_factory::make_shared(slv_settings, u, F)));
+	auto ti = integrator_factory::make(
+		ti_settings, u, F, krylov_factory::make_shared(slv_settings, u, F));
 
 	auto output = [&]() {
 		if (output_steps.value()) {
@@ -38,9 +35,8 @@ void time_integration(control_policy & cp) {
 	output();
 
 	auto dt = ti.get_current_dt();
-	bool first_step = true;
 	while (ti.get_current_time() < ti.get_final_time()) {
-		ti.advance(dt, first_step, u, unew);
+		ti.advance(dt, u, unew);
 		auto good_solution = ti.check_solution();
 		if (good_solution) {
 			flog(info) << "Step " << ti.get_current_step() << " advanced " << dt
@@ -48,7 +44,6 @@ void time_integration(control_policy & cp) {
 					   << std::endl;
 			ti.update();
 			std::swap(u, unew);
-			first_step = false;
 			output();
 		}
 		dt = ti.get_next_dt(good_solution);

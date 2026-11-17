@@ -197,6 +197,8 @@ struct integrator : base<parameters<O, W>> {
 		return next_dt;
 	}
 
+	int num_step_rejects() const { return total_step_rejects; }
+
 protected:
 	int total_step_rejects;
 };

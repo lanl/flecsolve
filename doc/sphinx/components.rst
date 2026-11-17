@@ -337,6 +337,108 @@ call site remains unchanged. The factory example in
 ``flecsolve/solvers/test/nka-factory.cfg`` demonstrates this pattern in a
 larger nonlinear solve.
 
+Factories can also be nested. For example, an application can register
+its own diagonal and identity preconditioners with ``op::factory``. This
+follows the custom factory in ``flecsolve/solvers/test/nka.cc``:
+
+.. code-block:: cpp
+
+   #include "flecsolve/time-integrators/factory.hh"
+   #include "flecsolve/solvers/factory.hh"
+
+   namespace app {
+   enum class pc_type { diagonal, identity };
+
+   inline std::istream & operator>>(std::istream & in, pc_type & type) {
+     std::string name;
+     in >> name;
+     if (name == "diagonal") type = pc_type::diagonal;
+     else if (name == "identity") type = pc_type::identity;
+     else in.setstate(std::ios_base::failbit);
+     return in;
+   }
+
+   template<pc_type T>
+   struct pc_registry {
+     using settings = flecsolve::null_settings<T>;
+     using options = flecsolve::null_options<T>;
+
+     template<class O>
+     static auto make(const settings &, const flecsolve::op::handle<O> & A) {
+       if constexpr (T == pc_type::diagonal)
+         return A.get().Dinv();
+       else
+         return flecsolve::op::I.get();
+     }
+   };
+
+   struct pc_policy {
+     using target = pc_type;
+     using targets = flecsolve::includes<target::diagonal, target::identity>;
+     template<target T> using registry = pc_registry<T>;
+   };
+   using pc_factory = flecsolve::op::factory<pc_policy>;
+   }
+
+The policy supplies the available targets and their registries; each
+registry supplies settings, options, and construction. ``null_settings<T>``
+and ``null_options<T>`` describe methods that need no additional options.
+With that factory, the application can compose BDF, NKA, GMRES, and the
+selected preconditioner:
+
+.. code-block:: cpp
+
+   using namespace flecsolve;
+   using namespace flecsolve::time_integrator;
+
+   auto [time_s, nonlinear_s, linear_s, pc_s] = read_config(
+       "nested.cfg",
+       integrator_factory::options("time-integrator"),
+       krylov_factory::options("nonlinear-solver"),
+       krylov_factory::options("linear-solver"),
+       app::pc_factory::options("preconditioner"));
+
+   auto integrator = integrator_factory::make(
+       time_s, u, F,
+       krylov_factory::make_shared(
+           nonlinear_s, u, F,
+           krylov_factory::make_shared(
+               linear_s, u, J, app::pc_factory::make_shared(pc_s, J))));
+
+Here ``u`` is the prototype solution vector, ``F`` is an application-provided
+implicit time operator with residual and linearization support, and ``J``
+is a handle to its correction operator providing ``Dinv()``. The application
+must keep ``J`` and its diagonal preconditioner consistent with the current
+linearization and BDF scaling; factory composition does not refresh them.
+
+The corresponding method-selection excerpt is:
+
+.. code-block:: ini
+
+   [time-integrator]
+   type = bdf
+   [time-integrator.options]
+   integrator = BDF2
+   starting-integrator = BE
+
+   [nonlinear-solver]
+   type = nka
+   [nonlinear-solver.options]
+   max-dim = 5
+
+   [linear-solver]
+   type = gmres
+
+   [preconditioner]
+   type = diagonal
+
+Complete ``nested.cfg`` with the required BDF time/controller settings and
+solver tolerances and iteration limits in ``[nonlinear-solver.options]``
+and ``[linear-solver.options]``. The C++ wiring fixes the nesting; changing a
+factory's ``type`` and matching options selects a compatible alternative
+without changing that construction code. For example, switching
+``preconditioner.type`` to ``identity`` selects the other custom registry.
+
 For a directly constructed solver, the pattern is:
 
 .. code-block:: cpp
@@ -413,6 +515,19 @@ compute an embedded error vector in the ``workvecs::z`` workspace. Work can
 be owned by the parameters or supplied with ``std::ref(work)``; borrowed
 work and non-owning operator handles must outlive the stepper.
 
+``time_integrator::stepper_factory`` selects ``rk23``, ``rk45``, or ``bdf``
+through ``type`` in the requested configuration section. RK selections need
+no method options. Existing RHS-only construction remains available as
+``stepper_factory::make(settings, current, rhs)``; selecting BDF through that
+call throws ``std::invalid_argument`` because BDF requires a solver.
+
+The factory wrapper also provides ``check_solution()``, ``update()``,
+``get_current_step()``, and ``num_step_rejects()``. For RK,
+``check_solution()`` always returns true, ``update()`` only increments the
+accepted-step count, and the rejection count is zero. Existing RK callers
+can still just advance and swap. These methods let applications use the
+same acceptance loop for RK and BDF without adding a timestep controller.
+
 Explicit Runge--Kutta
 ~~~~~~~~~~~~~~~~~~~~~
 
@@ -439,6 +554,24 @@ so that the candidate becomes ``current``.
 On rejection, obtain a retry timestep with ``get_next_dt(false)``, and
 call ``advance`` again.
 
+To select RK23 or RK45 through configuration, include
+``flecsolve/time-integrators/factory.hh`` and build the integrator from an
+RHS handle with ``integrator_factory``:
+
+.. code-block:: cpp
+
+   using namespace flecsolve;
+   using namespace flecsolve::time_integrator;
+   auto settings = read_config("explicit.cfg",
+       integrator_factory::options("time-integrator"));
+   auto integrator = integrator_factory::make(settings, current, op::ref(F));
+
+The ``[time-integrator]`` section sets ``type = rk23`` or ``type = rk45``,
+and ``[time-integrator.options]`` holds the method settings. Given only an
+RHS handle, selecting ``type = bdf`` throws ``std::invalid_argument``; BDF is
+built through the overload that takes a time operator and solver, described
+below.
+
 Implicit BDF
 ~~~~~~~~~~~~
 
@@ -458,6 +591,40 @@ The BDF integrator updates ``gamma`` as the time step changes. This lets the
 same physics operator be reused while the linear solver sees the system
 appropriate for the current step.
 
+To select a controlled implicit integrator through configuration, pass
+``integrator_factory`` the time operator and a solver handle:
+
+.. code-block:: cpp
+
+   using namespace flecsolve;
+   using namespace flecsolve::time_integrator;
+   auto settings = read_config("implicit.cfg",
+       integrator_factory::options("time-integrator"));
+   auto integrator = integrator_factory::make(settings, current, F, solver);
+
+This overload accepts every method. With ``type = rk23`` or ``type = rk45``,
+the RK integrator reads the RHS through ``F.apply_rhs()`` and never calls the
+solver, so an application wired for BDF can switch to an explicit method by
+configuration alone. Method selection has two levels for BDF: ``type = bdf``
+selects the family, and the ``integrator`` option selects BE, CN, or BDF2
+through BDF6 within it.
+
+For ``type = bdf``, put BDF settings,
+including time bounds, tolerances, ``integrator = BE``, ``CN``, or
+``BDF2`` through ``BDF6``, and ``starting-integrator``, in
+``[time-integrator.options]``. The factory allocates workspace using
+``current`` as a prototype. ``F`` must provide BDF's ``apply_rhs``, scaling,
+and validity operations; the application supplies a solver handle that
+solves the corresponding implicit system using the same operator state.
+Both shared and borrowed operator and solver handles are supported. Borrowed
+objects must outlive the integrator.
+
+The factory uses the controlled acceptance loop shown above. BDF's
+``advance(dt, current, next)`` takes the startup path while no step has been
+accepted. Rejected attempts do not advance the accepted-step count, so
+startup continues until ``update()`` commits the first accepted step.
+``current`` and ``next`` must be distinct vectors.
+
 Standalone BDF stepper
 ~~~~~~~~~~~~~~~~~~~~~~
 
@@ -474,16 +641,16 @@ work vectors, and a solver handle configured for the implicit operator:
    bdf::stepper step(bdf::parameters(settings, F,
                                      bdf::make_work(current), solver));
 
-   bool first_step = step.get_current_step() == 0;
-   step.advance(dt, first_step, current, next);
+   step.advance(dt, current, next);
    if (step.check_solution()) {
      step.update();
      std::swap(current, next);
    }
 
 Here ``F`` and ``solver`` are operator handles. Unlike the RK steppers,
-BDF's ``advance`` takes a ``double`` time step and a ``first_step`` flag;
-``current`` and ``next`` must be distinct vectors. Call ``update()`` only
+BDF's ``advance`` takes only a ``double`` time step, and ``current`` and
+``next`` must be distinct vectors. Startup lasts until the first accepted
+step. Call ``update()`` only
 for accepted steps to commit the multistep history. After rejection, retain
 ``current`` and choose a retry step size in the application.
 
@@ -495,6 +662,57 @@ predictor, and error-estimation settings. Use ``bdf::integrator`` and
 ``bdf::options`` when built-in time bookkeeping and step selection are
 wanted. See ``flecsolve/time-integrators/test/implicit.cc`` and its
 ``implicit.cfg`` for a complete setup.
+
+BDF can also be constructed through the shared stepper factory:
+
+.. code-block:: cpp
+
+   using namespace flecsolve;
+   using namespace flecsolve::time_integrator;
+   auto settings = read_config("stepper.cfg", stepper_factory::options("stepper"));
+   auto step = stepper_factory::make(settings, current, F, solver);
+
+   step.advance(dt, current, next);
+   if (step.check_solution()) {
+     step.update();
+     std::swap(current, next);
+     time += dt; // The application owns the clock.
+   }
+   // On rejection, keep current and time unchanged and choose a retry dt.
+
+Select ``type = bdf`` in ``[stepper]``, and put the existing
+``bdf::stepper_options`` in ``[stepper.options]``. For example:
+
+.. code-block:: ini
+
+   [stepper]
+   type = bdf
+   [stepper.options]
+   integrator = BE
+   starting-integrator = BE
+   timestep-selection-strategy = constant
+   predictor = leapfrog
+   use-predictor = false
+   calculate-time-trunc-error = false
+
+There are no required time bounds, initial timestep, or step limit for a
+standalone stepper. ``F`` and ``solver`` share the implicit operator state,
+as with ``integrator_factory``. The solver-taking factory overload supports
+all three targets: RK selections use ``F.apply_rhs()`` and leave the solver
+unused, while BDF uses the implicit system. This permits changing between
+RK and BDF through configuration with the same application wiring.
+
+The BDF factory wrapper derives startup from its accepted-step count, so a
+rejected first attempt remains in startup. Call ``update()`` only after
+acceptance to commit solution history and the previous timestep used by
+predictors. BDF accepts scalar timesteps; passing a future when BDF is
+selected throws ``std::invalid_argument``. RK retains scalar and future
+support through both construction overloads. The factory provides no
+``get_next_dt()`` or clock: the application chooses retry and subsequent
+timesteps and stopping conditions. See
+``flecsolve/time-integrators/test/stepper_factory.cc`` and its
+``stepper-factory.cfg`` for variable-step BDF comparisons and rejected-step
+retries.
 
 Configuration
 ~~~~~~~~~~~~~
